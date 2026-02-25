@@ -156,10 +156,13 @@ export default function ScanTab({
                           onChange={(e) => onItemUpdate(index, "name", e.target.value)}
                         />
                       </td>
-                      <td>
+                      <td className="scan-col-price">
                         <input
                           type="number"
                           step="0.01"
+                          inputMode="decimal"
+                          placeholder="0.00"
+                          className="scan-price-input"
                           value={item.price}
                           onChange={(e) => onItemUpdate(index, "price", parseFloat(e.target.value) || 0)}
                         />

@@ -32,6 +32,22 @@ export default function DashboardTab({
   onStartDateChange,
   onEndDateChange,
 }: DashboardTabProps) {
+  const formatDashboardDate = (value: string) => {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    if (match) {
+      return `${match[3]}/${match[2]}/${match[1].slice(-2)}`;
+    }
+
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+
+    return new Intl.DateTimeFormat("en-GB", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "2-digit",
+    }).format(parsed);
+  };
+
   const expensesTotal = expenses.reduce((sum, exp) => sum + exp.price, 0);
   const percentChange =
     prevMonthTotal > 0 ? ((expensesTotal - prevMonthTotal) / prevMonthTotal) * 100 : 0;
@@ -104,9 +120,10 @@ export default function DashboardTab({
               <h4>📊 Расходы по дням</h4>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={dailyData}>
-                  <XAxis dataKey="date" tick={{ fill: "#a1a1aa", fontSize: 12 }} />
+                  <XAxis dataKey="date" tickFormatter={formatDashboardDate} tick={{ fill: "#a1a1aa", fontSize: 12 }} />
                   <YAxis tick={{ fill: "#a1a1aa", fontSize: 12 }} />
                   <Tooltip
+                    labelFormatter={(label) => formatDashboardDate(String(label))}
                     formatter={(value) => [`${Number(value).toFixed(2)} €`, "Сумма"]}
                     contentStyle={{ background: "#1a1a24", border: "1px solid #27272a", borderRadius: "8px" }}
                   />
@@ -132,7 +149,7 @@ export default function DashboardTab({
                 <tbody>
                   {expenses.map((exp) => (
                     <tr key={exp.id}>
-                      <td>{exp.date}</td>
+                      <td>{formatDashboardDate(exp.date)}</td>
                       <td>{exp.store}</td>
                       <td>{exp.item}</td>
                       <td>{exp.category}</td>

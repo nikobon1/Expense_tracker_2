@@ -397,7 +397,8 @@ body {
 }
 
 .scan-col-price {
-  width: 100px;
+  width: 124px;
+  min-width: 124px;
 }
 
 .scan-col-category {
@@ -499,6 +500,10 @@ td select {
   border-radius: 6px;
   color: var(--text-primary);
   font-size: 0.9rem;
+}
+
+.scan-price-input {
+  min-width: 92px;
 }
 
 td input:focus,
@@ -728,5 +733,16 @@ td select:focus {
 
   .metrics-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .scan-col-price {
+    width: 136px;
+    min-width: 136px;
+  }
+
+  .scan-price-input {
+    min-width: 108px;
   }
 }
