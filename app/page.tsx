@@ -31,24 +31,24 @@ export default function Home() {
       <main className="main-full">
         {receiptFlow.alert && (
           <div className={`alert ${receiptFlow.alert.type}`}>
-            {receiptFlow.alert.type === 'success' ? 'вњ…' : 'вќЊ'} {receiptFlow.alert.message}
+            {receiptFlow.alert.type === 'success' ? '✅' : '❌'} {receiptFlow.alert.message}
           </div>
         )}
 
         <header className="header">
-          <h1>рџ§ѕ РўСЂРµРєРµСЂ Р Р°СЃС…РѕРґРѕРІ</h1>
-          <p>РђРІС‚РѕРјР°С‚РёС‡РµСЃРєРѕРµ СЂР°СЃРїРѕР·РЅР°РІР°РЅРёРµ С‡РµРєРѕРІ СЃ РїРѕРјРѕС‰СЊСЋ РР</p>
+          <h1>🧾 Трекер Расходов</h1>
+          <p>Автоматическое распознавание чеков с помощью ИИ</p>
         </header>
 
         <div className="tabs">
           <button className={`tab ${activeTab === 'scan' ? 'active' : ''}`} onClick={() => setActiveTab('scan')}>
-            рџ“· РЎРєР°РЅРёСЂРѕРІР°РЅРёРµ
+            📷 Сканирование
           </button>
           <button
             className={`tab ${activeTab === 'dashboard' ? 'active' : ''}`}
             onClick={() => setActiveTab('dashboard')}
           >
-            рџ“Љ Р”Р°С€Р±РѕСЂРґ
+            📊 Дашборд
           </button>
         </div>
 

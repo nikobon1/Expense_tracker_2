@@ -53,11 +53,11 @@ export function useReceiptFlow() {
       setEditedItems(data.items);
       setStoreName(data.store_name);
       setPurchaseDate(data.purchase_date);
-      setAlert({ type: "success", message: "Р§РµРє СѓСЃРїРµС€РЅРѕ СЂР°СЃРїРѕР·РЅР°РЅ!" });
+      setAlert({ type: "success", message: "Чек успешно распознан!" });
     } catch (error) {
       setAlert({
         type: "error",
-        message: error instanceof Error ? error.message : "РћС€РёР±РєР° Р°РЅР°Р»РёР·Р°",
+        message: error instanceof Error ? error.message : "Ошибка анализа",
       });
     } finally {
       setIsAnalyzing(false);
@@ -75,12 +75,12 @@ export function useReceiptFlow() {
         items: editedItems,
       });
 
-      setAlert({ type: "success", message: "Р§РµРє СЃРѕС…СЂР°РЅРµРЅ РІ Р±Р°Р·Сѓ РґР°РЅРЅС‹С…" });
+      setAlert({ type: "success", message: "Чек сохранен в базу данных" });
       setReceiptData(null);
       setEditedItems([]);
       setUploadedImage(null);
     } catch {
-      setAlert({ type: "error", message: "РћС€РёР±РєР° СЃРѕС…СЂР°РЅРµРЅРёСЏ РІ Р‘Р”" });
+      setAlert({ type: "error", message: "Ошибка сохранения в БД" });
     } finally {
       setIsSaving(false);
     }

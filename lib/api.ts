@@ -14,7 +14,7 @@ export async function analyzeReceipt(image: string): Promise<ReceiptData> {
 
   if (!response.ok) {
     const error = await response.json();
-    throw new Error(error.error || "РћС€РёР±РєР° Р°РЅР°Р»РёР·Р°");
+    throw new Error(error.error || "Ошибка анализа");
   }
 
   return response.json();
@@ -32,7 +32,7 @@ export async function saveReceipt(payload: {
   });
 
   if (!response.ok) {
-    throw new Error("РћС€РёР±РєР° СЃРѕС…СЂР°РЅРµРЅРёСЏ");
+    throw new Error("Ошибка сохранения");
   }
 }
 

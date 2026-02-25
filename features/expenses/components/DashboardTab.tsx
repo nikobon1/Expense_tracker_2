@@ -42,32 +42,32 @@ export default function DashboardTab({
     <div>
       <div className="date-filter">
         <div>
-          <label>рџ“… РќР°С‡Р°Р»Рѕ РїРµСЂРёРѕРґР°</label>
+          <label>📅 Начало периода</label>
           <input type="date" value={startDate} onChange={(e) => onStartDateChange(e.target.value)} />
         </div>
         <div>
-          <label>рџ“… РљРѕРЅРµС† РїРµСЂРёРѕРґР°</label>
+          <label>📅 Конец периода</label>
           <input type="date" value={endDate} onChange={(e) => onEndDateChange(e.target.value)} />
         </div>
       </div>
 
       <div className="metrics-grid">
         <div className="metric-card primary">
-          <div className="metric-label">рџ’° РћР±С‰РёРµ СЂР°СЃС…РѕРґС‹</div>
-          <div className="metric-value">{expensesTotal.toFixed(2)} в‚¬</div>
+          <div className="metric-label">💰 Общие расходы</div>
+          <div className="metric-value">{expensesTotal.toFixed(2)} €</div>
           {prevMonthTotal > 0 && (
             <div className={`metric-delta ${percentChange >= 0 ? "negative" : "positive"}`}>
-              {percentChange >= 0 ? "в†‘" : "в†“"} {Math.abs(percentChange).toFixed(1)}% vs РїСЂРµРґ. РјРµСЃСЏС†
+              {percentChange >= 0 ? "↑" : "↓"} {Math.abs(percentChange).toFixed(1)}% vs пред. месяц
             </div>
           )}
         </div>
         <div className="metric-card">
-          <div className="metric-label">рџ§ѕ РљРѕР»РёС‡РµСЃС‚РІРѕ С‚РѕРІР°СЂРѕРІ</div>
+          <div className="metric-label">🧾 Количество товаров</div>
           <div className="metric-value">{expenses.length}</div>
         </div>
         <div className="metric-card">
-          <div className="metric-label">рџ“… РџСЂРµРґ. РјРµСЃСЏС†</div>
-          <div className="metric-value">{prevMonthTotal.toFixed(2)} в‚¬</div>
+          <div className="metric-label">📅 Пред. месяц</div>
+          <div className="metric-value">{prevMonthTotal.toFixed(2)} €</div>
         </div>
       </div>
 
@@ -75,7 +75,7 @@ export default function DashboardTab({
         <>
           <div className="charts-grid">
             <div className="chart-card">
-              <h4>рџҐ§ Р Р°СЃС…РѕРґС‹ РїРѕ РєР°С‚РµРіРѕСЂРёСЏРј</h4>
+              <h4>🥧 Расходы по категориям</h4>
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                   <Pie
@@ -95,19 +95,19 @@ export default function DashboardTab({
                       <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value) => `${Number(value).toFixed(2)} в‚¬`} />
+                  <Tooltip formatter={(value) => `${Number(value).toFixed(2)} €`} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
 
             <div className="chart-card">
-              <h4>рџ“Љ Р Р°СЃС…РѕРґС‹ РїРѕ РґРЅСЏРј</h4>
+              <h4>📊 Расходы по дням</h4>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={dailyData}>
                   <XAxis dataKey="date" tick={{ fill: "#a1a1aa", fontSize: 12 }} />
                   <YAxis tick={{ fill: "#a1a1aa", fontSize: 12 }} />
                   <Tooltip
-                    formatter={(value) => [`${Number(value).toFixed(2)} в‚¬`, "РЎСѓРјРјР°"]}
+                    formatter={(value) => [`${Number(value).toFixed(2)} €`, "Сумма"]}
                     contentStyle={{ background: "#1a1a24", border: "1px solid #27272a", borderRadius: "8px" }}
                   />
                   <Bar dataKey="amount" fill="#6366f1" radius={[4, 4, 0, 0]} />
@@ -117,16 +117,16 @@ export default function DashboardTab({
           </div>
 
           <div className="card">
-            <h3>рџ“‹ Р”РµС‚Р°Р»РёР·Р°С†РёСЏ СЂР°СЃС…РѕРґРѕРІ</h3>
+            <h3>📋 Детализация расходов</h3>
             <div className="table-container">
               <table>
                 <thead>
                   <tr>
-                    <th>Р”Р°С‚Р°</th>
-                    <th>РњР°РіР°Р·РёРЅ</th>
-                    <th>РўРѕРІР°СЂ</th>
-                    <th>РљР°С‚РµРіРѕСЂРёСЏ</th>
-                    <th style={{ textAlign: "right" }}>Р¦РµРЅР°</th>
+                    <th>Дата</th>
+                    <th>Магазин</th>
+                    <th>Товар</th>
+                    <th>Категория</th>
+                    <th style={{ textAlign: "right" }}>Цена</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -136,7 +136,7 @@ export default function DashboardTab({
                       <td>{exp.store}</td>
                       <td>{exp.item}</td>
                       <td>{exp.category}</td>
-                      <td style={{ textAlign: "right" }}>{exp.price.toFixed(2)} в‚¬</td>
+                      <td style={{ textAlign: "right" }}>{exp.price.toFixed(2)} €</td>
                     </tr>
                   ))}
                 </tbody>
@@ -147,10 +147,10 @@ export default function DashboardTab({
       ) : (
         <div className="card">
           <div className="empty-state">
-            <div className="icon">рџ“­</div>
-            <p>РќРµС‚ РґР°РЅРЅС‹С… Р·Р° РІС‹Р±СЂР°РЅРЅС‹Р№ РїРµСЂРёРѕРґ</p>
+            <div className="icon">📭</div>
+            <p>Нет данных за выбранный период</p>
             <p style={{ fontSize: "0.875rem", marginTop: "0.5rem" }}>
-              Р—Р°РіСЂСѓР·РёС‚Рµ С‡РµРєРё РІРѕ РІРєР»Р°РґРєРµ &quot;РЎРєР°РЅРёСЂРѕРІР°РЅРёРµ&quot;
+              Загрузите чеки во вкладке &quot;Сканирование&quot;
             </p>
           </div>
         </div>
