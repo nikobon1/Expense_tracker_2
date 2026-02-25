@@ -4,6 +4,67 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { analyzeReceipt, saveReceipt } from "@/lib/api";
 import type { AlertState, ReceiptData, ReceiptItem } from "@/features/expenses/types";
 
+const MAX_UPLOAD_DIMENSION = 1600;
+const MAX_ANALYZE_PAYLOAD_CHARS = 3_500_000;
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(String(e.target?.result ?? ""));
+    reader.onerror = () => reject(new Error("Не удалось прочитать файл"));
+    reader.readAsDataURL(file);
+  });
+}
+
+function loadImage(dataUrl: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("Не удалось загрузить изображение"));
+    img.src = dataUrl;
+  });
+}
+
+async function optimizeImageForUpload(file: File): Promise<string> {
+  const original = await readFileAsDataUrl(file);
+  const image = await loadImage(original);
+
+  let width = image.naturalWidth || image.width;
+  let height = image.naturalHeight || image.height;
+
+  const maxSide = Math.max(width, height);
+  if (maxSide > MAX_UPLOAD_DIMENSION) {
+    const ratio = MAX_UPLOAD_DIMENSION / maxSide;
+    width = Math.max(1, Math.round(width * ratio));
+    height = Math.max(1, Math.round(height * ratio));
+  }
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("Не удалось подготовить изображение");
+  }
+
+  ctx.drawImage(image, 0, 0, width, height);
+
+  let quality = 0.9;
+  let dataUrl = canvas.toDataURL("image/jpeg", quality);
+
+  while (dataUrl.length > MAX_ANALYZE_PAYLOAD_CHARS && quality > 0.45) {
+    quality -= 0.1;
+    dataUrl = canvas.toDataURL("image/jpeg", quality);
+  }
+
+  if (dataUrl.length > MAX_ANALYZE_PAYLOAD_CHARS) {
+    throw new Error("Фото слишком большое. Обрежьте изображение чека или сделайте фото ближе.");
+  }
+
+  return dataUrl;
+}
+
 export function useReceiptFlow() {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -22,14 +83,19 @@ export function useReceiptFlow() {
     return () => clearTimeout(timer);
   }, [alert]);
 
-  const handleFile = useCallback((file: File) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setUploadedImage(e.target?.result as string);
+  const handleFile = useCallback(async (file: File) => {
+    try {
+      const optimizedImage = await optimizeImageForUpload(file);
+      setUploadedImage(optimizedImage);
       setReceiptData(null);
       setEditedItems([]);
-    };
-    reader.readAsDataURL(file);
+      setAlert(null);
+    } catch (error) {
+      setAlert({
+        type: "error",
+        message: error instanceof Error ? error.message : "Ошибка подготовки изображения",
+      });
+    }
   }, []);
 
   const handleDrop = useCallback(

@@ -5,6 +5,41 @@ interface ExpensesResponse {
   prevMonthTotal: number;
 }
 
+async function readJsonOrText(response: Response): Promise<unknown> {
+  const raw = await response.text();
+
+  if (!raw) return null;
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return raw;
+  }
+}
+
+function getErrorMessage(response: Response, payload: unknown, fallback: string): string {
+  if (payload && typeof payload === "object" && "error" in payload) {
+    const error = (payload as { error?: unknown }).error;
+    if (typeof error === "string" && error.trim()) return error;
+  }
+
+  if (typeof payload === "string") {
+    const text = payload.trim();
+    if (response.status === 413 || /request entity too large/i.test(text)) {
+      return "Фото слишком большое. Попробуйте изображение меньшего размера или более сильное сжатие.";
+    }
+    if (text) {
+      return text.slice(0, 200);
+    }
+  }
+
+  if (response.status === 413) {
+    return "Фото слишком большое. Попробуйте изображение меньшего размера или более сильное сжатие.";
+  }
+
+  return fallback;
+}
+
 export async function analyzeReceipt(image: string): Promise<ReceiptData> {
   const response = await fetch("/api/analyze", {
     method: "POST",
@@ -12,12 +47,17 @@ export async function analyzeReceipt(image: string): Promise<ReceiptData> {
     body: JSON.stringify({ image }),
   });
 
+  const payload = await readJsonOrText(response);
+
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || "Ошибка анализа");
+    throw new Error(getErrorMessage(response, payload, "Ошибка анализа"));
   }
 
-  return response.json();
+  if (!payload || typeof payload !== "object") {
+    throw new Error("Сервер вернул некорректный ответ при анализе чека");
+  }
+
+  return payload as ReceiptData;
 }
 
 export async function saveReceipt(payload: {
@@ -31,8 +71,10 @@ export async function saveReceipt(payload: {
     body: JSON.stringify(payload),
   });
 
+  const parsed = await readJsonOrText(response);
+
   if (!response.ok) {
-    throw new Error("Ошибка сохранения");
+    throw new Error(getErrorMessage(response, parsed, "Ошибка сохранения"));
   }
 }
 
