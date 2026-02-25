@@ -11,6 +11,7 @@ interface ScanTabProps {
   editedItems: ReceiptItem[];
   storeName: string;
   purchaseDate: string;
+  purchaseDateManual: string;
   isAnalyzing: boolean;
   isSaving: boolean;
   fileInputRef: RefObject<HTMLInputElement | null>;
@@ -21,6 +22,7 @@ interface ScanTabProps {
   onSave: () => void;
   onStoreNameChange: (value: string) => void;
   onPurchaseDateChange: (value: string) => void;
+  onPurchaseDateManualChange: (value: string) => void;
   onItemUpdate: (index: number, field: keyof ReceiptItem, value: string | number) => void;
   onItemDelete: (index: number) => void;
   currentTotal: number;
@@ -32,6 +34,7 @@ export default function ScanTab({
   editedItems,
   storeName,
   purchaseDate,
+  purchaseDateManual,
   isAnalyzing,
   isSaving,
   fileInputRef,
@@ -42,6 +45,7 @@ export default function ScanTab({
   onSave,
   onStoreNameChange,
   onPurchaseDateChange,
+  onPurchaseDateManualChange,
   onItemUpdate,
   onItemDelete,
   currentTotal,
@@ -132,6 +136,15 @@ export default function ScanTab({
                   value={purchaseDate}
                   onChange={(e) => onPurchaseDateChange(e.target.value)}
                   className="scan-field-input"
+                />
+                <p className="scan-field-hint">Подтвердите дату покупки. Можно исправить вручную в формате ДД/ММ/ГГ.</p>
+                <input
+                  type="text"
+                  value={purchaseDateManual}
+                  onChange={(e) => onPurchaseDateManualChange(e.target.value)}
+                  placeholder="Например: 14/02/26"
+                  inputMode="numeric"
+                  className="scan-field-input scan-date-manual-input"
                 />
               </div>
             </div>

@@ -7,6 +7,44 @@ import type { AlertState, ReceiptData, ReceiptItem } from "@/features/expenses/t
 const MAX_UPLOAD_DIMENSION = 1600;
 const MAX_ANALYZE_PAYLOAD_CHARS = 3_500_000;
 
+function formatManualDate(isoDate: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
+  if (!match) return isoDate;
+  return `${match[3]}/${match[2]}/${match[1].slice(-2)}`;
+}
+
+function toIsoDateIfValid(year: number, month: number, day: number): string | null {
+  const dt = new Date(Date.UTC(year, month - 1, day));
+  if (dt.getUTCFullYear() !== year || dt.getUTCMonth() !== month - 1 || dt.getUTCDate() !== day) {
+    return null;
+  }
+  return `${year.toString().padStart(4, "0")}-${month.toString().padStart(2, "0")}-${day.toString().padStart(2, "0")}`;
+}
+
+function parseManualDate(value: string): string | null {
+  const raw = value.trim();
+  if (!raw) return null;
+
+  const normalized = raw.replace(/\./g, "/").replace(/-/g, "/");
+
+  let match = /^(\d{2})\/(\d{2})\/(\d{2})$/.exec(normalized);
+  if (match) {
+    return toIsoDateIfValid(2000 + Number(match[3]), Number(match[2]), Number(match[1]));
+  }
+
+  match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(normalized);
+  if (match) {
+    return toIsoDateIfValid(Number(match[3]), Number(match[2]), Number(match[1]));
+  }
+
+  match = /^(\d{4})\/(\d{2})\/(\d{2})$/.exec(normalized);
+  if (match) {
+    return toIsoDateIfValid(Number(match[1]), Number(match[2]), Number(match[3]));
+  }
+
+  return null;
+}
+
 function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -72,6 +110,7 @@ export function useReceiptFlow() {
   const [editedItems, setEditedItems] = useState<ReceiptItem[]>([]);
   const [storeName, setStoreName] = useState("");
   const [purchaseDate, setPurchaseDate] = useState("");
+  const [purchaseDateManual, setPurchaseDateManual] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [alert, setAlert] = useState<AlertState | null>(null);
 
@@ -89,6 +128,9 @@ export function useReceiptFlow() {
       setUploadedImage(optimizedImage);
       setReceiptData(null);
       setEditedItems([]);
+      setStoreName("");
+      setPurchaseDate("");
+      setPurchaseDateManual("");
       setAlert(null);
     } catch (error) {
       setAlert({
@@ -119,6 +161,7 @@ export function useReceiptFlow() {
       setEditedItems(data.items);
       setStoreName(data.store_name);
       setPurchaseDate(data.purchase_date);
+      setPurchaseDateManual(formatManualDate(data.purchase_date));
       setAlert({ type: "success", message: "Чек успешно распознан!" });
     } catch (error) {
       setAlert({
@@ -129,6 +172,19 @@ export function useReceiptFlow() {
       setIsAnalyzing(false);
     }
   }, [uploadedImage]);
+
+  const handlePurchaseDateChange = useCallback((value: string) => {
+    setPurchaseDate(value);
+    setPurchaseDateManual(formatManualDate(value));
+  }, []);
+
+  const handlePurchaseDateManualChange = useCallback((value: string) => {
+    setPurchaseDateManual(value);
+    const parsed = parseManualDate(value);
+    if (parsed) {
+      setPurchaseDate(parsed);
+    }
+  }, []);
 
   const handleSaveReceipt = useCallback(async () => {
     if (editedItems.length === 0) return;
@@ -145,6 +201,9 @@ export function useReceiptFlow() {
       setReceiptData(null);
       setEditedItems([]);
       setUploadedImage(null);
+      setStoreName("");
+      setPurchaseDate("");
+      setPurchaseDateManual("");
     } catch {
       setAlert({ type: "error", message: "Ошибка сохранения в БД" });
     } finally {
@@ -168,6 +227,9 @@ export function useReceiptFlow() {
     setUploadedImage(null);
     setReceiptData(null);
     setEditedItems([]);
+    setStoreName("");
+    setPurchaseDate("");
+    setPurchaseDateManual("");
   }, []);
 
   const currentTotal = useMemo(
@@ -182,6 +244,7 @@ export function useReceiptFlow() {
     editedItems,
     storeName,
     purchaseDate,
+    purchaseDateManual,
     isSaving,
     alert,
     fileInputRef,
@@ -190,7 +253,8 @@ export function useReceiptFlow() {
     handleAnalyzeReceipt,
     handleSaveReceipt,
     setStoreName,
-    setPurchaseDate,
+    setPurchaseDate: handlePurchaseDateChange,
+    setPurchaseDateManual: handlePurchaseDateManualChange,
     updateItem,
     deleteItem,
     resetScanner,
