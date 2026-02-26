@@ -20,8 +20,10 @@ interface DashboardTabProps {
   endDate: string;
   expenses: Expense[];
   prevMonthTotal: number;
+  isLoading?: boolean;
   onStartDateChange: (value: string) => void;
   onEndDateChange: (value: string) => void;
+  onRefresh?: () => void;
 }
 
 export default function DashboardTab({
@@ -29,8 +31,10 @@ export default function DashboardTab({
   endDate,
   expenses,
   prevMonthTotal,
+  isLoading = false,
   onStartDateChange,
   onEndDateChange,
+  onRefresh,
 }: DashboardTabProps) {
   const formatDashboardDate = (value: string) => {
     const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
@@ -64,6 +68,12 @@ export default function DashboardTab({
         <div>
           <label>📅 Конец периода</label>
           <input type="date" value={endDate} onChange={(e) => onEndDateChange(e.target.value)} />
+        </div>
+        <div className="dashboard-refresh-wrap">
+          <label>Обновление</label>
+          <button type="button" className="btn btn-secondary dashboard-refresh-btn" onClick={onRefresh} disabled={isLoading}>
+            {isLoading ? "Обновляем..." : "Обновить"}
+          </button>
         </div>
       </div>
 

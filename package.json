@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "telegram:set-webhook": "node scripts/set-telegram-webhook.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.0.2",

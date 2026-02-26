@@ -26,6 +26,18 @@ export default function Home() {
     }
   }, [activeTab, startDate, endDate, loadExpenses]);
 
+  useEffect(() => {
+    if (activeTab !== 'dashboard') return;
+
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        void loadExpenses();
+      }
+    }, 20000);
+
+    return () => clearInterval(interval);
+  }, [activeTab, loadExpenses]);
+
   return (
     <div className="app-container">
       <main className="main-full">
@@ -81,8 +93,10 @@ export default function Home() {
             endDate={endDate}
             expenses={expenses}
             prevMonthTotal={prevMonthTotal}
+            isLoading={dashboardData.isLoading}
             onStartDateChange={setStartDate}
             onEndDateChange={setEndDate}
+            onRefresh={() => void loadExpenses()}
           />
         )}
       </main>

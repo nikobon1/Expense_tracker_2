@@ -28,6 +28,12 @@ interface ScanTabProps {
   currentTotal: number;
 }
 
+function getLocalTodayIso() {
+  const now = new Date();
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 10);
+}
+
 export default function ScanTab({
   uploadedImage,
   receiptData,
@@ -128,9 +134,18 @@ export default function ScanTab({
                 />
               </div>
               <div>
-                <label className="scan-field-label">
-                  📅 Дата
-                </label>
+                <div className="scan-date-label-row">
+                  <label className="scan-field-label">
+                    📅 Дата покупки
+                  </label>
+                  <button
+                    type="button"
+                    className="scan-date-today-btn"
+                    onClick={() => onPurchaseDateChange(getLocalTodayIso())}
+                  >
+                    Сегодня
+                  </button>
+                </div>
                 <input
                   type="date"
                   value={purchaseDate}

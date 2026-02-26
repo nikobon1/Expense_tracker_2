@@ -18,16 +18,20 @@ export function useDashboardData() {
   const [endDate, setEndDate] = useState(() => getInitialDateRange().end);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [prevMonthTotal, setPrevMonthTotal] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
 
   const loadExpenses = useCallback(async () => {
     if (!startDate || !endDate) return;
 
+    setIsLoading(true);
     try {
       const data = await getExpenses(startDate, endDate);
       setExpenses(data.expenses);
       setPrevMonthTotal(data.prevMonthTotal);
     } catch (error) {
       console.error("Error loading expenses:", error);
+    } finally {
+      setIsLoading(false);
     }
   }, [startDate, endDate]);
 
@@ -36,6 +40,7 @@ export function useDashboardData() {
     endDate,
     expenses,
     prevMonthTotal,
+    isLoading,
     setStartDate,
     setEndDate,
     loadExpenses,

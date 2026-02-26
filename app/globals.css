@@ -387,6 +387,32 @@ body {
   margin-bottom: 0.25rem;
 }
 
+.scan-date-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.scan-date-label-row .scan-field-label {
+  margin-bottom: 0.25rem;
+}
+
+.scan-date-today-btn {
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.scan-date-today-btn:hover {
+  border-color: var(--accent-primary);
+}
+
 .scan-field-input {
   width: 100%;
   padding: 0.5rem;
@@ -623,6 +649,16 @@ td select:focus {
   font-size: 0.9rem;
 }
 
+.dashboard-refresh-wrap {
+  max-width: 180px;
+}
+
+.dashboard-refresh-btn {
+  width: 100%;
+  min-height: 46px;
+  justify-content: center;
+}
+
 /* Total row */
 .total-row {
   display: flex;
@@ -745,9 +781,23 @@ td select:focus {
   .metrics-grid {
     grid-template-columns: 1fr;
   }
+
+  .date-filter {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .dashboard-refresh-wrap {
+    max-width: none;
+  }
 }
 
 @media (max-width: 640px) {
+  .scan-date-today-btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.72rem;
+  }
+
   .scan-col-price {
     width: 136px;
     min-width: 136px;
