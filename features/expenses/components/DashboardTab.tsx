@@ -674,7 +674,6 @@ export default function DashboardTab({
                     <th>Товар</th>
                     <th>Категория</th>
                     <th style={{ textAlign: "right" }}>Цена</th>
-                    <th style={{ textAlign: "right" }}>Чек</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -684,22 +683,24 @@ export default function DashboardTab({
                     return (
                       <tr key={exp.id}>
                         <td>{formatDashboardDate(exp.date)}</td>
-                        <td>{exp.store}</td>
+                        <td>
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+                            <span>{exp.store}</span>
+                            {isFirstInReceipt && (
+                              <button
+                                type="button"
+                                className="btn btn-secondary"
+                                style={{ padding: "0.2rem 0.45rem", fontSize: "0.72rem", lineHeight: 1.2 }}
+                                onClick={() => void openEditor(exp.receiptId)}
+                              >
+                                ✏️ Чек #{exp.receiptId}
+                              </button>
+                            )}
+                          </div>
+                        </td>
                         <td>{exp.item}</td>
                         <td>{exp.category}</td>
                         <td style={{ textAlign: "right" }}>{exp.price.toFixed(2)} €</td>
-                        <td style={{ textAlign: "right" }}>
-                          {isFirstInReceipt && (
-                            <button
-                              type="button"
-                              className="btn btn-secondary"
-                              style={{ padding: "0.35rem 0.6rem", fontSize: "0.8rem" }}
-                              onClick={() => void openEditor(exp.receiptId)}
-                            >
-                              ✏️ #{exp.receiptId}
-                            </button>
-                          )}
-                        </td>
                       </tr>
                     );
                   })}
