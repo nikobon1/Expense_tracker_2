@@ -14,7 +14,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { CATEGORIES, CHART_COLORS } from "@/features/expenses/constants";
-import { analyzeReceipt, getReceipt, updateReceipt } from "@/lib/api";
+import { analyzeReceipt, getReceipt, getReceiptImageFromTelegram, updateReceipt } from "@/lib/api";
 import { buildCategoryData, buildDailyData } from "@/features/expenses/utils";
 import type { DailyPoint, DailyReceiptSegment } from "@/features/expenses/utils";
 import type { Expense, ReceiptData, ReceiptItem } from "@/features/expenses/types";
@@ -51,6 +51,8 @@ type EditableReceipt = {
   store_name: string;
   purchase_date: string;
   items: ReceiptItem[];
+  source?: string | null;
+  telegram_file_id?: string | null;
 };
 
 type ComparisonSummary = {
@@ -266,6 +268,8 @@ export default function DashboardTab({
         store_name: receipt.store_name,
         purchase_date: receipt.purchase_date,
         items: sanitizeItems(receipt.items),
+        source: receipt.source ?? null,
+        telegram_file_id: receipt.telegram_file_id ?? null,
       });
     } catch (error) {
       setEditorError(error instanceof Error ? error.message : "Не удалось загрузить чек");
@@ -324,6 +328,24 @@ export default function DashboardTab({
       setComparisonData(analyzed);
     } catch (error) {
       setEditorError(error instanceof Error ? error.message : "Не удалось сравнить с фото");
+    } finally {
+      setIsComparing(false);
+    }
+  };
+
+  const handleCompareTelegramImage = async () => {
+    if (!editorReceipt || !editorReceipt.telegram_file_id) return;
+
+    setEditorError(null);
+    setIsComparing(true);
+
+    try {
+      const imageDataUrl = await getReceiptImageFromTelegram(editorReceipt.id);
+      setComparisonImage(imageDataUrl);
+      const analyzed = await analyzeReceipt(imageDataUrl);
+      setComparisonData(analyzed);
+    } catch (error) {
+      setEditorError(error instanceof Error ? error.message : "Не удалось сравнить с фото из Telegram");
     } finally {
       setIsComparing(false);
     }
@@ -819,6 +841,16 @@ export default function DashboardTab({
                       >
                         {isComparing ? "Сравниваем..." : "Загрузить фото для сравнения"}
                       </button>
+                      {editorReceipt.source === "telegram" && editorReceipt.telegram_file_id && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          onClick={() => void handleCompareTelegramImage()}
+                          disabled={isComparing}
+                        >
+                          {isComparing ? "Сравниваем..." : "Подтянуть фото из Telegram"}
+                        </button>
+                      )}
                     </div>
                   </div>
 

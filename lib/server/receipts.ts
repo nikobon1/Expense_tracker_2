@@ -31,6 +31,16 @@ export async function initDb(): Promise<void> {
     `;
 
     await sql`
+      ALTER TABLE receipts
+      ADD COLUMN IF NOT EXISTS source TEXT
+    `;
+
+    await sql`
+      ALTER TABLE receipts
+      ADD COLUMN IF NOT EXISTS telegram_file_id TEXT
+    `;
+
+    await sql`
       CREATE TABLE IF NOT EXISTS items (
         id SERIAL PRIMARY KEY,
         receipt_id INTEGER REFERENCES receipts(id),
@@ -70,8 +80,10 @@ export async function saveReceiptToDb(payload: {
   store_name: string;
   purchase_date: string;
   items: ReceiptItem[];
+  source?: string;
+  telegram_file_id?: string | null;
 }): Promise<{ receiptId: number; totalAmount: number }> {
-  const { store_name, purchase_date, items } = payload;
+  const { store_name, purchase_date, items, source, telegram_file_id } = payload;
 
   if (!store_name || !purchase_date || !items || items.length === 0) {
     throw new Error("Missing required fields");
@@ -83,8 +95,8 @@ export async function saveReceiptToDb(payload: {
   const totalAmount = items.reduce((sum, item) => sum + Number(item.price || 0), 0);
 
   const receiptResult = (await sql`
-    INSERT INTO receipts (store_name, purchase_date, total_amount)
-    VALUES (${store_name}, ${purchase_date}, ${totalAmount})
+    INSERT INTO receipts (store_name, purchase_date, total_amount, source, telegram_file_id)
+    VALUES (${store_name}, ${purchase_date}, ${totalAmount}, ${source ?? null}, ${telegram_file_id ?? null})
     RETURNING id
   `) as Array<{ id: number | string }>;
 
@@ -105,12 +117,14 @@ export async function saveReceiptToDb(payload: {
   return { receiptId, totalAmount };
 }
 
-export async function getReceiptById(receiptId: number): Promise<(ReceiptData & { id: number; total_amount: number }) | null> {
+export async function getReceiptById(
+  receiptId: number
+): Promise<(ReceiptData & { id: number; total_amount: number; source: string | null; telegram_file_id: string | null }) | null> {
   await initDb();
   const sql = getDb();
 
   const receiptRows = (await sql`
-    SELECT id, store_name, purchase_date, total_amount
+    SELECT id, store_name, purchase_date, total_amount, source, telegram_file_id
     FROM receipts
     WHERE id = ${receiptId}
     LIMIT 1
@@ -119,6 +133,8 @@ export async function getReceiptById(receiptId: number): Promise<(ReceiptData & 
     store_name: string | null;
     purchase_date: string | Date | null;
     total_amount: number | string | null;
+    source: string | null;
+    telegram_file_id: string | null;
   }>;
 
   const receipt = receiptRows[0];
@@ -142,6 +158,8 @@ export async function getReceiptById(receiptId: number): Promise<(ReceiptData & 
     store_name: receipt.store_name ?? "",
     purchase_date: purchaseDate,
     total_amount: Number(receipt.total_amount ?? 0),
+    source: receipt.source ?? null,
+    telegram_file_id: receipt.telegram_file_id ?? null,
     items: itemRows.map((item) => ({
       name: item.name ?? "",
       price: Number(item.price ?? 0),
@@ -218,10 +236,19 @@ export async function claimTelegramUpdate(updateId: number): Promise<boolean> {
   return result.length > 0;
 }
 
-export async function saveTelegramDraft(chatId: number, userId: number | null, receipt: ReceiptData): Promise<void> {
+export async function saveTelegramDraft(
+  chatId: number,
+  userId: number | null,
+  receipt: ReceiptData,
+  options?: { telegram_file_id?: string | null }
+): Promise<void> {
   await initDb();
   const sql = getDb();
-  const payloadText = JSON.stringify(receipt);
+  const receiptWithMeta = receipt as ReceiptData & { _telegram_file_id?: string | null };
+  if (options?.telegram_file_id !== undefined) {
+    receiptWithMeta._telegram_file_id = options.telegram_file_id;
+  }
+  const payloadText = JSON.stringify(receiptWithMeta);
 
   await sql`
     INSERT INTO telegram_receipt_drafts (chat_id, user_id, payload_text)

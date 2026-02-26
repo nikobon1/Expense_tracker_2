@@ -13,6 +13,8 @@ export interface ReceiptData {
 export interface ReceiptDetails extends ReceiptData {
   id: number;
   total_amount: number;
+  source?: string | null;
+  telegram_file_id?: string | null;
 }
 
 export interface Expense {

@@ -351,7 +351,14 @@ async function handleDraftCommand(params: {
   }
 
   if (lower === "сохранить" || lower === "/save") {
-    const saved = await saveReceiptToDb(draft);
+    const draftWithMeta = draft as ReceiptData & { _telegram_file_id?: string | null };
+    const saved = await saveReceiptToDb({
+      store_name: draft.store_name,
+      purchase_date: draft.purchase_date,
+      items: draft.items,
+      source: "telegram",
+      telegram_file_id: draftWithMeta._telegram_file_id ?? null,
+    });
     await deleteTelegramDraft(chatId);
     await sendTelegramMessage(chatId, formatSavedSummary(draft, saved.totalAmount, saved.receiptId));
     return { handled: true, result: "draft_saved" };
@@ -589,7 +596,7 @@ export async function POST(request: NextRequest) {
     await sendTyping(chatId);
     const imageDataUrl = await fetchTelegramFileAsDataUrl(source.fileId, source.mimeType);
     const receipt = await analyzeReceiptImageDataUrl(imageDataUrl);
-    await saveTelegramDraft(chatId, fromUserId, receipt);
+    await saveTelegramDraft(chatId, fromUserId, receipt, { telegram_file_id: source.fileId });
 
     await sendDraftPreviewMessage(chatId, receipt, "✅ Чек распознан. Проверьте данные перед сохранением.");
     return NextResponse.json({ ok: true, handled: "draft_created" });

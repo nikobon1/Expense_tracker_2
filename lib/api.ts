@@ -110,6 +110,26 @@ export async function updateReceipt(
   }
 }
 
+export async function getReceiptImageFromTelegram(receiptId: number): Promise<string> {
+  const response = await fetch(`/api/receipts/${receiptId}/image`);
+  const payload = await readJsonOrText(response);
+
+  if (!response.ok) {
+    throw new Error(getErrorMessage(response, payload, "Не удалось загрузить фото чека"));
+  }
+
+  if (!payload || typeof payload !== "object" || !("image" in payload)) {
+    throw new Error("Сервер вернул некорректный ответ по фото чека");
+  }
+
+  const image = (payload as { image?: unknown }).image;
+  if (typeof image !== "string" || !image) {
+    throw new Error("Фото чека не найдено");
+  }
+
+  return image;
+}
+
 export async function getExpenses(startDate: string, endDate: string): Promise<ExpensesResponse> {
   const response = await fetch(`/api/expenses?start=${startDate}&end=${endDate}`);
   if (!response.ok) {
