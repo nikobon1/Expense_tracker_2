@@ -12,6 +12,7 @@ export interface ReceiptData {
 
 export interface Expense {
   id: number;
+  receiptId: number;
   date: string;
   store: string;
   item: string;

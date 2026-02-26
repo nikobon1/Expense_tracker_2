@@ -25,6 +25,7 @@ export async function GET(request: NextRequest) {
         const expenses = await sql`
       SELECT 
         i.id,
+        r.id as receipt_id,
         r.purchase_date as date,
         r.store_name as store,
         i.name as item,
@@ -50,6 +51,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({
             expenses: expenses.map(e => ({
                 id: e.id,
+                receiptId: Number(e.receipt_id),
                 date: e.date,
                 store: e.store,
                 item: e.item,
