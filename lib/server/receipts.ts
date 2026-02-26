@@ -105,6 +105,105 @@ export async function saveReceiptToDb(payload: {
   return { receiptId, totalAmount };
 }
 
+export async function getReceiptById(receiptId: number): Promise<(ReceiptData & { id: number; total_amount: number }) | null> {
+  await initDb();
+  const sql = getDb();
+
+  const receiptRows = (await sql`
+    SELECT id, store_name, purchase_date, total_amount
+    FROM receipts
+    WHERE id = ${receiptId}
+    LIMIT 1
+  `) as Array<{
+    id: number | string;
+    store_name: string | null;
+    purchase_date: string | Date | null;
+    total_amount: number | string | null;
+  }>;
+
+  const receipt = receiptRows[0];
+  if (!receipt) return null;
+
+  const itemRows = (await sql`
+    SELECT name, price, category
+    FROM items
+    WHERE receipt_id = ${receiptId}
+    ORDER BY id
+  `) as Array<{
+    name: string | null;
+    price: number | string | null;
+    category: string | null;
+  }>;
+
+  const purchaseDate = receipt.purchase_date ? String(receipt.purchase_date).slice(0, 10) : "";
+
+  return {
+    id: Number(receipt.id),
+    store_name: receipt.store_name ?? "",
+    purchase_date: purchaseDate,
+    total_amount: Number(receipt.total_amount ?? 0),
+    items: itemRows.map((item) => ({
+      name: item.name ?? "",
+      price: Number(item.price ?? 0),
+      category: item.category ?? "Другое",
+    })),
+  };
+}
+
+export async function updateReceiptInDb(
+  receiptId: number,
+  payload: { store_name: string; purchase_date: string; items: ReceiptItem[] }
+): Promise<{ receiptId: number; totalAmount: number }> {
+  const { store_name, purchase_date, items } = payload;
+
+  if (!store_name || !purchase_date || !items || items.length === 0) {
+    throw new Error("Missing required fields");
+  }
+
+  await initDb();
+  const sql = getDb();
+
+  const exists = (await sql`
+    SELECT id
+    FROM receipts
+    WHERE id = ${receiptId}
+    LIMIT 1
+  `) as Array<{ id: number | string }>;
+
+  if (!exists[0]?.id) {
+    throw new Error("Receipt not found");
+  }
+
+  const totalAmount = items.reduce((sum, item) => sum + Number(item.price || 0), 0);
+
+  await sql`
+    UPDATE receipts
+    SET store_name = ${store_name},
+        purchase_date = ${purchase_date},
+        total_amount = ${totalAmount}
+    WHERE id = ${receiptId}
+  `;
+
+  await sql`
+    DELETE FROM items
+    WHERE receipt_id = ${receiptId}
+  `;
+
+  for (const item of items) {
+    await sql`
+      INSERT INTO items (receipt_id, name, price, category)
+      VALUES (
+        ${receiptId},
+        ${item.name},
+        ${Number(item.price || 0)},
+        ${item.category || "Другое"}
+      )
+    `;
+  }
+
+  return { receiptId, totalAmount };
+}
+
 export async function claimTelegramUpdate(updateId: number): Promise<boolean> {
   await initDb();
   const sql = getDb();

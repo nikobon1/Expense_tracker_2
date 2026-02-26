@@ -1,4 +1,4 @@
-import type { Expense, ReceiptData, ReceiptItem } from "@/features/expenses/types";
+import type { Expense, ReceiptData, ReceiptDetails, ReceiptItem } from "@/features/expenses/types";
 
 interface ExpensesResponse {
   expenses: Expense[];
@@ -78,6 +78,38 @@ export async function saveReceipt(payload: {
   }
 }
 
+export async function getReceipt(receiptId: number): Promise<ReceiptDetails> {
+  const response = await fetch(`/api/receipts/${receiptId}`);
+  const payload = await readJsonOrText(response);
+
+  if (!response.ok) {
+    throw new Error(getErrorMessage(response, payload, "Не удалось загрузить чек"));
+  }
+
+  if (!payload || typeof payload !== "object") {
+    throw new Error("Сервер вернул некорректный ответ по чеку");
+  }
+
+  return payload as ReceiptDetails;
+}
+
+export async function updateReceipt(
+  receiptId: number,
+  payload: { store_name: string; purchase_date: string; items: ReceiptItem[] }
+): Promise<void> {
+  const response = await fetch(`/api/receipts/${receiptId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const parsed = await readJsonOrText(response);
+
+  if (!response.ok) {
+    throw new Error(getErrorMessage(response, parsed, "Не удалось обновить чек"));
+  }
+}
+
 export async function getExpenses(startDate: string, endDate: string): Promise<ExpensesResponse> {
   const response = await fetch(`/api/expenses?start=${startDate}&end=${endDate}`);
   if (!response.ok) {
@@ -85,4 +117,3 @@ export async function getExpenses(startDate: string, endDate: string): Promise<E
   }
   return response.json();
 }
-

@@ -752,6 +752,131 @@ td select:focus {
   color: var(--warning);
 }
 
+/* Receipt editor */
+.receipt-editor-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  z-index: 1200;
+}
+
+.receipt-editor-modal {
+  width: min(980px, 100%);
+  max-height: calc(100vh - 2.5rem);
+  overflow: auto;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 1rem;
+  box-shadow: var(--shadow);
+}
+
+.receipt-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.receipt-editor-header h3 {
+  margin: 0;
+}
+
+.receipt-editor-loading {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  color: var(--text-secondary);
+}
+
+.receipt-editor-compare {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  background: var(--bg-secondary);
+}
+
+.receipt-editor-compare-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.receipt-editor-compare-head h4 {
+  margin: 0;
+}
+
+.receipt-editor-image-wrap {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  overflow: hidden;
+  width: min(360px, 100%);
+  margin-bottom: 0.75rem;
+}
+
+.receipt-editor-image {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.receipt-editor-summary {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.receipt-editor-summary ul {
+  margin: 0;
+  padding-left: 1rem;
+  display: grid;
+  gap: 0.35rem;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.receipt-editor-summary p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.receipt-editor-summary-totals {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.receipt-editor-items-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.receipt-editor-items-head h4 {
+  margin: 0;
+}
+
+.receipt-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
 /* Responsive */
 @media (max-width: 1024px) {
   .sidebar {
@@ -789,6 +914,14 @@ td select:focus {
 
   .dashboard-refresh-wrap {
     max-width: none;
+  }
+
+  .receipt-editor-overlay {
+    padding: 0.75rem;
+  }
+
+  .receipt-editor-modal {
+    max-height: calc(100vh - 1.5rem);
   }
 }
 

@@ -10,6 +10,11 @@ export interface ReceiptData {
   items: ReceiptItem[];
 }
 
+export interface ReceiptDetails extends ReceiptData {
+  id: number;
+  total_amount: number;
+}
+
 export interface Expense {
   id: number;
   receiptId: number;
