@@ -12,6 +12,31 @@ export function getDb(): DbClient {
   return neon(databaseUrl);
 }
 
+function padDatePart(value: number): string {
+  return String(value).padStart(2, "0");
+}
+
+function normalizePurchaseDate(value: string | Date | null): string {
+  if (!value) return "";
+
+  if (value instanceof Date) {
+    if (Number.isNaN(value.getTime())) return "";
+    return `${value.getUTCFullYear()}-${padDatePart(value.getUTCMonth() + 1)}-${padDatePart(value.getUTCDate())}`;
+  }
+
+  const normalized = value.trim();
+  if (!normalized) return "";
+
+  if (/^\d{4}-\d{2}-\d{2}/.test(normalized)) {
+    return normalized.slice(0, 10);
+  }
+
+  const parsed = new Date(normalized);
+  if (Number.isNaN(parsed.getTime())) return "";
+
+  return `${parsed.getUTCFullYear()}-${padDatePart(parsed.getUTCMonth() + 1)}-${padDatePart(parsed.getUTCDate())}`;
+}
+
 let initPromise: Promise<void> | null = null;
 
 export async function initDb(): Promise<void> {
@@ -151,7 +176,7 @@ export async function getReceiptById(
     category: string | null;
   }>;
 
-  const purchaseDate = receipt.purchase_date ? String(receipt.purchase_date).slice(0, 10) : "";
+  const purchaseDate = normalizePurchaseDate(receipt.purchase_date);
 
   return {
     id: Number(receipt.id),

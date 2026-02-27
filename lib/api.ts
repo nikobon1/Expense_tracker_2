@@ -5,6 +5,20 @@ interface ExpensesResponse {
   prevMonthTotal: number;
 }
 
+function normalizeIsoDate(value: string): string {
+  const normalized = value.trim();
+  if (!normalized) return "";
+
+  if (/^\d{4}-\d{2}-\d{2}/.test(normalized)) {
+    return normalized.slice(0, 10);
+  }
+
+  const parsed = new Date(normalized);
+  if (Number.isNaN(parsed.getTime())) return "";
+
+  return parsed.toISOString().slice(0, 10);
+}
+
 async function readJsonOrText(response: Response): Promise<unknown> {
   const raw = await response.text();
 
@@ -90,7 +104,11 @@ export async function getReceipt(receiptId: number): Promise<ReceiptDetails> {
     throw new Error("Сервер вернул некорректный ответ по чеку");
   }
 
-  return payload as ReceiptDetails;
+  const receipt = payload as ReceiptDetails;
+  return {
+    ...receipt,
+    purchase_date: normalizeIsoDate(receipt.purchase_date),
+  };
 }
 
 export async function updateReceipt(
