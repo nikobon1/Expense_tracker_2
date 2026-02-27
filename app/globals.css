@@ -144,6 +144,46 @@ body {
   margin-bottom: 0;
 }
 
+.login-helper {
+  font-size: 0.85rem;
+  color: #a1a1aa;
+  margin-bottom: 1rem;
+}
+
+.login-error {
+  color: #fda4af;
+}
+
+.dev-login-box {
+  margin-top: 0.75rem;
+  display: grid;
+  gap: 0.6rem;
+}
+
+.dev-login-input {
+  width: 100%;
+  padding: 0.75rem 0.9rem;
+  border-radius: 10px;
+  border: 1px solid #3f3f46;
+  background: #111118;
+  color: #ffffff;
+  outline: none;
+}
+
+.dev-login-input:focus {
+  border-color: var(--accent-primary);
+}
+
+.dev-btn {
+  background: #27272a;
+  color: #ffffff;
+  border: 1px solid #3f3f46;
+}
+
+.dev-btn:hover {
+  box-shadow: 0 8px 25px rgba(99, 102, 241, 0.25);
+}
+
 /* Container */
 .container {
   max-width: 1200px;
