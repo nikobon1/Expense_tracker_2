@@ -94,6 +94,15 @@ function getDraftInlineKeyboard(): TelegramInlineKeyboardMarkup {
   };
 }
 
+function getMainMenuInlineKeyboard(): TelegramInlineKeyboardMarkup {
+  return {
+    inline_keyboard: [
+      [{ text: "Add photo", callback_data: "menu:add_photo" }],
+      [{ text: "Add manual amount", callback_data: "menu:add_manual" }],
+    ],
+  };
+}
+
 function getDefaultCategory(): string {
   return CATEGORIES.includes("Р”СЂСѓРіРѕРµ") ? "Р”СЂСѓРіРѕРµ" : (CATEGORIES.at(-1) ?? "Other");
 }
@@ -301,6 +310,23 @@ async function sendDraftPreviewMessage(chatId: number, receipt: ReceiptData, not
   await sendTelegramMessage(chatId, formatDraftPreview(receipt, note), {
     replyMarkup: getDraftInlineKeyboard(),
   });
+}
+
+async function createAndSendManualDraft(
+  chatId: number,
+  userId: number | null,
+  seed?: { storeName?: string; totalAmount?: number; purchaseDate?: string }
+) {
+  const manualDraft = createManualDraft(seed);
+  await saveTelegramDraft(chatId, userId, manualDraft);
+  await sendDraftPreviewMessage(
+    chatId,
+    manualDraft,
+    seed?.totalAmount !== undefined
+      ? "OK: manual purchase draft created. Review and save."
+      : "Manual mode started. Set Store and Sum, then save."
+  );
+  await sendTelegramMessage(chatId, getManualModeHelpText());
 }
 
 function getDraftEditHelpText(): string {
@@ -597,6 +623,20 @@ async function handleDraftCallback(params: {
 }): Promise<{ handled: boolean; result?: string }> {
   const { callbackQueryId, chatId, userId, data } = params;
 
+  if (data === "menu:add_photo") {
+    await answerTelegramCallbackQuery(callbackQueryId, "Send a receipt photo");
+    await sendTelegramMessage(chatId, "Send a receipt photo (or image as file).", {
+      replyMarkup: getMainMenuInlineKeyboard(),
+    });
+    return { handled: true, result: "menu_add_photo" };
+  }
+
+  if (data === "menu:add_manual") {
+    await answerTelegramCallbackQuery(callbackQueryId, "Creating manual draft");
+    await createAndSendManualDraft(chatId, userId);
+    return { handled: true, result: "menu_add_manual" };
+  }
+
   if (data === "draft:save") {
     await answerTelegramCallbackQuery(callbackQueryId, "РЎРѕС…СЂР°РЅСЏСЋ...");
     return handleDraftCommand({ chatId, userId, text: "/save" });
@@ -706,7 +746,9 @@ export async function POST(request: NextRequest) {
     if (text) {
       const lower = text.toLowerCase();
       if (lower === "/start" || lower.startsWith("/start@") || lower === "/help" || lower.startsWith("/help@")) {
-        await sendTelegramMessage(chatId, getHelpText());
+        await sendTelegramMessage(chatId, getHelpText(), {
+          replyMarkup: getMainMenuInlineKeyboard(),
+        });
         return NextResponse.json({ ok: true, handled: "help" });
       }
 
@@ -718,16 +760,7 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ ok: true, handled: "manual_draft_invalid" });
         }
 
-        const manualDraft = createManualDraft(manualSeed);
-        await saveTelegramDraft(chatId, fromUserId, manualDraft);
-        await sendDraftPreviewMessage(
-          chatId,
-          manualDraft,
-          manualSeed.totalAmount !== undefined
-            ? "OK: manual purchase draft created. Review and save."
-            : "Manual mode started. Set Store and Sum, then save."
-        );
-        await sendTelegramMessage(chatId, getManualModeHelpText());
+        await createAndSendManualDraft(chatId, fromUserId, manualSeed);
         return NextResponse.json({ ok: true, handled: "manual_draft_created" });
       }
       const draftCommand = await handleDraftCommand({ chatId, userId: fromUserId, text });
@@ -738,7 +771,9 @@ export async function POST(request: NextRequest) {
 
     const source = getBestImageSource(message);
     if (!source) {
-      await sendTelegramMessage(chatId, "РџСЂРёС€Р»РёС‚Рµ С„РѕС‚Рѕ С‡РµРєР° (РёР»Рё РёР·РѕР±СЂР°Р¶РµРЅРёРµ РєР°Рє С„Р°Р№Р»).");
+      await sendTelegramMessage(chatId, "Send a receipt photo or choose an action below.", {
+        replyMarkup: getMainMenuInlineKeyboard(),
+      });
       return NextResponse.json({ ok: true, handled: "no_image" });
     }
 
