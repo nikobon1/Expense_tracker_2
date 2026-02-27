@@ -3,6 +3,7 @@ import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 
 const providers: NextAuthOptions["providers"] = [];
+const isDevLoginEnabled = process.env.DEV_LOGIN_ENABLED?.trim().toLowerCase() === "true";
 
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     providers.push(
@@ -13,7 +14,7 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     );
 }
 
-if (process.env.DEV_LOGIN_ENABLED === "true") {
+if (isDevLoginEnabled) {
     providers.push(
         CredentialsProvider({
             name: "Dev Login",
@@ -21,7 +22,7 @@ if (process.env.DEV_LOGIN_ENABLED === "true") {
                 password: { label: "Password", type: "password" },
             },
             async authorize(credentials) {
-                if (process.env.DEV_LOGIN_ENABLED !== "true") {
+                if (!isDevLoginEnabled) {
                     return null;
                 }
 
