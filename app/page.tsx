@@ -72,6 +72,9 @@ export default function Home() {
             storeName={receiptFlow.storeName}
             purchaseDate={receiptFlow.purchaseDate}
             purchaseDateManual={receiptFlow.purchaseDateManual}
+            manualStoreName={receiptFlow.manualStoreName}
+            manualPurchaseDate={receiptFlow.manualPurchaseDate}
+            manualTotal={receiptFlow.manualTotal}
             isAnalyzing={receiptFlow.isAnalyzing}
             isSaving={receiptFlow.isSaving}
             fileInputRef={receiptFlow.fileInputRef}
@@ -80,9 +83,13 @@ export default function Home() {
             onAnalyze={receiptFlow.handleAnalyzeReceipt}
             onReset={receiptFlow.resetScanner}
             onSave={receiptFlow.handleSaveReceipt}
+            onManualSave={receiptFlow.handleManualSave}
             onStoreNameChange={receiptFlow.setStoreName}
             onPurchaseDateChange={receiptFlow.setPurchaseDate}
             onPurchaseDateManualChange={receiptFlow.setPurchaseDateManual}
+            onManualStoreNameChange={receiptFlow.setManualStoreName}
+            onManualPurchaseDateChange={receiptFlow.setManualPurchaseDate}
+            onManualTotalChange={receiptFlow.setManualTotal}
             onItemUpdate={receiptFlow.updateItem}
             onItemDelete={receiptFlow.deleteItem}
             currentTotal={receiptFlow.currentTotal}

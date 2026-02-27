@@ -388,6 +388,17 @@ body {
   width: 100%;
 }
 
+.scan-empty-state {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.scan-empty-state .card {
+  margin-bottom: 0;
+}
+
 /* Preview */
 .preview-container {
   display: grid;
@@ -418,6 +429,10 @@ body {
   grid-template-columns: 1fr 1fr;
   gap: 1rem;
   margin-bottom: 1rem;
+}
+
+.scan-manual-grid {
+  grid-template-columns: 1fr;
 }
 
 .scan-field-label {
@@ -932,6 +947,10 @@ td select:focus {
   }
 
   .preview-container {
+    grid-template-columns: 1fr;
+  }
+
+  .scan-empty-state {
     grid-template-columns: 1fr;
   }
 

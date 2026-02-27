@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import type { DragEvent, RefObject } from "react";
 import Image from "next/image";
@@ -12,6 +12,9 @@ interface ScanTabProps {
   storeName: string;
   purchaseDate: string;
   purchaseDateManual: string;
+  manualStoreName: string;
+  manualPurchaseDate: string;
+  manualTotal: string;
   isAnalyzing: boolean;
   isSaving: boolean;
   fileInputRef: RefObject<HTMLInputElement | null>;
@@ -20,9 +23,13 @@ interface ScanTabProps {
   onAnalyze: () => void;
   onReset: () => void;
   onSave: () => void;
+  onManualSave: () => void;
   onStoreNameChange: (value: string) => void;
   onPurchaseDateChange: (value: string) => void;
   onPurchaseDateManualChange: (value: string) => void;
+  onManualStoreNameChange: (value: string) => void;
+  onManualPurchaseDateChange: (value: string) => void;
+  onManualTotalChange: (value: string) => void;
   onItemUpdate: (index: number, field: keyof ReceiptItem, value: string | number) => void;
   onItemDelete: (index: number) => void;
   currentTotal: number;
@@ -41,6 +48,9 @@ export default function ScanTab({
   storeName,
   purchaseDate,
   purchaseDateManual,
+  manualStoreName,
+  manualPurchaseDate,
+  manualTotal,
   isAnalyzing,
   isSaving,
   fileInputRef,
@@ -49,33 +59,100 @@ export default function ScanTab({
   onAnalyze,
   onReset,
   onSave,
+  onManualSave,
   onStoreNameChange,
   onPurchaseDateChange,
   onPurchaseDateManualChange,
+  onManualStoreNameChange,
+  onManualPurchaseDateChange,
+  onManualTotalChange,
   onItemUpdate,
   onItemDelete,
   currentTotal,
 }: ScanTabProps) {
   if (!uploadedImage) {
     return (
-      <div className="card">
-        <h3>📷 Загрузите фото чека</h3>
-        <div
-          className="upload-area"
-          onDrop={onDrop}
-          onDragOver={(e) => e.preventDefault()}
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <div className="upload-icon">📤</div>
-          <p>Перетащите изображение или нажмите для выбора</p>
-          <span>Поддерживаются: JPG, PNG</span>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            className="visually-hidden"
-            onChange={(e) => e.target.files?.[0] && onFileSelect(e.target.files[0])}
-          />
+      <div className="scan-empty-state">
+        <div className="card">
+          <h3>рџ“· Р—Р°РіСЂСѓР·РёС‚Рµ С„РѕС‚Рѕ С‡РµРєР°</h3>
+          <div
+            className="upload-area"
+            onDrop={onDrop}
+            onDragOver={(e) => e.preventDefault()}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <div className="upload-icon">рџ“¤</div>
+            <p>РџРµСЂРµС‚Р°С‰РёС‚Рµ РёР·РѕР±СЂР°Р¶РµРЅРёРµ РёР»Рё РЅР°Р¶РјРёС‚Рµ РґР»СЏ РІС‹Р±РѕСЂР°</p>
+            <span>РџРѕРґРґРµСЂР¶РёРІР°СЋС‚СЃСЏ: JPG, PNG</span>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="visually-hidden"
+              onChange={(e) => e.target.files?.[0] && onFileSelect(e.target.files[0])}
+            />
+          </div>
+        </div>
+
+        <div className="card">
+          <h3>Quick Add</h3>
+          <p className="scan-field-hint">Save a single total when there is no receipt photo.</p>
+
+          <div className="scan-form-grid scan-manual-grid">
+            <div>
+              <label className="scan-field-label">Store</label>
+              <input
+                type="text"
+                value={manualStoreName}
+                onChange={(e) => onManualStoreNameChange(e.target.value)}
+                className="scan-field-input"
+                placeholder="Store name"
+              />
+            </div>
+
+            <div>
+              <div className="scan-date-label-row">
+                <label className="scan-field-label">Purchase date</label>
+                <button
+                  type="button"
+                  className="scan-date-today-btn"
+                  onClick={() => onManualPurchaseDateChange(getLocalTodayIso())}
+                >
+                  Today
+                </button>
+              </div>
+              <input
+                type="date"
+                value={manualPurchaseDate}
+                onChange={(e) => onManualPurchaseDateChange(e.target.value)}
+                className="scan-field-input"
+              />
+            </div>
+
+            <div>
+              <label className="scan-field-label">Total amount (EUR)</label>
+              <input
+                type="number"
+                step="0.01"
+                inputMode="decimal"
+                value={manualTotal}
+                onChange={(e) => onManualTotalChange(e.target.value)}
+                className="scan-field-input"
+                placeholder="0.00"
+              />
+            </div>
+          </div>
+
+          <button className="btn btn-primary btn-full" onClick={onManualSave} disabled={isSaving}>
+            {isSaving ? (
+              <>
+                <div className="spinner"></div>
+                Saving...
+              </>
+            ) : (
+              <>Save without receipt</>
+            )}
+          </button>
         </div>
       </div>
     );
@@ -84,11 +161,11 @@ export default function ScanTab({
   return (
     <div className="preview-container">
       <div className="card">
-        <h3>🖼️ Загруженный чек</h3>
+        <h3>рџ–јпёЏ Р—Р°РіСЂСѓР¶РµРЅРЅС‹Р№ С‡РµРє</h3>
         <div className="preview-image">
           <Image
             src={uploadedImage}
-            alt="Чек"
+            alt="Р§РµРє"
             width={1200}
             height={1800}
             unoptimized
@@ -96,22 +173,22 @@ export default function ScanTab({
           />
         </div>
         <button className="btn btn-secondary btn-full mt-16" onClick={onReset}>
-          🗑️ Удалить
+          рџ—‘пёЏ РЈРґР°Р»РёС‚СЊ
         </button>
       </div>
 
       <div>
         {!receiptData && (
           <div className="card">
-            <h3>🔍 Анализ чека</h3>
+            <h3>рџ”Ќ РђРЅР°Р»РёР· С‡РµРєР°</h3>
             <button className="btn btn-primary btn-full" onClick={onAnalyze} disabled={isAnalyzing}>
               {isAnalyzing ? (
                 <>
                   <div className="spinner"></div>
-                  Анализируем...
+                  РђРЅР°Р»РёР·РёСЂСѓРµРј...
                 </>
               ) : (
-                <>🔍 Распознать чек</>
+                <>рџ”Ќ Р Р°СЃРїРѕР·РЅР°С‚СЊ С‡РµРє</>
               )}
             </button>
           </div>
@@ -119,12 +196,12 @@ export default function ScanTab({
 
         {receiptData && editedItems.length > 0 && (
           <div className="card">
-            <h3>✏️ Проверьте данные</h3>
+            <h3>вњЏпёЏ РџСЂРѕРІРµСЂСЊС‚Рµ РґР°РЅРЅС‹Рµ</h3>
 
             <div className="scan-form-grid">
               <div>
                 <label className="scan-field-label">
-                  🏪 Магазин
+                  рџЏЄ РњР°РіР°Р·РёРЅ
                 </label>
                 <input
                   type="text"
@@ -136,14 +213,14 @@ export default function ScanTab({
               <div>
                 <div className="scan-date-label-row">
                   <label className="scan-field-label">
-                    📅 Дата покупки
+                    рџ“… Р”Р°С‚Р° РїРѕРєСѓРїРєРё
                   </label>
                   <button
                     type="button"
                     className="scan-date-today-btn"
                     onClick={() => onPurchaseDateChange(getLocalTodayIso())}
                   >
-                    Сегодня
+                    РЎРµРіРѕРґРЅСЏ
                   </button>
                 </div>
                 <input
@@ -152,12 +229,12 @@ export default function ScanTab({
                   onChange={(e) => onPurchaseDateChange(e.target.value)}
                   className="scan-field-input"
                 />
-                <p className="scan-field-hint">Подтвердите дату покупки. Можно исправить вручную в формате ДД/ММ/ГГ.</p>
+                <p className="scan-field-hint">РџРѕРґС‚РІРµСЂРґРёС‚Рµ РґР°С‚Сѓ РїРѕРєСѓРїРєРё. РњРѕР¶РЅРѕ РёСЃРїСЂР°РІРёС‚СЊ РІСЂСѓС‡РЅСѓСЋ РІ С„РѕСЂРјР°С‚Рµ Р”Р”/РњРњ/Р“Р“.</p>
                 <input
                   type="text"
                   value={purchaseDateManual}
                   onChange={(e) => onPurchaseDateManualChange(e.target.value)}
-                  placeholder="Например: 14/02/26"
+                  placeholder="РќР°РїСЂРёРјРµСЂ: 14/02/26"
                   inputMode="numeric"
                   className="scan-field-input scan-date-manual-input"
                 />
@@ -168,9 +245,9 @@ export default function ScanTab({
               <table>
                 <thead>
                   <tr>
-                    <th>Название</th>
-                    <th className="scan-col-price">Цена (€)</th>
-                    <th className="scan-col-category">Категория</th>
+                    <th>РќР°Р·РІР°РЅРёРµ</th>
+                    <th className="scan-col-price">Р¦РµРЅР° (в‚¬)</th>
+                    <th className="scan-col-category">РљР°С‚РµРіРѕСЂРёСЏ</th>
                     <th className="scan-col-delete"></th>
                   </tr>
                 </thead>
@@ -206,7 +283,7 @@ export default function ScanTab({
                       </td>
                       <td>
                         <button className="delete-btn" onClick={() => onItemDelete(index)}>
-                          🗑️
+                          рџ—‘пёЏ
                         </button>
                       </td>
                     </tr>
@@ -216,18 +293,18 @@ export default function ScanTab({
             </div>
 
             <div className="total-row">
-              <span className="total-label">💰 Итого:</span>
-              <span className="total-value">{currentTotal.toFixed(2)} €</span>
+              <span className="total-label">рџ’° РС‚РѕРіРѕ:</span>
+              <span className="total-value">{currentTotal.toFixed(2)} в‚¬</span>
             </div>
 
             <button className="btn btn-primary btn-full mt-16" onClick={onSave} disabled={isSaving}>
               {isSaving ? (
                 <>
                   <div className="spinner"></div>
-                  Сохраняем...
+                  РЎРѕС…СЂР°РЅСЏРµРј...
                 </>
               ) : (
-                <>💾 Сохранить в базу данных</>
+                <>рџ’ѕ РЎРѕС…СЂР°РЅРёС‚СЊ РІ Р±Р°Р·Сѓ РґР°РЅРЅС‹С…</>
               )}
             </button>
           </div>
@@ -236,3 +313,4 @@ export default function ScanTab({
     </div>
   );
 }
+

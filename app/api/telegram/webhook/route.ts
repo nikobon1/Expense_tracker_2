@@ -1,4 +1,5 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
+import { CATEGORIES } from "@/features/expenses/constants";
 import type { ReceiptData, ReceiptItem } from "@/features/expenses/types";
 import { analyzeReceiptImageDataUrl } from "@/lib/server/analyze-receipt";
 import {
@@ -81,16 +82,92 @@ function getDraftInlineKeyboard(): TelegramInlineKeyboardMarkup {
   return {
     inline_keyboard: [
       [
-        { text: "✅ Сохранить", callback_data: "draft:save" },
-        { text: "❌ Отмена", callback_data: "draft:cancel" },
+        { text: "вњ… РЎРѕС…СЂР°РЅРёС‚СЊ", callback_data: "draft:save" },
+        { text: "вќЊ РћС‚РјРµРЅР°", callback_data: "draft:cancel" },
       ],
       [
-        { text: "🔁 Показать", callback_data: "draft:show" },
-        { text: "📅 Сегодня", callback_data: "draft:today" },
+        { text: "рџ”Ѓ РџРѕРєР°Р·Р°С‚СЊ", callback_data: "draft:show" },
+        { text: "рџ“… РЎРµРіРѕРґРЅСЏ", callback_data: "draft:today" },
       ],
-      [{ text: "✏️ Исправить", callback_data: "draft:edit" }],
+      [{ text: "вњЏпёЏ РСЃРїСЂР°РІРёС‚СЊ", callback_data: "draft:edit" }],
     ],
   };
+}
+
+function getDefaultCategory(): string {
+  return CATEGORIES.includes("Р”СЂСѓРіРѕРµ") ? "Р”СЂСѓРіРѕРµ" : (CATEGORIES.at(-1) ?? "Other");
+}
+
+function createManualDraft(seed?: {
+  storeName?: string;
+  totalAmount?: number;
+  purchaseDate?: string;
+}): ReceiptData {
+  return {
+    store_name: seed?.storeName?.trim() || "Manual entry",
+    purchase_date: seed?.purchaseDate || todayIsoDate(),
+    items: [
+      {
+        name: "Purchase without receipt",
+        price: seed?.totalAmount ?? 0,
+        category: getDefaultCategory(),
+      },
+    ],
+  };
+}
+
+function parseManualCommandSeed(text: string): { storeName?: string; totalAmount?: number; purchaseDate?: string } | null {
+  const match = /^\/manual(?:@[a-zA-Z0-9_]+)?(?:\s+(.+))?$/i.exec(text.trim());
+  if (!match) return null;
+
+  const rawArgs = match[1]?.trim();
+  if (!rawArgs) return {};
+
+  const parts = rawArgs
+    .split(";")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (parts.length === 0) return {};
+  if (parts.length > 3) return null;
+
+  const storeName = parts[0];
+  let totalAmount: number | undefined;
+  let purchaseDate: string | undefined;
+
+  if (parts[1]) {
+    const parsedAmount = parsePrice(parts[1]);
+    if (parsedAmount === null) return null;
+    totalAmount = parsedAmount;
+  }
+
+  if (parts[2]) {
+    const parsedDate = parseIsoDateFromUser(parts[2]);
+    if (!parsedDate) return null;
+    purchaseDate = parsedDate;
+  }
+
+  return {
+    storeName,
+    totalAmount,
+    purchaseDate,
+  };
+}
+
+function getManualModeHelpText(): string {
+  return [
+    "<b>Manual mode</b>",
+    "",
+    "Create a purchase without a receipt photo.",
+    "Commands:",
+    "вЂў <code>Store Lidl</code>",
+    "вЂў <code>Sum 12.49</code>",
+    "вЂў <code>Date 14/02/26</code>",
+    "вЂў <code>Save</code>",
+    "",
+    "Fast option:",
+    "вЂў <code>/manual Lidl; 12.49; 14/02/26</code>",
+  ].join("\n");
 }
 
 async function sendTelegramMessage(
@@ -174,7 +251,7 @@ function formatDateHuman(isoDate: string): string {
 
 function truncate(input: string, max = 42): string {
   if (input.length <= max) return input;
-  return `${input.slice(0, max - 1)}…`;
+  return `${input.slice(0, max - 1)}вЂ¦`;
 }
 
 function formatDraftPreview(receipt: ReceiptData, note?: string): string {
@@ -187,35 +264,35 @@ function formatDraftPreview(receipt: ReceiptData, note?: string): string {
     lines.push("");
   }
 
-  lines.push("🧾 <b>Проверьте чек перед сохранением</b>");
-  lines.push(`🏪 Магазин: <b>${escapeHtml(receipt.store_name || "Не указан")}</b>`);
-  lines.push(`📅 Дата: <b>${escapeHtml(formatDateHuman(receipt.purchase_date || "не определена"))}</b>`);
-  lines.push(`💰 Сумма: <b>${total.toFixed(2)} €</b>`);
-  lines.push(`🧾 Позиций: <b>${items.length}</b>`);
+  lines.push("рџ§ѕ <b>РџСЂРѕРІРµСЂСЊС‚Рµ С‡РµРє РїРµСЂРµРґ СЃРѕС…СЂР°РЅРµРЅРёРµРј</b>");
+  lines.push(`рџЏЄ РњР°РіР°Р·РёРЅ: <b>${escapeHtml(receipt.store_name || "РќРµ СѓРєР°Р·Р°РЅ")}</b>`);
+  lines.push(`рџ“… Р”Р°С‚Р°: <b>${escapeHtml(formatDateHuman(receipt.purchase_date || "РЅРµ РѕРїСЂРµРґРµР»РµРЅР°"))}</b>`);
+  lines.push(`рџ’° РЎСѓРјРјР°: <b>${total.toFixed(2)} в‚¬</b>`);
+  lines.push(`рџ§ѕ РџРѕР·РёС†РёР№: <b>${items.length}</b>`);
   lines.push("");
-  lines.push("<b>Позиции:</b>");
+  lines.push("<b>РџРѕР·РёС†РёРё:</b>");
 
   const maxItems = 12;
   for (const [idx, item] of items.slice(0, maxItems).entries()) {
-    const name = escapeHtml(truncate(item.name || "Без названия", 30));
-    const category = escapeHtml(truncate(item.category || "Другое", 18));
-    lines.push(`${idx + 1}. ${name} — ${Number(item.price || 0).toFixed(2)} € (${category})`);
+    const name = escapeHtml(truncate(item.name || "Р‘РµР· РЅР°Р·РІР°РЅРёСЏ", 30));
+    const category = escapeHtml(truncate(item.category || "Р”СЂСѓРіРѕРµ", 18));
+    lines.push(`${idx + 1}. ${name} вЂ” ${Number(item.price || 0).toFixed(2)} в‚¬ (${category})`);
   }
   if (items.length > maxItems) {
-    lines.push(`… и ещё ${items.length - maxItems}`);
+    lines.push(`вЂ¦ Рё РµС‰С‘ ${items.length - maxItems}`);
   }
 
   lines.push("");
-  lines.push("<b>Команды:</b>");
-  lines.push("• <code>Сохранить</code> — сохранить в базу");
-  lines.push("• <code>Отмена</code> — удалить черновик");
-  lines.push("• <code>Показать</code> — показать чек ещё раз");
-  lines.push("• <code>Дата 14/02/26</code>");
-  lines.push("• <code>Магазин Lidl</code>");
-  lines.push("• <code>Цена 3 12.49</code>");
-  lines.push("• <code>Название 2 Бананы</code>");
-  lines.push("• <code>Категория 2 Фрукты</code>");
-  lines.push("• <code>Удалить 5</code>");
+  lines.push("<b>РљРѕРјР°РЅРґС‹:</b>");
+  lines.push("вЂў <code>РЎРѕС…СЂР°РЅРёС‚СЊ</code> вЂ” СЃРѕС…СЂР°РЅРёС‚СЊ РІ Р±Р°Р·Сѓ");
+  lines.push("вЂў <code>РћС‚РјРµРЅР°</code> вЂ” СѓРґР°Р»РёС‚СЊ С‡РµСЂРЅРѕРІРёРє");
+  lines.push("вЂў <code>РџРѕРєР°Р·Р°С‚СЊ</code> вЂ” РїРѕРєР°Р·Р°С‚СЊ С‡РµРє РµС‰С‘ СЂР°Р·");
+  lines.push("вЂў <code>Р”Р°С‚Р° 14/02/26</code>");
+  lines.push("вЂў <code>РњР°РіР°Р·РёРЅ Lidl</code>");
+  lines.push("вЂў <code>Р¦РµРЅР° 3 12.49</code>");
+  lines.push("вЂў <code>РќР°Р·РІР°РЅРёРµ 2 Р‘Р°РЅР°РЅС‹</code>");
+  lines.push("вЂў <code>РљР°С‚РµРіРѕСЂРёСЏ 2 Р¤СЂСѓРєС‚С‹</code>");
+  lines.push("вЂў <code>РЈРґР°Р»РёС‚СЊ 5</code>");
 
   return lines.join("\n");
 }
@@ -228,48 +305,48 @@ async function sendDraftPreviewMessage(chatId: number, receipt: ReceiptData, not
 
 function getDraftEditHelpText(): string {
   return [
-    "✏️ <b>Как исправить чек</b>",
+    "вњЏпёЏ <b>РљР°Рє РёСЃРїСЂР°РІРёС‚СЊ С‡РµРє</b>",
     "",
-    "Отправьте одно сообщение с нужной правкой:",
-    "• <code>Дата 14/02/26</code>",
-    "• <code>Магазин Lidl</code>",
-    "• <code>Цена 3 12.49</code>",
-    "• <code>Название 2 Бананы</code>",
-    "• <code>Категория 2 Фрукты</code>",
-    "• <code>Удалить 5</code>",
+    "РћС‚РїСЂР°РІСЊС‚Рµ РѕРґРЅРѕ СЃРѕРѕР±С‰РµРЅРёРµ СЃ РЅСѓР¶РЅРѕР№ РїСЂР°РІРєРѕР№:",
+    "вЂў <code>Р”Р°С‚Р° 14/02/26</code>",
+    "вЂў <code>РњР°РіР°Р·РёРЅ Lidl</code>",
+    "вЂў <code>Р¦РµРЅР° 3 12.49</code>",
+    "вЂў <code>РќР°Р·РІР°РЅРёРµ 2 Р‘Р°РЅР°РЅС‹</code>",
+    "вЂў <code>РљР°С‚РµРіРѕСЂРёСЏ 2 Р¤СЂСѓРєС‚С‹</code>",
+    "вЂў <code>РЈРґР°Р»РёС‚СЊ 5</code>",
     "",
-    "После правки бот пришлёт обновлённый черновик с кнопками.",
+    "РџРѕСЃР»Рµ РїСЂР°РІРєРё Р±РѕС‚ РїСЂРёС€Р»С‘С‚ РѕР±РЅРѕРІР»С‘РЅРЅС‹Р№ С‡РµСЂРЅРѕРІРёРє СЃ РєРЅРѕРїРєР°РјРё.",
   ].join("\n");
 }
 
 function formatSavedSummary(receipt: ReceiptData, totalAmount: number, receiptId: number): string {
   const itemsCount = receipt.items?.length || 0;
   return [
-    "✅ <b>Чек сохранён</b>",
-    `🏪 Магазин: <b>${escapeHtml(receipt.store_name || "Неизвестный магазин")}</b>`,
-    `📅 Дата: <b>${escapeHtml(formatDateHuman(receipt.purchase_date || "не определена"))}</b>`,
-    `🧾 Позиций: <b>${itemsCount}</b>`,
-    `💰 Сумма: <b>${totalAmount.toFixed(2)} €</b>`,
+    "вњ… <b>Р§РµРє СЃРѕС…СЂР°РЅС‘РЅ</b>",
+    `рџЏЄ РњР°РіР°Р·РёРЅ: <b>${escapeHtml(receipt.store_name || "РќРµРёР·РІРµСЃС‚РЅС‹Р№ РјР°РіР°Р·РёРЅ")}</b>`,
+    `рџ“… Р”Р°С‚Р°: <b>${escapeHtml(formatDateHuman(receipt.purchase_date || "РЅРµ РѕРїСЂРµРґРµР»РµРЅР°"))}</b>`,
+    `рџ§ѕ РџРѕР·РёС†РёР№: <b>${itemsCount}</b>`,
+    `рџ’° РЎСѓРјРјР°: <b>${totalAmount.toFixed(2)} в‚¬</b>`,
     `#${receiptId}`,
   ].join("\n");
 }
 
 function getHelpText() {
   return [
-    "Отправьте фото чека, и я распознаю его и пришлю на подтверждение.",
+    "РћС‚РїСЂР°РІСЊС‚Рµ С„РѕС‚Рѕ С‡РµРєР°, Рё СЏ СЂР°СЃРїРѕР·РЅР°СЋ РµРіРѕ Рё РїСЂРёС€Р»СЋ РЅР° РїРѕРґС‚РІРµСЂР¶РґРµРЅРёРµ.",
     "",
-    "После распознавания можно исправить данные командами:",
-    "• Сохранить / Отмена / Показать",
-    "• Дата 14/02/26",
-    "• Магазин Lidl",
-    "• Цена 3 12.49",
-    "• Название 2 Бананы",
-    "• Категория 2 Фрукты",
-    "• Удалить 5",
+    "РџРѕСЃР»Рµ СЂР°СЃРїРѕР·РЅР°РІР°РЅРёСЏ РјРѕР¶РЅРѕ РёСЃРїСЂР°РІРёС‚СЊ РґР°РЅРЅС‹Рµ РєРѕРјР°РЅРґР°РјРё:",
+    "вЂў РЎРѕС…СЂР°РЅРёС‚СЊ / РћС‚РјРµРЅР° / РџРѕРєР°Р·Р°С‚СЊ",
+    "вЂў Р”Р°С‚Р° 14/02/26",
+    "вЂў РњР°РіР°Р·РёРЅ Lidl",
+    "вЂў Р¦РµРЅР° 3 12.49",
+    "вЂў РќР°Р·РІР°РЅРёРµ 2 Р‘Р°РЅР°РЅС‹",
+    "вЂў РљР°С‚РµРіРѕСЂРёСЏ 2 Р¤СЂСѓРєС‚С‹",
+    "вЂў РЈРґР°Р»РёС‚СЊ 5",
     "",
-    "Советы:",
-    "• Лучше отправлять чек как файл (без сжатия)",
-    "• В кадре должен быть только чек",
+    "РЎРѕРІРµС‚С‹:",
+    "вЂў Р›СѓС‡С€Рµ РѕС‚РїСЂР°РІР»СЏС‚СЊ С‡РµРє РєР°Рє С„Р°Р№Р» (Р±РµР· СЃР¶Р°С‚РёСЏ)",
+    "вЂў Р’ РєР°РґСЂРµ РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ С‚РѕР»СЊРєРѕ С‡РµРє",
   ].join("\n");
 }
 
@@ -304,18 +381,25 @@ function parsePrice(input: string): number | null {
 function looksLikeDraftCommand(text: string): boolean {
   const lower = text.trim().toLowerCase();
   return (
-    lower === "сохранить" ||
+    lower === "СЃРѕС…СЂР°РЅРёС‚СЊ" ||
+    lower === "save" ||
     lower === "/save" ||
-    lower === "отмена" ||
+    lower === "РѕС‚РјРµРЅР°" ||
+    lower === "cancel" ||
     lower === "/cancel" ||
-    lower === "показать" ||
+    lower === "РїРѕРєР°Р·Р°С‚СЊ" ||
+    lower === "show" ||
     lower === "/show" ||
-    lower.startsWith("дата ") ||
-    lower.startsWith("магазин ") ||
-    lower.startsWith("цена ") ||
-    lower.startsWith("название ") ||
-    lower.startsWith("категория ") ||
-    lower.startsWith("удалить ")
+    lower.startsWith("date ") ||
+    lower.startsWith("store ") ||
+    lower.startsWith("sum ") ||
+    lower.startsWith("/sum ") ||
+    lower.startsWith("РґР°С‚Р° ") ||
+    lower.startsWith("РјР°РіР°Р·РёРЅ ") ||
+    lower.startsWith("С†РµРЅР° ") ||
+    lower.startsWith("РЅР°Р·РІР°РЅРёРµ ") ||
+    lower.startsWith("РєР°С‚РµРіРѕСЂРёСЏ ") ||
+    lower.startsWith("СѓРґР°Р»РёС‚СЊ ")
   );
 }
 
@@ -334,23 +418,23 @@ async function handleDraftCommand(params: {
 
   const draft = await getTelegramDraft(chatId);
 
-  if (lower === "отмена" || lower === "/cancel") {
+  if (lower === "РѕС‚РјРµРЅР°" || lower === "cancel" || lower === "/cancel") {
     await deleteTelegramDraft(chatId);
-    await sendTelegramMessage(chatId, draft ? "🗑️ Черновик чека удалён." : "Черновика нет.");
+    await sendTelegramMessage(chatId, draft ? "рџ—‘пёЏ Р§РµСЂРЅРѕРІРёРє С‡РµРєР° СѓРґР°Р»С‘РЅ." : "Р§РµСЂРЅРѕРІРёРєР° РЅРµС‚.");
     return { handled: true, result: "draft_cancelled" };
   }
 
   if (!draft) {
-    await sendTelegramMessage(chatId, "Нет черновика чека. Сначала пришлите фото чека.");
+    await sendTelegramMessage(chatId, "No draft yet. Send a receipt photo or use /manual.");
     return { handled: true, result: "no_draft" };
   }
 
-  if (lower === "показать" || lower === "/show") {
+  if (lower === "РїРѕРєР°Р·Р°С‚СЊ" || lower === "show" || lower === "/show") {
     await sendDraftPreviewMessage(chatId, draft);
     return { handled: true, result: "draft_shown" };
   }
 
-  if (lower === "сохранить" || lower === "/save") {
+  if (lower === "СЃРѕС…СЂР°РЅРёС‚СЊ" || lower === "save" || lower === "/save") {
     const draftWithMeta = draft as ReceiptData & { _telegram_file_id?: string | null };
     const saved = await saveReceiptToDb({
       store_name: draft.store_name,
@@ -364,86 +448,131 @@ async function handleDraftCommand(params: {
     return { handled: true, result: "draft_saved" };
   }
 
-  let match = /^дата\s+(.+)$/i.exec(cmd);
+  let match = /^date\s+(.+)$/i.exec(cmd);
   if (match) {
     const parsed = parseIsoDateFromUser(match[1]);
     if (!parsed) {
-      await sendTelegramMessage(chatId, "Неверный формат даты. Используйте: <code>Дата 14/02/26</code>");
+      await sendTelegramMessage(chatId, "Invalid date format. Use: <code>Date 14/02/26</code>");
       return { handled: true, result: "draft_date_invalid" };
     }
     draft.purchase_date = parsed;
     await saveTelegramDraft(chatId, userId, draft);
-    await sendDraftPreviewMessage(chatId, draft, "✅ Дата обновлена.");
+    await sendDraftPreviewMessage(chatId, draft, "OK: date updated.");
     return { handled: true, result: "draft_date_updated" };
   }
 
-  match = /^магазин\s+(.+)$/i.exec(cmd);
+  match = /^store\s+(.+)$/i.exec(cmd);
   if (match) {
     draft.store_name = match[1].trim();
     await saveTelegramDraft(chatId, userId, draft);
-    await sendDraftPreviewMessage(chatId, draft, "✅ Магазин обновлён.");
+    await sendDraftPreviewMessage(chatId, draft, "OK: store updated.");
     return { handled: true, result: "draft_store_updated" };
   }
 
-  match = /^цена\s+(\d+)\s+(.+)$/i.exec(cmd);
+  match = /^(?:sum|\/sum)\s+(.+)$/i.exec(cmd);
+  if (match) {
+    const price = parsePrice(match[1]);
+    if (price === null) {
+      await sendTelegramMessage(chatId, "Invalid amount. Example: <code>Sum 12.49</code>");
+      return { handled: true, result: "draft_sum_invalid" };
+    }
+
+    if (!draft.items[0]) {
+      draft.items = [
+        {
+          name: "Purchase without receipt",
+          price,
+          category: getDefaultCategory(),
+        },
+      ];
+    } else {
+      draft.items[0].price = price;
+    }
+
+    await saveTelegramDraft(chatId, userId, draft);
+    await sendDraftPreviewMessage(chatId, draft, "OK: total updated.");
+    return { handled: true, result: "draft_sum_updated" };
+  }
+  match = /^РґР°С‚Р°\s+(.+)$/i.exec(cmd);
+  if (match) {
+    const parsed = parseIsoDateFromUser(match[1]);
+    if (!parsed) {
+      await sendTelegramMessage(chatId, "РќРµРІРµСЂРЅС‹Р№ С„РѕСЂРјР°С‚ РґР°С‚С‹. РСЃРїРѕР»СЊР·СѓР№С‚Рµ: <code>Р”Р°С‚Р° 14/02/26</code>");
+      return { handled: true, result: "draft_date_invalid" };
+    }
+    draft.purchase_date = parsed;
+    await saveTelegramDraft(chatId, userId, draft);
+    await sendDraftPreviewMessage(chatId, draft, "вњ… Р”Р°С‚Р° РѕР±РЅРѕРІР»РµРЅР°.");
+    return { handled: true, result: "draft_date_updated" };
+  }
+
+  match = /^РјР°РіР°Р·РёРЅ\s+(.+)$/i.exec(cmd);
+  if (match) {
+    draft.store_name = match[1].trim();
+    await saveTelegramDraft(chatId, userId, draft);
+    await sendDraftPreviewMessage(chatId, draft, "вњ… РњР°РіР°Р·РёРЅ РѕР±РЅРѕРІР»С‘РЅ.");
+    return { handled: true, result: "draft_store_updated" };
+  }
+
+  match = /^С†РµРЅР°\s+(\d+)\s+(.+)$/i.exec(cmd);
   if (match) {
     const index = Number(match[1]) - 1;
     if (!draft.items[index]) {
-      await sendTelegramMessage(chatId, "Нет такой позиции. Используйте номер из списка.");
+      await sendTelegramMessage(chatId, "РќРµС‚ С‚Р°РєРѕР№ РїРѕР·РёС†РёРё. РСЃРїРѕР»СЊР·СѓР№С‚Рµ РЅРѕРјРµСЂ РёР· СЃРїРёСЃРєР°.");
       return { handled: true, result: "draft_item_missing" };
     }
     const price = parsePrice(match[2]);
     if (price === null) {
-      await sendTelegramMessage(chatId, "Неверный формат цены. Пример: <code>Цена 3 12.49</code>");
+      await sendTelegramMessage(chatId, "РќРµРІРµСЂРЅС‹Р№ С„РѕСЂРјР°С‚ С†РµРЅС‹. РџСЂРёРјРµСЂ: <code>Р¦РµРЅР° 3 12.49</code>");
       return { handled: true, result: "draft_price_invalid" };
     }
     draft.items[index].price = price;
     await saveTelegramDraft(chatId, userId, draft);
-    await sendDraftPreviewMessage(chatId, draft, `✅ Цена позиции ${index + 1} обновлена.`);
+    await sendDraftPreviewMessage(chatId, draft, `вњ… Р¦РµРЅР° РїРѕР·РёС†РёРё ${index + 1} РѕР±РЅРѕРІР»РµРЅР°.`);
     return { handled: true, result: "draft_price_updated" };
   }
 
-  match = /^название\s+(\d+)\s+(.+)$/i.exec(cmd);
+  match = /^РЅР°Р·РІР°РЅРёРµ\s+(\d+)\s+(.+)$/i.exec(cmd);
   if (match) {
     const index = Number(match[1]) - 1;
     if (!draft.items[index]) {
-      await sendTelegramMessage(chatId, "Нет такой позиции. Используйте номер из списка.");
+      await sendTelegramMessage(chatId, "РќРµС‚ С‚Р°РєРѕР№ РїРѕР·РёС†РёРё. РСЃРїРѕР»СЊР·СѓР№С‚Рµ РЅРѕРјРµСЂ РёР· СЃРїРёСЃРєР°.");
       return { handled: true, result: "draft_item_missing" };
     }
     draft.items[index].name = match[2].trim();
     await saveTelegramDraft(chatId, userId, draft);
-    await sendDraftPreviewMessage(chatId, draft, `✅ Название позиции ${index + 1} обновлено.`);
+    await sendDraftPreviewMessage(chatId, draft, `вњ… РќР°Р·РІР°РЅРёРµ РїРѕР·РёС†РёРё ${index + 1} РѕР±РЅРѕРІР»РµРЅРѕ.`);
     return { handled: true, result: "draft_name_updated" };
   }
 
-  match = /^категория\s+(\d+)\s+(.+)$/i.exec(cmd);
+  match = /^РєР°С‚РµРіРѕСЂРёСЏ\s+(\d+)\s+(.+)$/i.exec(cmd);
   if (match) {
     const index = Number(match[1]) - 1;
     if (!draft.items[index]) {
-      await sendTelegramMessage(chatId, "Нет такой позиции. Используйте номер из списка.");
+      await sendTelegramMessage(chatId, "РќРµС‚ С‚Р°РєРѕР№ РїРѕР·РёС†РёРё. РСЃРїРѕР»СЊР·СѓР№С‚Рµ РЅРѕРјРµСЂ РёР· СЃРїРёСЃРєР°.");
       return { handled: true, result: "draft_item_missing" };
     }
     draft.items[index].category = match[2].trim();
     await saveTelegramDraft(chatId, userId, draft);
-    await sendDraftPreviewMessage(chatId, draft, `✅ Категория позиции ${index + 1} обновлена.`);
+    await sendDraftPreviewMessage(chatId, draft, `вњ… РљР°С‚РµРіРѕСЂРёСЏ РїРѕР·РёС†РёРё ${index + 1} РѕР±РЅРѕРІР»РµРЅР°.`);
     return { handled: true, result: "draft_category_updated" };
   }
 
-  match = /^удалить\s+(\d+)$/i.exec(cmd);
+  match = /^СѓРґР°Р»РёС‚СЊ\s+(\d+)$/i.exec(cmd);
   if (match) {
     const index = Number(match[1]) - 1;
     if (!draft.items[index]) {
-      await sendTelegramMessage(chatId, "Нет такой позиции. Используйте номер из списка.");
+      await sendTelegramMessage(chatId, "РќРµС‚ С‚Р°РєРѕР№ РїРѕР·РёС†РёРё. РСЃРїРѕР»СЊР·СѓР№С‚Рµ РЅРѕРјРµСЂ РёР· СЃРїРёСЃРєР°.");
       return { handled: true, result: "draft_item_missing" };
     }
     draft.items.splice(index, 1);
     if (draft.items.length === 0) {
       await deleteTelegramDraft(chatId);
-      await sendTelegramMessage(chatId, "🗑️ Все позиции удалены, черновик чека удалён.");
+      await sendTelegramMessage(chatId, "рџ—‘пёЏ Р’СЃРµ РїРѕР·РёС†РёРё СѓРґР°Р»РµРЅС‹, С‡РµСЂРЅРѕРІРёРє С‡РµРєР° СѓРґР°Р»С‘РЅ.");
       return { handled: true, result: "draft_deleted_empty" };
     }
     await saveTelegramDraft(chatId, userId, draft);
-    await sendDraftPreviewMessage(chatId, draft, `✅ Позиция ${index + 1} удалена.`);
+    await sendDraftPreviewMessage(chatId, draft, `вњ… РџРѕР·РёС†РёСЏ ${index + 1} СѓРґР°Р»РµРЅР°.`);
     return { handled: true, result: "draft_item_deleted" };
   }
 
@@ -469,22 +598,22 @@ async function handleDraftCallback(params: {
   const { callbackQueryId, chatId, userId, data } = params;
 
   if (data === "draft:save") {
-    await answerTelegramCallbackQuery(callbackQueryId, "Сохраняю...");
+    await answerTelegramCallbackQuery(callbackQueryId, "РЎРѕС…СЂР°РЅСЏСЋ...");
     return handleDraftCommand({ chatId, userId, text: "/save" });
   }
 
   if (data === "draft:cancel") {
-    await answerTelegramCallbackQuery(callbackQueryId, "Удаляю черновик...");
+    await answerTelegramCallbackQuery(callbackQueryId, "РЈРґР°Р»СЏСЋ С‡РµСЂРЅРѕРІРёРє...");
     return handleDraftCommand({ chatId, userId, text: "/cancel" });
   }
 
   if (data === "draft:show") {
-    await answerTelegramCallbackQuery(callbackQueryId, "Показываю чек");
+    await answerTelegramCallbackQuery(callbackQueryId, "РџРѕРєР°Р·С‹РІР°СЋ С‡РµРє");
     return handleDraftCommand({ chatId, userId, text: "/show" });
   }
 
   if (data === "draft:edit") {
-    await answerTelegramCallbackQuery(callbackQueryId, "Отправлю подсказку");
+    await answerTelegramCallbackQuery(callbackQueryId, "РћС‚РїСЂР°РІР»СЋ РїРѕРґСЃРєР°Р·РєСѓ");
     await sendTelegramMessage(chatId, getDraftEditHelpText());
     return { handled: true, result: "draft_edit_help" };
   }
@@ -492,15 +621,15 @@ async function handleDraftCallback(params: {
   if (data === "draft:today") {
     const draft = await getTelegramDraft(chatId);
     if (!draft) {
-      await answerTelegramCallbackQuery(callbackQueryId, "Черновик не найден");
-      await sendTelegramMessage(chatId, "Нет черновика чека. Сначала пришлите фото чека.");
+      await answerTelegramCallbackQuery(callbackQueryId, "Р§РµСЂРЅРѕРІРёРє РЅРµ РЅР°Р№РґРµРЅ");
+      await sendTelegramMessage(chatId, "РќРµС‚ С‡РµСЂРЅРѕРІРёРєР° С‡РµРєР°. РЎРЅР°С‡Р°Р»Р° РїСЂРёС€Р»РёС‚Рµ С„РѕС‚Рѕ С‡РµРєР°.");
       return { handled: true, result: "no_draft" };
     }
 
     draft.purchase_date = todayIsoDate();
     await saveTelegramDraft(chatId, userId, draft);
-    await answerTelegramCallbackQuery(callbackQueryId, "Дата = сегодня");
-    await sendDraftPreviewMessage(chatId, draft, "✅ Дата установлена на сегодня.");
+    await answerTelegramCallbackQuery(callbackQueryId, "Р”Р°С‚Р° = СЃРµРіРѕРґРЅСЏ");
+    await sendDraftPreviewMessage(chatId, draft, "вњ… Р”Р°С‚Р° СѓСЃС‚Р°РЅРѕРІР»РµРЅР° РЅР° СЃРµРіРѕРґРЅСЏ.");
     return { handled: true, result: "draft_date_today" };
   }
 
@@ -537,12 +666,12 @@ export async function POST(request: NextRequest) {
       const fromUserId = callbackQuery.from?.id ?? null;
       const allowlist = getAllowedUserIds();
       if (chatId == null) {
-        await answerTelegramCallbackQuery(callbackQuery.id, "Нет чата");
+        await answerTelegramCallbackQuery(callbackQuery.id, "РќРµС‚ С‡Р°С‚Р°");
         return NextResponse.json({ ok: true, ignored: "callback_without_chat" });
       }
       if (allowlist && (!fromUserId || !allowlist.has(fromUserId))) {
-        await answerTelegramCallbackQuery(callbackQuery.id, "Нет доступа");
-        await sendTelegramMessage(chatId, "⛔️ У вас нет доступа к этому боту.");
+        await answerTelegramCallbackQuery(callbackQuery.id, "РќРµС‚ РґРѕСЃС‚СѓРїР°");
+        await sendTelegramMessage(chatId, "в›”пёЏ РЈ РІР°СЃ РЅРµС‚ РґРѕСЃС‚СѓРїР° Рє СЌС‚РѕРјСѓ Р±РѕС‚Сѓ.");
         return NextResponse.json({ ok: true, ignored: "forbidden_user" });
       }
 
@@ -556,7 +685,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true, handled: callbackHandled.result ?? "callback" });
       }
 
-      await answerTelegramCallbackQuery(callbackQuery.id, "Неизвестная кнопка");
+      await answerTelegramCallbackQuery(callbackQuery.id, "РќРµРёР·РІРµСЃС‚РЅР°СЏ РєРЅРѕРїРєР°");
       return NextResponse.json({ ok: true, ignored: "unknown_callback" });
     }
 
@@ -569,7 +698,7 @@ export async function POST(request: NextRequest) {
     const fromUserId = message.from?.id ?? null;
     const allowlist = getAllowedUserIds();
     if (allowlist && (!fromUserId || !allowlist.has(fromUserId))) {
-      await sendTelegramMessage(chatId, "⛔️ У вас нет доступа к этому боту.");
+      await sendTelegramMessage(chatId, "в›”пёЏ РЈ РІР°СЃ РЅРµС‚ РґРѕСЃС‚СѓРїР° Рє СЌС‚РѕРјСѓ Р±РѕС‚Сѓ.");
       return NextResponse.json({ ok: true, ignored: "forbidden_user" });
     }
 
@@ -581,6 +710,26 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true, handled: "help" });
       }
 
+      const isManualCommand = /^\/manual(?:@[a-zA-Z0-9_]+)?(?:\s+.*)?$/i.test(text);
+      const manualSeed = parseManualCommandSeed(text);
+      if (isManualCommand) {
+        if (manualSeed === null) {
+          await sendTelegramMessage(chatId, "Invalid /manual format.\n\n" + getManualModeHelpText());
+          return NextResponse.json({ ok: true, handled: "manual_draft_invalid" });
+        }
+
+        const manualDraft = createManualDraft(manualSeed);
+        await saveTelegramDraft(chatId, fromUserId, manualDraft);
+        await sendDraftPreviewMessage(
+          chatId,
+          manualDraft,
+          manualSeed.totalAmount !== undefined
+            ? "OK: manual purchase draft created. Review and save."
+            : "Manual mode started. Set Store and Sum, then save."
+        );
+        await sendTelegramMessage(chatId, getManualModeHelpText());
+        return NextResponse.json({ ok: true, handled: "manual_draft_created" });
+      }
       const draftCommand = await handleDraftCommand({ chatId, userId: fromUserId, text });
       if (draftCommand.handled) {
         return NextResponse.json({ ok: true, handled: draftCommand.result ?? "draft_command" });
@@ -589,7 +738,7 @@ export async function POST(request: NextRequest) {
 
     const source = getBestImageSource(message);
     if (!source) {
-      await sendTelegramMessage(chatId, "Пришлите фото чека (или изображение как файл).");
+      await sendTelegramMessage(chatId, "РџСЂРёС€Р»РёС‚Рµ С„РѕС‚Рѕ С‡РµРєР° (РёР»Рё РёР·РѕР±СЂР°Р¶РµРЅРёРµ РєР°Рє С„Р°Р№Р»).");
       return NextResponse.json({ ok: true, handled: "no_image" });
     }
 
@@ -598,7 +747,7 @@ export async function POST(request: NextRequest) {
     const receipt = await analyzeReceiptImageDataUrl(imageDataUrl);
     await saveTelegramDraft(chatId, fromUserId, receipt, { telegram_file_id: source.fileId });
 
-    await sendDraftPreviewMessage(chatId, receipt, "✅ Чек распознан. Проверьте данные перед сохранением.");
+    await sendDraftPreviewMessage(chatId, receipt, "вњ… Р§РµРє СЂР°СЃРїРѕР·РЅР°РЅ. РџСЂРѕРІРµСЂСЊС‚Рµ РґР°РЅРЅС‹Рµ РїРµСЂРµРґ СЃРѕС…СЂР°РЅРµРЅРёРµРј.");
     return NextResponse.json({ ok: true, handled: "draft_created" });
   } catch (error) {
     console.error("Telegram webhook error:", error);
@@ -608,8 +757,8 @@ export async function POST(request: NextRequest) {
     if (chatId) {
       const msg =
         error instanceof Error
-          ? `❌ Не удалось обработать чек.\n${escapeHtml(error.message)}`
-          : "❌ Не удалось обработать чек.";
+          ? `вќЊ РќРµ СѓРґР°Р»РѕСЃСЊ РѕР±СЂР°Р±РѕС‚Р°С‚СЊ С‡РµРє.\n${escapeHtml(error.message)}`
+          : "вќЊ РќРµ СѓРґР°Р»РѕСЃСЊ РѕР±СЂР°Р±РѕС‚Р°С‚СЊ С‡РµРє.";
       await sendTelegramMessage(chatId, msg);
     }
 
@@ -619,3 +768,6 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+
+

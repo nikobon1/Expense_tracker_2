@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CATEGORIES } from "@/features/expenses/constants";
 import { analyzeReceipt, saveReceipt } from "@/lib/api";
 import type { AlertState, ReceiptData, ReceiptItem } from "@/features/expenses/types";
 
@@ -103,6 +104,12 @@ async function optimizeImageForUpload(file: File): Promise<string> {
   return dataUrl;
 }
 
+function getLocalTodayIso(): string {
+  const now = new Date();
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 10);
+}
+
 export function useReceiptFlow() {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -111,6 +118,9 @@ export function useReceiptFlow() {
   const [storeName, setStoreName] = useState("");
   const [purchaseDate, setPurchaseDate] = useState("");
   const [purchaseDateManual, setPurchaseDateManual] = useState("");
+  const [manualStoreName, setManualStoreName] = useState("");
+  const [manualPurchaseDate, setManualPurchaseDate] = useState(getLocalTodayIso);
+  const [manualTotal, setManualTotal] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [alert, setAlert] = useState<AlertState | null>(null);
 
@@ -211,6 +221,50 @@ export function useReceiptFlow() {
     }
   }, [editedItems, purchaseDate, storeName]);
 
+  const handleManualSave = useCallback(async () => {
+    const normalizedStoreName = manualStoreName.trim();
+    const totalAmount = Number(manualTotal);
+
+    if (!normalizedStoreName) {
+      setAlert({ type: "error", message: "Enter a store name before saving." });
+      return;
+    }
+
+    if (!manualPurchaseDate) {
+      setAlert({ type: "error", message: "Select a purchase date." });
+      return;
+    }
+
+    if (!Number.isFinite(totalAmount) || totalAmount <= 0) {
+      setAlert({ type: "error", message: "Enter a total amount greater than zero." });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await saveReceipt({
+        store_name: normalizedStoreName,
+        purchase_date: manualPurchaseDate,
+        items: [
+          {
+            name: "Purchase without receipt",
+            price: totalAmount,
+            category: CATEGORIES[CATEGORIES.length - 1],
+          },
+        ],
+      });
+
+      setAlert({ type: "success", message: "Purchase saved without receipt photo." });
+      setManualStoreName("");
+      setManualPurchaseDate(getLocalTodayIso());
+      setManualTotal("");
+    } catch {
+      setAlert({ type: "error", message: "Failed to save the purchase." });
+    } finally {
+      setIsSaving(false);
+    }
+  }, [manualPurchaseDate, manualStoreName, manualTotal]);
+
   const updateItem = useCallback((index: number, field: keyof ReceiptItem, value: string | number) => {
     setEditedItems((prevItems) => {
       const next = [...prevItems];
@@ -245,6 +299,9 @@ export function useReceiptFlow() {
     storeName,
     purchaseDate,
     purchaseDateManual,
+    manualStoreName,
+    manualPurchaseDate,
+    manualTotal,
     isSaving,
     alert,
     fileInputRef,
@@ -252,9 +309,13 @@ export function useReceiptFlow() {
     handleFile,
     handleAnalyzeReceipt,
     handleSaveReceipt,
+    handleManualSave,
     setStoreName,
     setPurchaseDate: handlePurchaseDateChange,
     setPurchaseDateManual: handlePurchaseDateManualChange,
+    setManualStoreName,
+    setManualPurchaseDate,
+    setManualTotal,
     updateItem,
     deleteItem,
     resetScanner,
