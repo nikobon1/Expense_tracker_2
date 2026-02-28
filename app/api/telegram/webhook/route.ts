@@ -1,5 +1,4 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
-import { CATEGORIES } from "@/features/expenses/constants";
 import type { ReceiptData, ReceiptItem } from "@/features/expenses/types";
 import { analyzeReceiptImageDataUrl } from "@/lib/server/analyze-receipt";
 import {
@@ -90,14 +89,14 @@ function getDraftInlineKeyboard(): TelegramInlineKeyboardMarkup {
   return {
     inline_keyboard: [
       [
-        { text: "вњ… РЎРѕС…СЂР°РЅРёС‚СЊ", callback_data: "draft:save" },
-        { text: "вќЊ РћС‚РјРµРЅР°", callback_data: "draft:cancel" },
+        { text: "Save", callback_data: "draft:save" },
+        { text: "Cancel", callback_data: "draft:cancel" },
       ],
       [
-        { text: "рџ”Ѓ РџРѕРєР°Р·Р°С‚СЊ", callback_data: "draft:show" },
-        { text: "рџ“… РЎРµРіРѕРґРЅСЏ", callback_data: "draft:today" },
+        { text: "Show", callback_data: "draft:show" },
+        { text: "Today", callback_data: "draft:today" },
       ],
-      [{ text: "вњЏпёЏ РСЃРїСЂР°РІРёС‚СЊ", callback_data: "draft:edit" }],
+      [{ text: "Edit", callback_data: "draft:edit" }],
     ],
   };
 }
@@ -112,7 +111,7 @@ function getMainMenuReplyKeyboard(): TelegramReplyKeyboardMarkup {
 }
 
 function getDefaultCategory(): string {
-  return CATEGORIES.includes("Р”СЂСѓРіРѕРµ") ? "Р”СЂСѓРіРѕРµ" : (CATEGORIES.at(-1) ?? "Other");
+  return "Other";
 }
 
 function createManualDraft(seed?: {
@@ -177,13 +176,13 @@ function getManualModeHelpText(): string {
     "",
     "Create a purchase without a receipt photo.",
     "Commands:",
-    "вЂў <code>Store Lidl</code>",
-    "вЂў <code>Sum 12.49</code>",
-    "вЂў <code>Date 14/02/26</code>",
-    "вЂў <code>Save</code>",
+    "- <code>Store Lidl</code>",
+    "- <code>Sum 12.49</code>",
+    "- <code>Date 14/02/26</code>",
+    "- <code>Save</code>",
     "",
     "Fast option:",
-    "вЂў <code>/manual Lidl; 12.49; 14/02/26</code>",
+    "- <code>/manual Lidl; 12.49; 14/02/26</code>",
   ].join("\n");
 }
 
@@ -268,7 +267,7 @@ function formatDateHuman(isoDate: string): string {
 
 function truncate(input: string, max = 42): string {
   if (input.length <= max) return input;
-  return `${input.slice(0, max - 1)}вЂ¦`;
+  return `${input.slice(0, max - 3)}...`;
 }
 
 function formatDraftPreview(receipt: ReceiptData, note?: string): string {
@@ -281,35 +280,36 @@ function formatDraftPreview(receipt: ReceiptData, note?: string): string {
     lines.push("");
   }
 
-  lines.push("рџ§ѕ <b>РџСЂРѕРІРµСЂСЊС‚Рµ С‡РµРє РїРµСЂРµРґ СЃРѕС…СЂР°РЅРµРЅРёРµРј</b>");
-  lines.push(`рџЏЄ РњР°РіР°Р·РёРЅ: <b>${escapeHtml(receipt.store_name || "РќРµ СѓРєР°Р·Р°РЅ")}</b>`);
-  lines.push(`рџ“… Р”Р°С‚Р°: <b>${escapeHtml(formatDateHuman(receipt.purchase_date || "РЅРµ РѕРїСЂРµРґРµР»РµРЅР°"))}</b>`);
-  lines.push(`рџ’° РЎСѓРјРјР°: <b>${total.toFixed(2)} в‚¬</b>`);
-  lines.push(`рџ§ѕ РџРѕР·РёС†РёР№: <b>${items.length}</b>`);
+  lines.push("<b>Review draft before saving</b>");
+  lines.push(`Store: <b>${escapeHtml(receipt.store_name || "Not set")}</b>`);
+  lines.push(`Date: <b>${escapeHtml(formatDateHuman(receipt.purchase_date || "Not set"))}</b>`);
+  lines.push(`Total: <b>${total.toFixed(2)} EUR</b>`);
+  lines.push(`Items: <b>${items.length}</b>`);
   lines.push("");
-  lines.push("<b>РџРѕР·РёС†РёРё:</b>");
+  lines.push("<b>Line Items:</b>");
 
   const maxItems = 12;
   for (const [idx, item] of items.slice(0, maxItems).entries()) {
-    const name = escapeHtml(truncate(item.name || "Р‘РµР· РЅР°Р·РІР°РЅРёСЏ", 30));
-    const category = escapeHtml(truncate(item.category || "Р”СЂСѓРіРѕРµ", 18));
-    lines.push(`${idx + 1}. ${name} вЂ” ${Number(item.price || 0).toFixed(2)} в‚¬ (${category})`);
+    const name = escapeHtml(truncate(item.name || "Unnamed item", 30));
+    const category = escapeHtml(truncate(item.category || "Other", 18));
+    lines.push(`${idx + 1}. ${name} - ${Number(item.price || 0).toFixed(2)} EUR (${category})`);
   }
   if (items.length > maxItems) {
-    lines.push(`вЂ¦ Рё РµС‰С‘ ${items.length - maxItems}`);
+    lines.push(`... and ${items.length - maxItems} more`);
   }
 
   lines.push("");
-  lines.push("<b>РљРѕРјР°РЅРґС‹:</b>");
-  lines.push("вЂў <code>РЎРѕС…СЂР°РЅРёС‚СЊ</code> вЂ” СЃРѕС…СЂР°РЅРёС‚СЊ РІ Р±Р°Р·Сѓ");
-  lines.push("вЂў <code>РћС‚РјРµРЅР°</code> вЂ” СѓРґР°Р»РёС‚СЊ С‡РµСЂРЅРѕРІРёРє");
-  lines.push("вЂў <code>РџРѕРєР°Р·Р°С‚СЊ</code> вЂ” РїРѕРєР°Р·Р°С‚СЊ С‡РµРє РµС‰С‘ СЂР°Р·");
-  lines.push("вЂў <code>Р”Р°С‚Р° 14/02/26</code>");
-  lines.push("вЂў <code>РњР°РіР°Р·РёРЅ Lidl</code>");
-  lines.push("вЂў <code>Р¦РµРЅР° 3 12.49</code>");
-  lines.push("вЂў <code>РќР°Р·РІР°РЅРёРµ 2 Р‘Р°РЅР°РЅС‹</code>");
-  lines.push("вЂў <code>РљР°С‚РµРіРѕСЂРёСЏ 2 Р¤СЂСѓРєС‚С‹</code>");
-  lines.push("вЂў <code>РЈРґР°Р»РёС‚СЊ 5</code>");
+  lines.push("<b>Commands:</b>");
+  lines.push("- <code>Save</code> - save to database");
+  lines.push("- <code>Cancel</code> - delete draft");
+  lines.push("- <code>Show</code> - show draft again");
+  lines.push("- <code>Date 14/02/26</code>");
+  lines.push("- <code>Store Lidl</code>");
+  lines.push("- <code>Sum 12.49</code>");
+  lines.push("- <code>Price 3 12.49</code>");
+  lines.push("- <code>Name 2 Bananas</code>");
+  lines.push("- <code>Category 2 Fruit</code>");
+  lines.push("- <code>Delete 5</code>");
 
   return lines.join("\n");
 }
@@ -369,48 +369,49 @@ async function handleMainMenuTextCommand(params: {
 
 function getDraftEditHelpText(): string {
   return [
-    "вњЏпёЏ <b>РљР°Рє РёСЃРїСЂР°РІРёС‚СЊ С‡РµРє</b>",
+    "<b>Edit draft</b>",
     "",
-    "РћС‚РїСЂР°РІСЊС‚Рµ РѕРґРЅРѕ СЃРѕРѕР±С‰РµРЅРёРµ СЃ РЅСѓР¶РЅРѕР№ РїСЂР°РІРєРѕР№:",
-    "вЂў <code>Р”Р°С‚Р° 14/02/26</code>",
-    "вЂў <code>РњР°РіР°Р·РёРЅ Lidl</code>",
-    "вЂў <code>Р¦РµРЅР° 3 12.49</code>",
-    "вЂў <code>РќР°Р·РІР°РЅРёРµ 2 Р‘Р°РЅР°РЅС‹</code>",
-    "вЂў <code>РљР°С‚РµРіРѕСЂРёСЏ 2 Р¤СЂСѓРєС‚С‹</code>",
-    "вЂў <code>РЈРґР°Р»РёС‚СЊ 5</code>",
+    "Send one message with the change you want:",
+    "- <code>Date 14/02/26</code>",
+    "- <code>Store Lidl</code>",
+    "- <code>Price 3 12.49</code>",
+    "- <code>Name 2 Bananas</code>",
+    "- <code>Category 2 Fruit</code>",
+    "- <code>Delete 5</code>",
     "",
-    "РџРѕСЃР»Рµ РїСЂР°РІРєРё Р±РѕС‚ РїСЂРёС€Р»С‘С‚ РѕР±РЅРѕРІР»С‘РЅРЅС‹Р№ С‡РµСЂРЅРѕРІРёРє СЃ РєРЅРѕРїРєР°РјРё.",
+    "After each change, the bot will send the updated draft.",
   ].join("\n");
 }
 
 function formatSavedSummary(receipt: ReceiptData, totalAmount: number, receiptId: number): string {
   const itemsCount = receipt.items?.length || 0;
   return [
-    "вњ… <b>Р§РµРє СЃРѕС…СЂР°РЅС‘РЅ</b>",
-    `рџЏЄ РњР°РіР°Р·РёРЅ: <b>${escapeHtml(receipt.store_name || "РќРµРёР·РІРµСЃС‚РЅС‹Р№ РјР°РіР°Р·РёРЅ")}</b>`,
-    `рџ“… Р”Р°С‚Р°: <b>${escapeHtml(formatDateHuman(receipt.purchase_date || "РЅРµ РѕРїСЂРµРґРµР»РµРЅР°"))}</b>`,
-    `рџ§ѕ РџРѕР·РёС†РёР№: <b>${itemsCount}</b>`,
-    `рџ’° РЎСѓРјРјР°: <b>${totalAmount.toFixed(2)} в‚¬</b>`,
+    "<b>Receipt saved</b>",
+    `Store: <b>${escapeHtml(receipt.store_name || "Unknown store")}</b>`,
+    `Date: <b>${escapeHtml(formatDateHuman(receipt.purchase_date || "Not set"))}</b>`,
+    `Items: <b>${itemsCount}</b>`,
+    `Total: <b>${totalAmount.toFixed(2)} EUR</b>`,
     `#${receiptId}`,
   ].join("\n");
 }
 
 function getHelpText() {
   return [
-    "РћС‚РїСЂР°РІСЊС‚Рµ С„РѕС‚Рѕ С‡РµРєР°, Рё СЏ СЂР°СЃРїРѕР·РЅР°СЋ РµРіРѕ Рё РїСЂРёС€Р»СЋ РЅР° РїРѕРґС‚РІРµСЂР¶РґРµРЅРёРµ.",
+    "Send a receipt photo and I will extract it into a draft for review.",
     "",
-    "РџРѕСЃР»Рµ СЂР°СЃРїРѕР·РЅР°РІР°РЅРёСЏ РјРѕР¶РЅРѕ РёСЃРїСЂР°РІРёС‚СЊ РґР°РЅРЅС‹Рµ РєРѕРјР°РЅРґР°РјРё:",
-    "вЂў РЎРѕС…СЂР°РЅРёС‚СЊ / РћС‚РјРµРЅР° / РџРѕРєР°Р·Р°С‚СЊ",
-    "вЂў Р”Р°С‚Р° 14/02/26",
-    "вЂў РњР°РіР°Р·РёРЅ Lidl",
-    "вЂў Р¦РµРЅР° 3 12.49",
-    "вЂў РќР°Р·РІР°РЅРёРµ 2 Р‘Р°РЅР°РЅС‹",
-    "вЂў РљР°С‚РµРіРѕСЂРёСЏ 2 Р¤СЂСѓРєС‚С‹",
-    "вЂў РЈРґР°Р»РёС‚СЊ 5",
+    "After extraction you can update the draft with:",
+    "- Save / Cancel / Show",
+    "- Date 14/02/26",
+    "- Store Lidl",
+    "- Sum 12.49",
+    "- Price 3 12.49",
+    "- Name 2 Bananas",
+    "- Category 2 Fruit",
+    "- Delete 5",
     "",
-    "РЎРѕРІРµС‚С‹:",
-    "вЂў Р›СѓС‡С€Рµ РѕС‚РїСЂР°РІР»СЏС‚СЊ С‡РµРє РєР°Рє С„Р°Р№Р» (Р±РµР· СЃР¶Р°С‚РёСЏ)",
-    "вЂў Р’ РєР°РґСЂРµ РґРѕР»Р¶РµРЅ Р±С‹С‚СЊ С‚РѕР»СЊРєРѕ С‡РµРє",
+    "Tips:",
+    "- Sending the receipt as a file usually works better than a compressed photo",
+    "- Keep only the receipt in frame",
   ].join("\n");
 }
 
@@ -445,25 +446,20 @@ function parsePrice(input: string): number | null {
 function looksLikeDraftCommand(text: string): boolean {
   const lower = text.trim().toLowerCase();
   return (
-    lower === "СЃРѕС…СЂР°РЅРёС‚СЊ" ||
     lower === "save" ||
     lower === "/save" ||
-    lower === "РѕС‚РјРµРЅР°" ||
     lower === "cancel" ||
     lower === "/cancel" ||
-    lower === "РїРѕРєР°Р·Р°С‚СЊ" ||
     lower === "show" ||
     lower === "/show" ||
     lower.startsWith("date ") ||
     lower.startsWith("store ") ||
     lower.startsWith("sum ") ||
     lower.startsWith("/sum ") ||
-    lower.startsWith("РґР°С‚Р° ") ||
-    lower.startsWith("РјР°РіР°Р·РёРЅ ") ||
-    lower.startsWith("С†РµРЅР° ") ||
-    lower.startsWith("РЅР°Р·РІР°РЅРёРµ ") ||
-    lower.startsWith("РєР°С‚РµРіРѕСЂРёСЏ ") ||
-    lower.startsWith("СѓРґР°Р»РёС‚СЊ ")
+    lower.startsWith("price ") ||
+    lower.startsWith("name ") ||
+    lower.startsWith("category ") ||
+    lower.startsWith("delete ")
   );
 }
 
@@ -482,9 +478,9 @@ async function handleDraftCommand(params: {
 
   const draft = await getTelegramDraft(chatId);
 
-  if (lower === "РѕС‚РјРµРЅР°" || lower === "cancel" || lower === "/cancel") {
+  if (lower === "cancel" || lower === "/cancel") {
     await deleteTelegramDraft(chatId);
-    await sendTelegramMessage(chatId, draft ? "рџ—‘пёЏ Р§РµСЂРЅРѕРІРёРє С‡РµРєР° СѓРґР°Р»С‘РЅ." : "Р§РµСЂРЅРѕРІРёРєР° РЅРµС‚.");
+    await sendTelegramMessage(chatId, draft ? "Draft deleted." : "No draft to delete.");
     return { handled: true, result: "draft_cancelled" };
   }
 
@@ -493,12 +489,12 @@ async function handleDraftCommand(params: {
     return { handled: true, result: "no_draft" };
   }
 
-  if (lower === "РїРѕРєР°Р·Р°С‚СЊ" || lower === "show" || lower === "/show") {
+  if (lower === "show" || lower === "/show") {
     await sendDraftPreviewMessage(chatId, draft);
     return { handled: true, result: "draft_shown" };
   }
 
-  if (lower === "СЃРѕС…СЂР°РЅРёС‚СЊ" || lower === "save" || lower === "/save") {
+  if (lower === "save" || lower === "/save") {
     const draftWithMeta = draft as ReceiptData & { _telegram_file_id?: string | null };
     const saved = await saveReceiptToDb({
       store_name: draft.store_name,
@@ -557,86 +553,65 @@ async function handleDraftCommand(params: {
     await sendDraftPreviewMessage(chatId, draft, "OK: total updated.");
     return { handled: true, result: "draft_sum_updated" };
   }
-  match = /^РґР°С‚Р°\s+(.+)$/i.exec(cmd);
-  if (match) {
-    const parsed = parseIsoDateFromUser(match[1]);
-    if (!parsed) {
-      await sendTelegramMessage(chatId, "РќРµРІРµСЂРЅС‹Р№ С„РѕСЂРјР°С‚ РґР°С‚С‹. РСЃРїРѕР»СЊР·СѓР№С‚Рµ: <code>Р”Р°С‚Р° 14/02/26</code>");
-      return { handled: true, result: "draft_date_invalid" };
-    }
-    draft.purchase_date = parsed;
-    await saveTelegramDraft(chatId, userId, draft);
-    await sendDraftPreviewMessage(chatId, draft, "вњ… Р”Р°С‚Р° РѕР±РЅРѕРІР»РµРЅР°.");
-    return { handled: true, result: "draft_date_updated" };
-  }
-
-  match = /^РјР°РіР°Р·РёРЅ\s+(.+)$/i.exec(cmd);
-  if (match) {
-    draft.store_name = match[1].trim();
-    await saveTelegramDraft(chatId, userId, draft);
-    await sendDraftPreviewMessage(chatId, draft, "вњ… РњР°РіР°Р·РёРЅ РѕР±РЅРѕРІР»С‘РЅ.");
-    return { handled: true, result: "draft_store_updated" };
-  }
-
-  match = /^С†РµРЅР°\s+(\d+)\s+(.+)$/i.exec(cmd);
+  match = /^price\s+(\d+)\s+(.+)$/i.exec(cmd);
   if (match) {
     const index = Number(match[1]) - 1;
     if (!draft.items[index]) {
-      await sendTelegramMessage(chatId, "РќРµС‚ С‚Р°РєРѕР№ РїРѕР·РёС†РёРё. РСЃРїРѕР»СЊР·СѓР№С‚Рµ РЅРѕРјРµСЂ РёР· СЃРїРёСЃРєР°.");
+      await sendTelegramMessage(chatId, "No such line item. Use an index from the draft.");
       return { handled: true, result: "draft_item_missing" };
     }
     const price = parsePrice(match[2]);
     if (price === null) {
-      await sendTelegramMessage(chatId, "РќРµРІРµСЂРЅС‹Р№ С„РѕСЂРјР°С‚ С†РµРЅС‹. РџСЂРёРјРµСЂ: <code>Р¦РµРЅР° 3 12.49</code>");
+      await sendTelegramMessage(chatId, "Invalid price format. Example: <code>Price 3 12.49</code>");
       return { handled: true, result: "draft_price_invalid" };
     }
     draft.items[index].price = price;
     await saveTelegramDraft(chatId, userId, draft);
-    await sendDraftPreviewMessage(chatId, draft, `вњ… Р¦РµРЅР° РїРѕР·РёС†РёРё ${index + 1} РѕР±РЅРѕРІР»РµРЅР°.`);
+    await sendDraftPreviewMessage(chatId, draft, `OK: line item ${index + 1} price updated.`);
     return { handled: true, result: "draft_price_updated" };
   }
 
-  match = /^РЅР°Р·РІР°РЅРёРµ\s+(\d+)\s+(.+)$/i.exec(cmd);
+  match = /^name\s+(\d+)\s+(.+)$/i.exec(cmd);
   if (match) {
     const index = Number(match[1]) - 1;
     if (!draft.items[index]) {
-      await sendTelegramMessage(chatId, "РќРµС‚ С‚Р°РєРѕР№ РїРѕР·РёС†РёРё. РСЃРїРѕР»СЊР·СѓР№С‚Рµ РЅРѕРјРµСЂ РёР· СЃРїРёСЃРєР°.");
+      await sendTelegramMessage(chatId, "No such line item. Use an index from the draft.");
       return { handled: true, result: "draft_item_missing" };
     }
     draft.items[index].name = match[2].trim();
     await saveTelegramDraft(chatId, userId, draft);
-    await sendDraftPreviewMessage(chatId, draft, `вњ… РќР°Р·РІР°РЅРёРµ РїРѕР·РёС†РёРё ${index + 1} РѕР±РЅРѕРІР»РµРЅРѕ.`);
+    await sendDraftPreviewMessage(chatId, draft, `OK: line item ${index + 1} name updated.`);
     return { handled: true, result: "draft_name_updated" };
   }
 
-  match = /^РєР°С‚РµРіРѕСЂРёСЏ\s+(\d+)\s+(.+)$/i.exec(cmd);
+  match = /^category\s+(\d+)\s+(.+)$/i.exec(cmd);
   if (match) {
     const index = Number(match[1]) - 1;
     if (!draft.items[index]) {
-      await sendTelegramMessage(chatId, "РќРµС‚ С‚Р°РєРѕР№ РїРѕР·РёС†РёРё. РСЃРїРѕР»СЊР·СѓР№С‚Рµ РЅРѕРјРµСЂ РёР· СЃРїРёСЃРєР°.");
+      await sendTelegramMessage(chatId, "No such line item. Use an index from the draft.");
       return { handled: true, result: "draft_item_missing" };
     }
     draft.items[index].category = match[2].trim();
     await saveTelegramDraft(chatId, userId, draft);
-    await sendDraftPreviewMessage(chatId, draft, `вњ… РљР°С‚РµРіРѕСЂРёСЏ РїРѕР·РёС†РёРё ${index + 1} РѕР±РЅРѕРІР»РµРЅР°.`);
+    await sendDraftPreviewMessage(chatId, draft, `OK: line item ${index + 1} category updated.`);
     return { handled: true, result: "draft_category_updated" };
   }
 
-  match = /^СѓРґР°Р»РёС‚СЊ\s+(\d+)$/i.exec(cmd);
+  match = /^delete\s+(\d+)$/i.exec(cmd);
   if (match) {
     const index = Number(match[1]) - 1;
     if (!draft.items[index]) {
-      await sendTelegramMessage(chatId, "РќРµС‚ С‚Р°РєРѕР№ РїРѕР·РёС†РёРё. РСЃРїРѕР»СЊР·СѓР№С‚Рµ РЅРѕРјРµСЂ РёР· СЃРїРёСЃРєР°.");
+      await sendTelegramMessage(chatId, "No such line item. Use an index from the draft.");
       return { handled: true, result: "draft_item_missing" };
     }
     draft.items.splice(index, 1);
     if (draft.items.length === 0) {
       await deleteTelegramDraft(chatId);
-      await sendTelegramMessage(chatId, "рџ—‘пёЏ Р’СЃРµ РїРѕР·РёС†РёРё СѓРґР°Р»РµРЅС‹, С‡РµСЂРЅРѕРІРёРє С‡РµРєР° СѓРґР°Р»С‘РЅ.");
+      await sendTelegramMessage(chatId, "All line items removed. Draft deleted.");
       return { handled: true, result: "draft_deleted_empty" };
     }
     await saveTelegramDraft(chatId, userId, draft);
-    await sendDraftPreviewMessage(chatId, draft, `вњ… РџРѕР·РёС†РёСЏ ${index + 1} СѓРґР°Р»РµРЅР°.`);
+    await sendDraftPreviewMessage(chatId, draft, `OK: line item ${index + 1} deleted.`);
     return { handled: true, result: "draft_item_deleted" };
   }
 
@@ -676,22 +651,22 @@ async function handleDraftCallback(params: {
   }
 
   if (data === "draft:save") {
-    await answerTelegramCallbackQuery(callbackQueryId, "РЎРѕС…СЂР°РЅСЏСЋ...");
+    await answerTelegramCallbackQuery(callbackQueryId, "Saving...");
     return handleDraftCommand({ chatId, userId, text: "/save" });
   }
 
   if (data === "draft:cancel") {
-    await answerTelegramCallbackQuery(callbackQueryId, "РЈРґР°Р»СЏСЋ С‡РµСЂРЅРѕРІРёРє...");
+    await answerTelegramCallbackQuery(callbackQueryId, "Deleting draft...");
     return handleDraftCommand({ chatId, userId, text: "/cancel" });
   }
 
   if (data === "draft:show") {
-    await answerTelegramCallbackQuery(callbackQueryId, "РџРѕРєР°Р·С‹РІР°СЋ С‡РµРє");
+    await answerTelegramCallbackQuery(callbackQueryId, "Opening draft");
     return handleDraftCommand({ chatId, userId, text: "/show" });
   }
 
   if (data === "draft:edit") {
-    await answerTelegramCallbackQuery(callbackQueryId, "РћС‚РїСЂР°РІР»СЋ РїРѕРґСЃРєР°Р·РєСѓ");
+    await answerTelegramCallbackQuery(callbackQueryId, "Sending edit help");
     await sendTelegramMessage(chatId, getDraftEditHelpText());
     return { handled: true, result: "draft_edit_help" };
   }
@@ -699,15 +674,15 @@ async function handleDraftCallback(params: {
   if (data === "draft:today") {
     const draft = await getTelegramDraft(chatId);
     if (!draft) {
-      await answerTelegramCallbackQuery(callbackQueryId, "Р§РµСЂРЅРѕРІРёРє РЅРµ РЅР°Р№РґРµРЅ");
-      await sendTelegramMessage(chatId, "РќРµС‚ С‡РµСЂРЅРѕРІРёРєР° С‡РµРєР°. РЎРЅР°С‡Р°Р»Р° РїСЂРёС€Р»РёС‚Рµ С„РѕС‚Рѕ С‡РµРєР°.");
+      await answerTelegramCallbackQuery(callbackQueryId, "No draft found");
+      await sendTelegramMessage(chatId, "No draft yet. Send a receipt photo first.");
       return { handled: true, result: "no_draft" };
     }
 
     draft.purchase_date = todayIsoDate();
     await saveTelegramDraft(chatId, userId, draft);
-    await answerTelegramCallbackQuery(callbackQueryId, "Р”Р°С‚Р° = СЃРµРіРѕРґРЅСЏ");
-    await sendDraftPreviewMessage(chatId, draft, "вњ… Р”Р°С‚Р° СѓСЃС‚Р°РЅРѕРІР»РµРЅР° РЅР° СЃРµРіРѕРґРЅСЏ.");
+    await answerTelegramCallbackQuery(callbackQueryId, "Date set to today");
+    await sendDraftPreviewMessage(chatId, draft, "OK: date set to today.");
     return { handled: true, result: "draft_date_today" };
   }
 
@@ -744,12 +719,12 @@ export async function POST(request: NextRequest) {
       const fromUserId = callbackQuery.from?.id ?? null;
       const allowlist = getAllowedUserIds();
       if (chatId == null) {
-        await answerTelegramCallbackQuery(callbackQuery.id, "РќРµС‚ С‡Р°С‚Р°");
+        await answerTelegramCallbackQuery(callbackQuery.id, "Chat not found");
         return NextResponse.json({ ok: true, ignored: "callback_without_chat" });
       }
       if (allowlist && (!fromUserId || !allowlist.has(fromUserId))) {
-        await answerTelegramCallbackQuery(callbackQuery.id, "РќРµС‚ РґРѕСЃС‚СѓРїР°");
-        await sendTelegramMessage(chatId, "в›”пёЏ РЈ РІР°СЃ РЅРµС‚ РґРѕСЃС‚СѓРїР° Рє СЌС‚РѕРјСѓ Р±РѕС‚Сѓ.");
+        await answerTelegramCallbackQuery(callbackQuery.id, "Access denied");
+        await sendTelegramMessage(chatId, "You do not have access to this bot.");
         return NextResponse.json({ ok: true, ignored: "forbidden_user" });
       }
 
@@ -763,7 +738,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true, handled: callbackHandled.result ?? "callback" });
       }
 
-      await answerTelegramCallbackQuery(callbackQuery.id, "РќРµРёР·РІРµСЃС‚РЅР°СЏ РєРЅРѕРїРєР°");
+      await answerTelegramCallbackQuery(callbackQuery.id, "Unknown button");
       return NextResponse.json({ ok: true, ignored: "unknown_callback" });
     }
 
@@ -776,7 +751,7 @@ export async function POST(request: NextRequest) {
     const fromUserId = message.from?.id ?? null;
     const allowlist = getAllowedUserIds();
     if (allowlist && (!fromUserId || !allowlist.has(fromUserId))) {
-      await sendTelegramMessage(chatId, "в›”пёЏ РЈ РІР°СЃ РЅРµС‚ РґРѕСЃС‚СѓРїР° Рє СЌС‚РѕРјСѓ Р±РѕС‚Сѓ.");
+      await sendTelegramMessage(chatId, "You do not have access to this bot.");
       return NextResponse.json({ ok: true, ignored: "forbidden_user" });
     }
 
@@ -824,7 +799,7 @@ export async function POST(request: NextRequest) {
     const receipt = await analyzeReceiptImageDataUrl(imageDataUrl);
     await saveTelegramDraft(chatId, fromUserId, receipt, { telegram_file_id: source.fileId });
 
-    await sendDraftPreviewMessage(chatId, receipt, "вњ… Р§РµРє СЂР°СЃРїРѕР·РЅР°РЅ. РџСЂРѕРІРµСЂСЊС‚Рµ РґР°РЅРЅС‹Рµ РїРµСЂРµРґ СЃРѕС…СЂР°РЅРµРЅРёРµРј.");
+    await sendDraftPreviewMessage(chatId, receipt, "OK: receipt parsed. Review the draft before saving.");
     return NextResponse.json({ ok: true, handled: "draft_created" });
   } catch (error) {
     console.error("Telegram webhook error:", error);
@@ -834,8 +809,8 @@ export async function POST(request: NextRequest) {
     if (chatId) {
       const msg =
         error instanceof Error
-          ? `вќЊ РќРµ СѓРґР°Р»РѕСЃСЊ РѕР±СЂР°Р±РѕС‚Р°С‚СЊ С‡РµРє.\n${escapeHtml(error.message)}`
-          : "вќЊ РќРµ СѓРґР°Р»РѕСЃСЊ РѕР±СЂР°Р±РѕС‚Р°С‚СЊ С‡РµРє.";
+          ? `Failed to process the receipt.\n${escapeHtml(error.message)}`
+          : "Failed to process the receipt.";
       await sendTelegramMessage(chatId, msg);
     }
 
