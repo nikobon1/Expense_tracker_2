@@ -6,7 +6,7 @@ type RouteContext = {
 };
 
 function getTelegramBotToken(): string {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
   if (!token) throw new Error("TELEGRAM_BOT_TOKEN is not set");
   return token;
 }
