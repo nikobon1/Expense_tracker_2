@@ -89,29 +89,29 @@ function getDraftInlineKeyboard(): TelegramInlineKeyboardMarkup {
   return {
     inline_keyboard: [
       [
-        { text: "Save", callback_data: "draft:save" },
-        { text: "Cancel", callback_data: "draft:cancel" },
+        { text: "Сохранить", callback_data: "draft:save" },
+        { text: "Отмена", callback_data: "draft:cancel" },
       ],
       [
-        { text: "Show", callback_data: "draft:show" },
-        { text: "Today", callback_data: "draft:today" },
+        { text: "Показать", callback_data: "draft:show" },
+        { text: "Сегодня", callback_data: "draft:today" },
       ],
-      [{ text: "Edit", callback_data: "draft:edit" }],
+      [{ text: "Исправить", callback_data: "draft:edit" }],
     ],
   };
 }
 
 function getMainMenuReplyKeyboard(): TelegramReplyKeyboardMarkup {
   return {
-    keyboard: [[{ text: "Add photo" }], [{ text: "Add manual amount" }]],
+    keyboard: [[{ text: "Добавить фото" }], [{ text: "Добавить сумму вручную" }]],
     resize_keyboard: true,
     one_time_keyboard: false,
-    input_field_placeholder: "Choose an action",
+    input_field_placeholder: "Выберите действие",
   };
 }
 
 function getDefaultCategory(): string {
-  return "Other";
+  return "Другое";
 }
 
 function createManualDraft(seed?: {
@@ -120,11 +120,11 @@ function createManualDraft(seed?: {
   purchaseDate?: string;
 }): ReceiptData {
   return {
-    store_name: seed?.storeName?.trim() || "Manual entry",
+    store_name: seed?.storeName?.trim() || "Ручной ввод",
     purchase_date: seed?.purchaseDate || todayIsoDate(),
     items: [
       {
-        name: "Purchase without receipt",
+        name: "Покупка без чека",
         price: seed?.totalAmount ?? 0,
         category: getDefaultCategory(),
       },
@@ -172,16 +172,16 @@ function parseManualCommandSeed(text: string): { storeName?: string; totalAmount
 
 function getManualModeHelpText(): string {
   return [
-    "<b>Manual mode</b>",
+    "<b>Ручной режим</b>",
     "",
-    "Create a purchase without a receipt photo.",
-    "Commands:",
-    "- <code>Store Lidl</code>",
-    "- <code>Sum 12.49</code>",
-    "- <code>Date 14/02/26</code>",
-    "- <code>Save</code>",
+    "Создайте покупку без фото чека.",
+    "Команды:",
+    "- <code>Магазин Lidl</code>",
+    "- <code>Сумма 12.49</code>",
+    "- <code>Дата 14/02/26</code>",
+    "- <code>Сохранить</code>",
     "",
-    "Fast option:",
+    "Быстрый вариант:",
     "- <code>/manual Lidl; 12.49; 14/02/26</code>",
   ].join("\n");
 }
@@ -280,36 +280,36 @@ function formatDraftPreview(receipt: ReceiptData, note?: string): string {
     lines.push("");
   }
 
-  lines.push("<b>Review draft before saving</b>");
-  lines.push(`Store: <b>${escapeHtml(receipt.store_name || "Not set")}</b>`);
-  lines.push(`Date: <b>${escapeHtml(formatDateHuman(receipt.purchase_date || "Not set"))}</b>`);
-  lines.push(`Total: <b>${total.toFixed(2)} EUR</b>`);
-  lines.push(`Items: <b>${items.length}</b>`);
+  lines.push("<b>Проверьте чек перед сохранением</b>");
+  lines.push(`Магазин: <b>${escapeHtml(receipt.store_name || "Не указан")}</b>`);
+  lines.push(`Дата: <b>${escapeHtml(formatDateHuman(receipt.purchase_date || "Не указана"))}</b>`);
+  lines.push(`Сумма: <b>${total.toFixed(2)} EUR</b>`);
+  lines.push(`Позиций: <b>${items.length}</b>`);
   lines.push("");
-  lines.push("<b>Line Items:</b>");
+  lines.push("<b>Позиции:</b>");
 
   const maxItems = 12;
   for (const [idx, item] of items.slice(0, maxItems).entries()) {
-    const name = escapeHtml(truncate(item.name || "Unnamed item", 30));
-    const category = escapeHtml(truncate(item.category || "Other", 18));
+    const name = escapeHtml(truncate(item.name || "Без названия", 30));
+    const category = escapeHtml(truncate(item.category || "Другое", 18));
     lines.push(`${idx + 1}. ${name} - ${Number(item.price || 0).toFixed(2)} EUR (${category})`);
   }
   if (items.length > maxItems) {
-    lines.push(`... and ${items.length - maxItems} more`);
+    lines.push(`... и еще ${items.length - maxItems}`);
   }
 
   lines.push("");
-  lines.push("<b>Commands:</b>");
-  lines.push("- <code>Save</code> - save to database");
-  lines.push("- <code>Cancel</code> - delete draft");
-  lines.push("- <code>Show</code> - show draft again");
-  lines.push("- <code>Date 14/02/26</code>");
-  lines.push("- <code>Store Lidl</code>");
-  lines.push("- <code>Sum 12.49</code>");
-  lines.push("- <code>Price 3 12.49</code>");
-  lines.push("- <code>Name 2 Bananas</code>");
-  lines.push("- <code>Category 2 Fruit</code>");
-  lines.push("- <code>Delete 5</code>");
+  lines.push("<b>Команды:</b>");
+  lines.push("- <code>Сохранить</code> - сохранить в базу");
+  lines.push("- <code>Отмена</code> - удалить черновик");
+  lines.push("- <code>Показать</code> - показать черновик еще раз");
+  lines.push("- <code>Дата 14/02/26</code>");
+  lines.push("- <code>Магазин Lidl</code>");
+  lines.push("- <code>Сумма 12.49</code>");
+  lines.push("- <code>Цена 3 12.49</code>");
+  lines.push("- <code>Название 2 Бананы</code>");
+  lines.push("- <code>Категория 2 Фрукты</code>");
+  lines.push("- <code>Удалить 5</code>");
 
   return lines.join("\n");
 }
@@ -331,8 +331,8 @@ async function createAndSendManualDraft(
     chatId,
     manualDraft,
     seed?.totalAmount !== undefined
-      ? "OK: manual purchase draft created. Review and save."
-      : "Manual mode started. Set Store and Sum, then save."
+      ? "Черновик ручной покупки создан. Проверьте и сохраните."
+      : "Ручной режим запущен. Укажите магазин и сумму, затем сохраните."
   );
   await sendTelegramMessage(chatId, getManualModeHelpText());
 }
@@ -344,15 +344,29 @@ async function handleMainMenuTextCommand(params: {
 }): Promise<{ handled: boolean; result?: string }> {
   const normalized = normalizeCommand(params.text).toLowerCase();
 
-  const photoAliases = new Set(["add photo", "photo", "receipt photo", "add receipt photo"]);
+  const photoAliases = new Set([
+    "добавить фото",
+    "фото",
+    "фото чека",
+    "добавить фото чека",
+    "add photo",
+    "photo",
+    "receipt photo",
+    "add receipt photo",
+  ]);
   if (photoAliases.has(normalized)) {
-    await sendTelegramMessage(params.chatId, "Send a receipt photo (or image as file).", {
+    await sendTelegramMessage(params.chatId, "Отправьте фото чека (или изображение как файл).", {
       replyMarkup: getMainMenuReplyKeyboard(),
     });
     return { handled: true, result: "menu_text_add_photo" };
   }
 
   const manualAliases = new Set([
+    "добавить сумму вручную",
+    "ручной режим",
+    "вручную",
+    "сумма вручную",
+    "добавить вручную",
     "add manual amount",
     "manual",
     "add manual",
@@ -369,49 +383,49 @@ async function handleMainMenuTextCommand(params: {
 
 function getDraftEditHelpText(): string {
   return [
-    "<b>Edit draft</b>",
+    "<b>Как исправить чек</b>",
     "",
-    "Send one message with the change you want:",
-    "- <code>Date 14/02/26</code>",
-    "- <code>Store Lidl</code>",
-    "- <code>Price 3 12.49</code>",
-    "- <code>Name 2 Bananas</code>",
-    "- <code>Category 2 Fruit</code>",
-    "- <code>Delete 5</code>",
+    "Отправьте одно сообщение с нужной правкой:",
+    "- <code>Дата 14/02/26</code>",
+    "- <code>Магазин Lidl</code>",
+    "- <code>Цена 3 12.49</code>",
+    "- <code>Название 2 Бананы</code>",
+    "- <code>Категория 2 Фрукты</code>",
+    "- <code>Удалить 5</code>",
     "",
-    "After each change, the bot will send the updated draft.",
+    "После каждой правки бот пришлет обновленный черновик.",
   ].join("\n");
 }
 
 function formatSavedSummary(receipt: ReceiptData, totalAmount: number, receiptId: number): string {
   const itemsCount = receipt.items?.length || 0;
   return [
-    "<b>Receipt saved</b>",
-    `Store: <b>${escapeHtml(receipt.store_name || "Unknown store")}</b>`,
-    `Date: <b>${escapeHtml(formatDateHuman(receipt.purchase_date || "Not set"))}</b>`,
-    `Items: <b>${itemsCount}</b>`,
-    `Total: <b>${totalAmount.toFixed(2)} EUR</b>`,
+    "<b>Чек сохранен</b>",
+    `Магазин: <b>${escapeHtml(receipt.store_name || "Неизвестный магазин")}</b>`,
+    `Дата: <b>${escapeHtml(formatDateHuman(receipt.purchase_date || "Не указана"))}</b>`,
+    `Позиций: <b>${itemsCount}</b>`,
+    `Сумма: <b>${totalAmount.toFixed(2)} EUR</b>`,
     `#${receiptId}`,
   ].join("\n");
 }
 
 function getHelpText() {
   return [
-    "Send a receipt photo and I will extract it into a draft for review.",
+    "Отправьте фото чека, и я распознаю его в черновик для проверки.",
     "",
-    "After extraction you can update the draft with:",
-    "- Save / Cancel / Show",
-    "- Date 14/02/26",
-    "- Store Lidl",
-    "- Sum 12.49",
-    "- Price 3 12.49",
-    "- Name 2 Bananas",
-    "- Category 2 Fruit",
-    "- Delete 5",
+    "После распознавания можно исправить черновик командами:",
+    "- Сохранить / Отмена / Показать",
+    "- Дата 14/02/26",
+    "- Магазин Lidl",
+    "- Сумма 12.49",
+    "- Цена 3 12.49",
+    "- Название 2 Бананы",
+    "- Категория 2 Фрукты",
+    "- Удалить 5",
     "",
-    "Tips:",
-    "- Sending the receipt as a file usually works better than a compressed photo",
-    "- Keep only the receipt in frame",
+    "Советы:",
+    "- Лучше отправлять чек как файл, а не сжатое фото",
+    "- В кадре должен быть только чек",
   ].join("\n");
 }
 
@@ -446,19 +460,29 @@ function parsePrice(input: string): number | null {
 function looksLikeDraftCommand(text: string): boolean {
   const lower = text.trim().toLowerCase();
   return (
+    lower === "сохранить" ||
     lower === "save" ||
     lower === "/save" ||
+    lower === "отмена" ||
     lower === "cancel" ||
     lower === "/cancel" ||
+    lower === "показать" ||
     lower === "show" ||
     lower === "/show" ||
+    lower.startsWith("дата ") ||
     lower.startsWith("date ") ||
+    lower.startsWith("магазин ") ||
     lower.startsWith("store ") ||
+    lower.startsWith("сумма ") ||
     lower.startsWith("sum ") ||
     lower.startsWith("/sum ") ||
+    lower.startsWith("цена ") ||
     lower.startsWith("price ") ||
+    lower.startsWith("название ") ||
     lower.startsWith("name ") ||
+    lower.startsWith("категория ") ||
     lower.startsWith("category ") ||
+    lower.startsWith("удалить ") ||
     lower.startsWith("delete ")
   );
 }
@@ -478,23 +502,23 @@ async function handleDraftCommand(params: {
 
   const draft = await getTelegramDraft(chatId);
 
-  if (lower === "cancel" || lower === "/cancel") {
+  if (lower === "отмена" || lower === "cancel" || lower === "/cancel") {
     await deleteTelegramDraft(chatId);
-    await sendTelegramMessage(chatId, draft ? "Draft deleted." : "No draft to delete.");
+    await sendTelegramMessage(chatId, draft ? "Черновик удален." : "Черновика нет.");
     return { handled: true, result: "draft_cancelled" };
   }
 
   if (!draft) {
-    await sendTelegramMessage(chatId, "No draft yet. Send a receipt photo or use /manual.");
+    await sendTelegramMessage(chatId, "Черновика пока нет. Отправьте фото чека или используйте /manual.");
     return { handled: true, result: "no_draft" };
   }
 
-  if (lower === "show" || lower === "/show") {
+  if (lower === "показать" || lower === "show" || lower === "/show") {
     await sendDraftPreviewMessage(chatId, draft);
     return { handled: true, result: "draft_shown" };
   }
 
-  if (lower === "save" || lower === "/save") {
+  if (lower === "сохранить" || lower === "save" || lower === "/save") {
     const draftWithMeta = draft as ReceiptData & { _telegram_file_id?: string | null };
     const saved = await saveReceiptToDb({
       store_name: draft.store_name,
@@ -508,39 +532,39 @@ async function handleDraftCommand(params: {
     return { handled: true, result: "draft_saved" };
   }
 
-  let match = /^date\s+(.+)$/i.exec(cmd);
+  let match = /^(?:date|дата)\s+(.+)$/i.exec(cmd);
   if (match) {
     const parsed = parseIsoDateFromUser(match[1]);
     if (!parsed) {
-      await sendTelegramMessage(chatId, "Invalid date format. Use: <code>Date 14/02/26</code>");
+      await sendTelegramMessage(chatId, "Неверный формат даты. Используйте: <code>Дата 14/02/26</code>");
       return { handled: true, result: "draft_date_invalid" };
     }
     draft.purchase_date = parsed;
     await saveTelegramDraft(chatId, userId, draft);
-    await sendDraftPreviewMessage(chatId, draft, "OK: date updated.");
+    await sendDraftPreviewMessage(chatId, draft, "Дата обновлена.");
     return { handled: true, result: "draft_date_updated" };
   }
 
-  match = /^store\s+(.+)$/i.exec(cmd);
+  match = /^(?:store|магазин)\s+(.+)$/i.exec(cmd);
   if (match) {
     draft.store_name = match[1].trim();
     await saveTelegramDraft(chatId, userId, draft);
-    await sendDraftPreviewMessage(chatId, draft, "OK: store updated.");
+    await sendDraftPreviewMessage(chatId, draft, "Магазин обновлен.");
     return { handled: true, result: "draft_store_updated" };
   }
 
-  match = /^(?:sum|\/sum)\s+(.+)$/i.exec(cmd);
+  match = /^(?:sum|сумма|\/sum)\s+(.+)$/i.exec(cmd);
   if (match) {
     const price = parsePrice(match[1]);
     if (price === null) {
-      await sendTelegramMessage(chatId, "Invalid amount. Example: <code>Sum 12.49</code>");
+      await sendTelegramMessage(chatId, "Неверный формат суммы. Пример: <code>Сумма 12.49</code>");
       return { handled: true, result: "draft_sum_invalid" };
     }
 
     if (!draft.items[0]) {
       draft.items = [
         {
-          name: "Purchase without receipt",
+          name: "Покупка без чека",
           price,
           category: getDefaultCategory(),
         },
@@ -550,68 +574,68 @@ async function handleDraftCommand(params: {
     }
 
     await saveTelegramDraft(chatId, userId, draft);
-    await sendDraftPreviewMessage(chatId, draft, "OK: total updated.");
+    await sendDraftPreviewMessage(chatId, draft, "Сумма обновлена.");
     return { handled: true, result: "draft_sum_updated" };
   }
-  match = /^price\s+(\d+)\s+(.+)$/i.exec(cmd);
+  match = /^(?:price|цена)\s+(\d+)\s+(.+)$/i.exec(cmd);
   if (match) {
     const index = Number(match[1]) - 1;
     if (!draft.items[index]) {
-      await sendTelegramMessage(chatId, "No such line item. Use an index from the draft.");
+      await sendTelegramMessage(chatId, "Нет такой позиции. Используйте номер из черновика.");
       return { handled: true, result: "draft_item_missing" };
     }
     const price = parsePrice(match[2]);
     if (price === null) {
-      await sendTelegramMessage(chatId, "Invalid price format. Example: <code>Price 3 12.49</code>");
+      await sendTelegramMessage(chatId, "Неверный формат цены. Пример: <code>Цена 3 12.49</code>");
       return { handled: true, result: "draft_price_invalid" };
     }
     draft.items[index].price = price;
     await saveTelegramDraft(chatId, userId, draft);
-    await sendDraftPreviewMessage(chatId, draft, `OK: line item ${index + 1} price updated.`);
+    await sendDraftPreviewMessage(chatId, draft, `Цена позиции ${index + 1} обновлена.`);
     return { handled: true, result: "draft_price_updated" };
   }
 
-  match = /^name\s+(\d+)\s+(.+)$/i.exec(cmd);
+  match = /^(?:name|название)\s+(\d+)\s+(.+)$/i.exec(cmd);
   if (match) {
     const index = Number(match[1]) - 1;
     if (!draft.items[index]) {
-      await sendTelegramMessage(chatId, "No such line item. Use an index from the draft.");
+      await sendTelegramMessage(chatId, "Нет такой позиции. Используйте номер из черновика.");
       return { handled: true, result: "draft_item_missing" };
     }
     draft.items[index].name = match[2].trim();
     await saveTelegramDraft(chatId, userId, draft);
-    await sendDraftPreviewMessage(chatId, draft, `OK: line item ${index + 1} name updated.`);
+    await sendDraftPreviewMessage(chatId, draft, `Название позиции ${index + 1} обновлено.`);
     return { handled: true, result: "draft_name_updated" };
   }
 
-  match = /^category\s+(\d+)\s+(.+)$/i.exec(cmd);
+  match = /^(?:category|категория)\s+(\d+)\s+(.+)$/i.exec(cmd);
   if (match) {
     const index = Number(match[1]) - 1;
     if (!draft.items[index]) {
-      await sendTelegramMessage(chatId, "No such line item. Use an index from the draft.");
+      await sendTelegramMessage(chatId, "Нет такой позиции. Используйте номер из черновика.");
       return { handled: true, result: "draft_item_missing" };
     }
     draft.items[index].category = match[2].trim();
     await saveTelegramDraft(chatId, userId, draft);
-    await sendDraftPreviewMessage(chatId, draft, `OK: line item ${index + 1} category updated.`);
+    await sendDraftPreviewMessage(chatId, draft, `Категория позиции ${index + 1} обновлена.`);
     return { handled: true, result: "draft_category_updated" };
   }
 
-  match = /^delete\s+(\d+)$/i.exec(cmd);
+  match = /^(?:delete|удалить)\s+(\d+)$/i.exec(cmd);
   if (match) {
     const index = Number(match[1]) - 1;
     if (!draft.items[index]) {
-      await sendTelegramMessage(chatId, "No such line item. Use an index from the draft.");
+      await sendTelegramMessage(chatId, "Нет такой позиции. Используйте номер из черновика.");
       return { handled: true, result: "draft_item_missing" };
     }
     draft.items.splice(index, 1);
     if (draft.items.length === 0) {
       await deleteTelegramDraft(chatId);
-      await sendTelegramMessage(chatId, "All line items removed. Draft deleted.");
+      await sendTelegramMessage(chatId, "Все позиции удалены, черновик удален.");
       return { handled: true, result: "draft_deleted_empty" };
     }
     await saveTelegramDraft(chatId, userId, draft);
-    await sendDraftPreviewMessage(chatId, draft, `OK: line item ${index + 1} deleted.`);
+    await sendDraftPreviewMessage(chatId, draft, `Позиция ${index + 1} удалена.`);
     return { handled: true, result: "draft_item_deleted" };
   }
 
@@ -637,36 +661,36 @@ async function handleDraftCallback(params: {
   const { callbackQueryId, chatId, userId, data } = params;
 
   if (data === "menu:add_photo") {
-    await answerTelegramCallbackQuery(callbackQueryId, "Send a receipt photo");
-    await sendTelegramMessage(chatId, "Send a receipt photo (or image as file).", {
+    await answerTelegramCallbackQuery(callbackQueryId, "Отправьте фото чека");
+    await sendTelegramMessage(chatId, "Отправьте фото чека (или изображение как файл).", {
       replyMarkup: getMainMenuReplyKeyboard(),
     });
     return { handled: true, result: "menu_add_photo" };
   }
 
   if (data === "menu:add_manual") {
-    await answerTelegramCallbackQuery(callbackQueryId, "Creating manual draft");
+    await answerTelegramCallbackQuery(callbackQueryId, "Создаю черновик");
     await createAndSendManualDraft(chatId, userId);
     return { handled: true, result: "menu_add_manual" };
   }
 
   if (data === "draft:save") {
-    await answerTelegramCallbackQuery(callbackQueryId, "Saving...");
+    await answerTelegramCallbackQuery(callbackQueryId, "Сохраняю...");
     return handleDraftCommand({ chatId, userId, text: "/save" });
   }
 
   if (data === "draft:cancel") {
-    await answerTelegramCallbackQuery(callbackQueryId, "Deleting draft...");
+    await answerTelegramCallbackQuery(callbackQueryId, "Удаляю черновик...");
     return handleDraftCommand({ chatId, userId, text: "/cancel" });
   }
 
   if (data === "draft:show") {
-    await answerTelegramCallbackQuery(callbackQueryId, "Opening draft");
+    await answerTelegramCallbackQuery(callbackQueryId, "Показываю черновик");
     return handleDraftCommand({ chatId, userId, text: "/show" });
   }
 
   if (data === "draft:edit") {
-    await answerTelegramCallbackQuery(callbackQueryId, "Sending edit help");
+    await answerTelegramCallbackQuery(callbackQueryId, "Отправляю подсказку");
     await sendTelegramMessage(chatId, getDraftEditHelpText());
     return { handled: true, result: "draft_edit_help" };
   }
@@ -674,15 +698,15 @@ async function handleDraftCallback(params: {
   if (data === "draft:today") {
     const draft = await getTelegramDraft(chatId);
     if (!draft) {
-      await answerTelegramCallbackQuery(callbackQueryId, "No draft found");
-      await sendTelegramMessage(chatId, "No draft yet. Send a receipt photo first.");
+      await answerTelegramCallbackQuery(callbackQueryId, "Черновик не найден");
+      await sendTelegramMessage(chatId, "Черновика пока нет. Сначала отправьте фото чека.");
       return { handled: true, result: "no_draft" };
     }
 
     draft.purchase_date = todayIsoDate();
     await saveTelegramDraft(chatId, userId, draft);
-    await answerTelegramCallbackQuery(callbackQueryId, "Date set to today");
-    await sendDraftPreviewMessage(chatId, draft, "OK: date set to today.");
+    await answerTelegramCallbackQuery(callbackQueryId, "Дата = сегодня");
+    await sendDraftPreviewMessage(chatId, draft, "Дата установлена на сегодня.");
     return { handled: true, result: "draft_date_today" };
   }
 
@@ -719,12 +743,12 @@ export async function POST(request: NextRequest) {
       const fromUserId = callbackQuery.from?.id ?? null;
       const allowlist = getAllowedUserIds();
       if (chatId == null) {
-        await answerTelegramCallbackQuery(callbackQuery.id, "Chat not found");
+        await answerTelegramCallbackQuery(callbackQuery.id, "Чат не найден");
         return NextResponse.json({ ok: true, ignored: "callback_without_chat" });
       }
       if (allowlist && (!fromUserId || !allowlist.has(fromUserId))) {
-        await answerTelegramCallbackQuery(callbackQuery.id, "Access denied");
-        await sendTelegramMessage(chatId, "You do not have access to this bot.");
+        await answerTelegramCallbackQuery(callbackQuery.id, "Нет доступа");
+        await sendTelegramMessage(chatId, "У вас нет доступа к этому боту.");
         return NextResponse.json({ ok: true, ignored: "forbidden_user" });
       }
 
@@ -738,7 +762,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ ok: true, handled: callbackHandled.result ?? "callback" });
       }
 
-      await answerTelegramCallbackQuery(callbackQuery.id, "Unknown button");
+      await answerTelegramCallbackQuery(callbackQuery.id, "Неизвестная кнопка");
       return NextResponse.json({ ok: true, ignored: "unknown_callback" });
     }
 
@@ -751,7 +775,7 @@ export async function POST(request: NextRequest) {
     const fromUserId = message.from?.id ?? null;
     const allowlist = getAllowedUserIds();
     if (allowlist && (!fromUserId || !allowlist.has(fromUserId))) {
-      await sendTelegramMessage(chatId, "You do not have access to this bot.");
+      await sendTelegramMessage(chatId, "У вас нет доступа к этому боту.");
       return NextResponse.json({ ok: true, ignored: "forbidden_user" });
     }
 
@@ -766,10 +790,10 @@ export async function POST(request: NextRequest) {
       }
 
       const isManualCommand = /^\/manual(?:@[a-zA-Z0-9_]+)?(?:\s+.*)?$/i.test(text);
-      const manualSeed = parseManualCommandSeed(text);
-      if (isManualCommand) {
-        if (manualSeed === null) {
-          await sendTelegramMessage(chatId, "Invalid /manual format.\n\n" + getManualModeHelpText());
+        const manualSeed = parseManualCommandSeed(text);
+        if (isManualCommand) {
+          if (manualSeed === null) {
+          await sendTelegramMessage(chatId, "Неверный формат /manual.\n\n" + getManualModeHelpText());
           return NextResponse.json({ ok: true, handled: "manual_draft_invalid" });
         }
 
@@ -788,7 +812,7 @@ export async function POST(request: NextRequest) {
 
     const source = getBestImageSource(message);
     if (!source) {
-      await sendTelegramMessage(chatId, "Send a receipt photo or choose an action below.", {
+      await sendTelegramMessage(chatId, "Отправьте фото чека или выберите действие ниже.", {
         replyMarkup: getMainMenuReplyKeyboard(),
       });
       return NextResponse.json({ ok: true, handled: "no_image" });
@@ -799,7 +823,7 @@ export async function POST(request: NextRequest) {
     const receipt = await analyzeReceiptImageDataUrl(imageDataUrl);
     await saveTelegramDraft(chatId, fromUserId, receipt, { telegram_file_id: source.fileId });
 
-    await sendDraftPreviewMessage(chatId, receipt, "OK: receipt parsed. Review the draft before saving.");
+    await sendDraftPreviewMessage(chatId, receipt, "Чек распознан. Проверьте данные перед сохранением.");
     return NextResponse.json({ ok: true, handled: "draft_created" });
   } catch (error) {
     console.error("Telegram webhook error:", error);
@@ -809,8 +833,8 @@ export async function POST(request: NextRequest) {
     if (chatId) {
       const msg =
         error instanceof Error
-          ? `Failed to process the receipt.\n${escapeHtml(error.message)}`
-          : "Failed to process the receipt.";
+          ? `Не удалось обработать чек.\n${escapeHtml(error.message)}`
+          : "Не удалось обработать чек.";
       await sendTelegramMessage(chatId, msg);
     }
 
