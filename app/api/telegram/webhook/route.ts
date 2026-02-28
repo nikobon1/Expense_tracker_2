@@ -18,6 +18,14 @@ type TelegramUser = { id: number; username?: string; first_name?: string };
 type TelegramChat = { id: number; type: string };
 type TelegramInlineKeyboardButton = { text: string; callback_data: string };
 type TelegramInlineKeyboardMarkup = { inline_keyboard: TelegramInlineKeyboardButton[][] };
+type TelegramReplyKeyboardButton = { text: string };
+type TelegramReplyKeyboardMarkup = {
+  keyboard: TelegramReplyKeyboardButton[][];
+  resize_keyboard?: boolean;
+  one_time_keyboard?: boolean;
+  input_field_placeholder?: string;
+};
+type TelegramReplyMarkup = TelegramInlineKeyboardMarkup | TelegramReplyKeyboardMarkup;
 type TelegramMessage = {
   message_id: number;
   from?: TelegramUser;
@@ -94,12 +102,12 @@ function getDraftInlineKeyboard(): TelegramInlineKeyboardMarkup {
   };
 }
 
-function getMainMenuInlineKeyboard(): TelegramInlineKeyboardMarkup {
+function getMainMenuReplyKeyboard(): TelegramReplyKeyboardMarkup {
   return {
-    inline_keyboard: [
-      [{ text: "Add photo", callback_data: "menu:add_photo" }],
-      [{ text: "Add manual amount", callback_data: "menu:add_manual" }],
-    ],
+    keyboard: [[{ text: "Add photo" }], [{ text: "Add manual amount" }]],
+    resize_keyboard: true,
+    one_time_keyboard: false,
+    input_field_placeholder: "Choose an action",
   };
 }
 
@@ -182,7 +190,7 @@ function getManualModeHelpText(): string {
 async function sendTelegramMessage(
   chatId: number,
   text: string,
-  options?: { replyMarkup?: TelegramInlineKeyboardMarkup }
+  options?: { replyMarkup?: TelegramReplyMarkup }
 ) {
   try {
     await telegramApi("sendMessage", {
@@ -327,6 +335,28 @@ async function createAndSendManualDraft(
       : "Manual mode started. Set Store and Sum, then save."
   );
   await sendTelegramMessage(chatId, getManualModeHelpText());
+}
+
+async function handleMainMenuTextCommand(params: {
+  chatId: number;
+  userId: number | null;
+  text: string;
+}): Promise<{ handled: boolean; result?: string }> {
+  const normalized = normalizeCommand(params.text).toLowerCase();
+
+  if (normalized === "add photo") {
+    await sendTelegramMessage(params.chatId, "Send a receipt photo (or image as file).", {
+      replyMarkup: getMainMenuReplyKeyboard(),
+    });
+    return { handled: true, result: "menu_text_add_photo" };
+  }
+
+  if (normalized === "add manual amount") {
+    await createAndSendManualDraft(params.chatId, params.userId);
+    return { handled: true, result: "menu_text_add_manual" };
+  }
+
+  return { handled: false };
 }
 
 function getDraftEditHelpText(): string {
@@ -626,7 +656,7 @@ async function handleDraftCallback(params: {
   if (data === "menu:add_photo") {
     await answerTelegramCallbackQuery(callbackQueryId, "Send a receipt photo");
     await sendTelegramMessage(chatId, "Send a receipt photo (or image as file).", {
-      replyMarkup: getMainMenuInlineKeyboard(),
+      replyMarkup: getMainMenuReplyKeyboard(),
     });
     return { handled: true, result: "menu_add_photo" };
   }
@@ -747,7 +777,7 @@ export async function POST(request: NextRequest) {
       const lower = text.toLowerCase();
       if (lower === "/start" || lower.startsWith("/start@") || lower === "/help" || lower.startsWith("/help@")) {
         await sendTelegramMessage(chatId, getHelpText(), {
-          replyMarkup: getMainMenuInlineKeyboard(),
+          replyMarkup: getMainMenuReplyKeyboard(),
         });
         return NextResponse.json({ ok: true, handled: "help" });
       }
@@ -763,6 +793,10 @@ export async function POST(request: NextRequest) {
         await createAndSendManualDraft(chatId, fromUserId, manualSeed);
         return NextResponse.json({ ok: true, handled: "manual_draft_created" });
       }
+      const mainMenuCommand = await handleMainMenuTextCommand({ chatId, userId: fromUserId, text });
+      if (mainMenuCommand.handled) {
+        return NextResponse.json({ ok: true, handled: mainMenuCommand.result ?? "main_menu_text" });
+      }
       const draftCommand = await handleDraftCommand({ chatId, userId: fromUserId, text });
       if (draftCommand.handled) {
         return NextResponse.json({ ok: true, handled: draftCommand.result ?? "draft_command" });
@@ -772,7 +806,7 @@ export async function POST(request: NextRequest) {
     const source = getBestImageSource(message);
     if (!source) {
       await sendTelegramMessage(chatId, "Send a receipt photo or choose an action below.", {
-        replyMarkup: getMainMenuInlineKeyboard(),
+        replyMarkup: getMainMenuReplyKeyboard(),
       });
       return NextResponse.json({ ok: true, handled: "no_image" });
     }
