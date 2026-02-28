@@ -344,14 +344,22 @@ async function handleMainMenuTextCommand(params: {
 }): Promise<{ handled: boolean; result?: string }> {
   const normalized = normalizeCommand(params.text).toLowerCase();
 
-  if (normalized === "add photo") {
+  const photoAliases = new Set(["add photo", "photo", "receipt photo", "add receipt photo"]);
+  if (photoAliases.has(normalized)) {
     await sendTelegramMessage(params.chatId, "Send a receipt photo (or image as file).", {
       replyMarkup: getMainMenuReplyKeyboard(),
     });
     return { handled: true, result: "menu_text_add_photo" };
   }
 
-  if (normalized === "add manual amount") {
+  const manualAliases = new Set([
+    "add manual amount",
+    "manual",
+    "add manual",
+    "manual amount",
+    "add amount",
+  ]);
+  if (manualAliases.has(normalized)) {
     await createAndSendManualDraft(params.chatId, params.userId);
     return { handled: true, result: "menu_text_add_manual" };
   }
