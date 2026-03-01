@@ -10,6 +10,10 @@ export const CATEGORIES = [
   "Бытовая химия",
   "Другое",
   "Кафе/Ресторан",
+  "Отпуск",
+  "Развлечения",
+  "Подарки",
+  "Авто",
 ];
 
 export const CHART_COLORS = [
@@ -24,4 +28,8 @@ export const CHART_COLORS = [
   "#06b6d4",
   "#3b82f6",
   "#a855f7",
+  "#ef4444",
+  "#84cc16",
+  "#0ea5e9",
+  "#f59e0b",
 ];
