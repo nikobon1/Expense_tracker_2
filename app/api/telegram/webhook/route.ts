@@ -118,13 +118,14 @@ function createManualDraft(seed?: {
   storeName?: string;
   totalAmount?: number;
   purchaseDate?: string;
+  itemName?: string;
 }): ReceiptData {
   return {
     store_name: seed?.storeName?.trim() || "Ручной ввод",
     purchase_date: seed?.purchaseDate || todayIsoDate(),
     items: [
       {
-        name: "Покупка без чека",
+        name: seed?.itemName?.trim() || "Покупка без чека",
         price: seed?.totalAmount ?? 0,
         category: getDefaultCategory(),
       },
@@ -132,7 +133,12 @@ function createManualDraft(seed?: {
   };
 }
 
-function parseManualCommandSeed(text: string): { storeName?: string; totalAmount?: number; purchaseDate?: string } | null {
+function parseManualCommandSeed(text: string): {
+  storeName?: string;
+  totalAmount?: number;
+  purchaseDate?: string;
+  itemName?: string;
+} | null {
   const match = /^\/manual(?:@[a-zA-Z0-9_]+)?(?:\s+(.+))?$/i.exec(text.trim());
   if (!match) return null;
 
@@ -145,11 +151,12 @@ function parseManualCommandSeed(text: string): { storeName?: string; totalAmount
     .filter(Boolean);
 
   if (parts.length === 0) return {};
-  if (parts.length > 3) return null;
+  if (parts.length > 4) return null;
 
   const storeName = parts[0];
   let totalAmount: number | undefined;
   let purchaseDate: string | undefined;
+  let itemName: string | undefined;
 
   if (parts[1]) {
     const parsedAmount = parsePrice(parts[1]);
@@ -163,10 +170,15 @@ function parseManualCommandSeed(text: string): { storeName?: string; totalAmount
     purchaseDate = parsedDate;
   }
 
+  if (parts[3]) {
+    itemName = parts[3];
+  }
+
   return {
     storeName,
     totalAmount,
     purchaseDate,
+    itemName,
   };
 }
 
@@ -177,12 +189,13 @@ function getManualModeHelpText(): string {
     "Создайте покупку без фото чека.",
     "Команды:",
     "- <code>Магазин Lidl</code>",
-    "- <code>Сумма 12.49</code>",
-    "- <code>Дата 14/02/26</code>",
+    "- <code>Сумма 12.49</code> или <code>Сумма 1 234,56</code>",
+    "- <code>Дата 14/02/26</code> или <code>Дата 2026-02-14</code>",
+    "- <code>Товар Бананы</code>",
     "- <code>Сохранить</code>",
     "",
     "Быстрый вариант:",
-    "- <code>/manual Lidl; 12.49; 14/02/26</code>",
+    "- <code>/manual Lidl; 12.49; 14/02/26; Бананы</code>",
   ].join("\n");
 }
 
@@ -303,11 +316,12 @@ function formatDraftPreview(receipt: ReceiptData, note?: string): string {
   lines.push("- <code>Сохранить</code> - сохранить в базу");
   lines.push("- <code>Отмена</code> - удалить черновик");
   lines.push("- <code>Показать</code> - показать черновик еще раз");
-  lines.push("- <code>Дата 14/02/26</code>");
+  lines.push("- <code>Дата 14/02/26</code> или <code>Дата 2026-02-14</code>");
   lines.push("- <code>Магазин Lidl</code>");
-  lines.push("- <code>Сумма 12.49</code>");
+  lines.push("- <code>Сумма 12.49</code> или <code>Сумма 1 234,56</code>");
   lines.push("- <code>Цена 3 12.49</code>");
   lines.push("- <code>Название 2 Бананы</code>");
+  lines.push("- <code>Товар Бананы</code> (для ручной покупки)");
   lines.push("- <code>Категория 2 Фрукты</code>");
   lines.push("- <code>Удалить 5</code>");
 
@@ -323,7 +337,7 @@ async function sendDraftPreviewMessage(chatId: number, receipt: ReceiptData, not
 async function createAndSendManualDraft(
   chatId: number,
   userId: number | null,
-  seed?: { storeName?: string; totalAmount?: number; purchaseDate?: string }
+  seed?: { storeName?: string; totalAmount?: number; purchaseDate?: string; itemName?: string }
 ) {
   const manualDraft = createManualDraft(seed);
   await saveTelegramDraft(chatId, userId, manualDraft);
@@ -390,6 +404,7 @@ function getDraftEditHelpText(): string {
     "- <code>Магазин Lidl</code>",
     "- <code>Цена 3 12.49</code>",
     "- <code>Название 2 Бананы</code>",
+    "- <code>Товар Бананы</code> (для ручной покупки)",
     "- <code>Категория 2 Фрукты</code>",
     "- <code>Удалить 5</code>",
     "",
@@ -420,6 +435,7 @@ function getHelpText() {
     "- Сумма 12.49",
     "- Цена 3 12.49",
     "- Название 2 Бананы",
+    "- Товар Бананы (для ручной покупки)",
     "- Категория 2 Фрукты",
     "- Удалить 5",
     "",
@@ -434,13 +450,27 @@ function normalizeCommand(text: string): string {
 }
 
 function parseIsoDateFromUser(input: string): string | null {
-  const normalized = input.trim().replace(/\./g, "/").replace(/-/g, "/");
-  let m = /^(\d{2})\/(\d{2})\/(\d{2})$/.exec(normalized);
+  const raw = input.trim();
+  const lower = raw.toLowerCase();
+  if (lower === "today" || lower === "сегодня") return todayIsoDate();
+
+  const normalized = raw.replace(/[.\-\s]+/g, "/");
+
+  let m = /^(\d{1,2})\/(\d{1,2})\/(\d{2})$/.exec(normalized);
   if (m) return toIsoDate(2000 + Number(m[3]), Number(m[2]), Number(m[1]));
-  m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(normalized);
+  m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(normalized);
   if (m) return toIsoDate(Number(m[3]), Number(m[2]), Number(m[1]));
-  m = /^(\d{4})\/(\d{2})\/(\d{2})$/.exec(normalized);
+  m = /^(\d{4})\/(\d{1,2})\/(\d{1,2})$/.exec(normalized);
   if (m) return toIsoDate(Number(m[1]), Number(m[2]), Number(m[3]));
+
+  const digitsOnly = raw.replace(/\D/g, "");
+  m = /^(\d{2})(\d{2})(\d{2})$/.exec(digitsOnly);
+  if (m) return toIsoDate(2000 + Number(m[3]), Number(m[2]), Number(m[1]));
+  m = /^(\d{2})(\d{2})(\d{4})$/.exec(digitsOnly);
+  if (m) return toIsoDate(Number(m[3]), Number(m[2]), Number(m[1]));
+  m = /^(\d{4})(\d{2})(\d{2})$/.exec(digitsOnly);
+  if (m) return toIsoDate(Number(m[1]), Number(m[2]), Number(m[3]));
+
   return null;
 }
 
@@ -451,9 +481,36 @@ function toIsoDate(year: number, month: number, day: number): string | null {
 }
 
 function parsePrice(input: string): number | null {
-  const normalized = input.trim().replace(",", ".");
-  if (!/^\d+(\.\d{1,2})?$/.test(normalized)) return null;
-  const value = Number(normalized);
+  const raw = input.trim();
+  if (!raw) return null;
+
+  let cleaned = raw
+    .replace(/[€$£₽₴¥₸₾₱₹₩₦₫₭₡₲₵₮\s\u00A0]/g, "")
+    .replace(/[^\d,.-]/g, "");
+
+  if (!cleaned) return null;
+  if (/^-/.test(cleaned)) return null;
+
+  const lastComma = cleaned.lastIndexOf(",");
+  const lastDot = cleaned.lastIndexOf(".");
+  const decimalIdx = Math.max(lastComma, lastDot);
+
+  if (decimalIdx >= 0) {
+    const intPartRaw = cleaned.slice(0, decimalIdx).replace(/[.,]/g, "");
+    const fracPartRaw = cleaned.slice(decimalIdx + 1).replace(/[.,]/g, "");
+    const normalized =
+      fracPartRaw.length > 0 && fracPartRaw.length <= 2
+        ? `${intPartRaw || "0"}.${fracPartRaw}`
+        : `${(cleaned.replace(/[.,]/g, "")) || "0"}`;
+
+    if (!/^\d+(\.\d{1,2})?$/.test(normalized)) return null;
+    const value = Number(normalized);
+    return Number.isFinite(value) ? value : null;
+  }
+
+  cleaned = cleaned.replace(/[.,]/g, "");
+  if (!/^\d+$/.test(cleaned)) return null;
+  const value = Number(cleaned);
   return Number.isFinite(value) ? value : null;
 }
 
@@ -479,7 +536,10 @@ function looksLikeDraftCommand(text: string): boolean {
     lower.startsWith("цена ") ||
     lower.startsWith("price ") ||
     lower.startsWith("название ") ||
+    lower.startsWith("наименование ") ||
+    lower.startsWith("товар ") ||
     lower.startsWith("name ") ||
+    lower.startsWith("item ") ||
     lower.startsWith("категория ") ||
     lower.startsWith("category ") ||
     lower.startsWith("удалить ") ||
@@ -536,7 +596,10 @@ async function handleDraftCommand(params: {
   if (match) {
     const parsed = parseIsoDateFromUser(match[1]);
     if (!parsed) {
-      await sendTelegramMessage(chatId, "Неверный формат даты. Используйте: <code>Дата 14/02/26</code>");
+      await sendTelegramMessage(
+        chatId,
+        "Неверный формат даты. Поддерживаются, например: <code>Дата 14/02/26</code>, <code>Дата 14-02-2026</code>, <code>Дата 2026-02-14</code>."
+      );
       return { handled: true, result: "draft_date_invalid" };
     }
     draft.purchase_date = parsed;
@@ -557,7 +620,10 @@ async function handleDraftCommand(params: {
   if (match) {
     const price = parsePrice(match[1]);
     if (price === null) {
-      await sendTelegramMessage(chatId, "Неверный формат суммы. Пример: <code>Сумма 12.49</code>");
+      await sendTelegramMessage(
+        chatId,
+        "Неверный формат суммы. Поддерживаются, например: <code>Сумма 12.49</code>, <code>Сумма 12,49</code>, <code>Сумма 1 234,56</code>."
+      );
       return { handled: true, result: "draft_sum_invalid" };
     }
 
@@ -586,7 +652,10 @@ async function handleDraftCommand(params: {
     }
     const price = parsePrice(match[2]);
     if (price === null) {
-      await sendTelegramMessage(chatId, "Неверный формат цены. Пример: <code>Цена 3 12.49</code>");
+      await sendTelegramMessage(
+        chatId,
+        "Неверный формат цены. Поддерживаются, например: <code>Цена 3 12.49</code>, <code>Цена 3 12,49</code>, <code>Цена 3 1 234,56</code>."
+      );
       return { handled: true, result: "draft_price_invalid" };
     }
     draft.items[index].price = price;
@@ -595,7 +664,7 @@ async function handleDraftCommand(params: {
     return { handled: true, result: "draft_price_updated" };
   }
 
-  match = /^(?:name|название)\s+(\d+)\s+(.+)$/i.exec(cmd);
+  match = /^(?:name|название|наименование)\s+(\d+)\s+(.+)$/i.exec(cmd);
   if (match) {
     const index = Number(match[1]) - 1;
     if (!draft.items[index]) {
@@ -606,6 +675,42 @@ async function handleDraftCommand(params: {
     await saveTelegramDraft(chatId, userId, draft);
     await sendDraftPreviewMessage(chatId, draft, `Название позиции ${index + 1} обновлено.`);
     return { handled: true, result: "draft_name_updated" };
+  }
+
+  match = /^(?:item|товар)\s+(.+)$/i.exec(cmd);
+  if (match) {
+    if (!draft.items[0]) {
+      draft.items = [
+        {
+          name: match[1].trim(),
+          price: 0,
+          category: getDefaultCategory(),
+        },
+      ];
+    } else {
+      draft.items[0].name = match[1].trim();
+    }
+    await saveTelegramDraft(chatId, userId, draft);
+    await sendDraftPreviewMessage(chatId, draft, "Название товара обновлено.");
+    return { handled: true, result: "draft_single_item_name_updated" };
+  }
+
+  match = /^(?:name|название|наименование)\s+(.+)$/i.exec(cmd);
+  if (match && draft.items.length <= 1) {
+    if (!draft.items[0]) {
+      draft.items = [
+        {
+          name: match[1].trim(),
+          price: 0,
+          category: getDefaultCategory(),
+        },
+      ];
+    } else {
+      draft.items[0].name = match[1].trim();
+    }
+    await saveTelegramDraft(chatId, userId, draft);
+    await sendDraftPreviewMessage(chatId, draft, "Название товара обновлено.");
+    return { handled: true, result: "draft_single_item_name_updated" };
   }
 
   match = /^(?:category|категория)\s+(\d+)\s+(.+)$/i.exec(cmd);
