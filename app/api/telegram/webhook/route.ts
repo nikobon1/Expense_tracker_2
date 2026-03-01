@@ -551,8 +551,9 @@ async function handleDraftCommand(params: {
   chatId: number;
   userId: number | null;
   text: string;
+  silentSuccess?: boolean;
 }): Promise<{ handled: boolean; result?: string }> {
-  const { chatId, userId, text } = params;
+  const { chatId, userId, text, silentSuccess = false } = params;
   const cmd = normalizeCommand(text);
   const lower = cmd.toLowerCase();
 
@@ -564,7 +565,9 @@ async function handleDraftCommand(params: {
 
   if (lower === "отмена" || lower === "cancel" || lower === "/cancel") {
     await deleteTelegramDraft(chatId);
-    await sendTelegramMessage(chatId, draft ? "Черновик удален." : "Черновика нет.");
+    if (!silentSuccess || !draft) {
+      await sendTelegramMessage(chatId, draft ? "Черновик удален." : "Черновика нет.");
+    }
     return { handled: true, result: "draft_cancelled" };
   }
 
@@ -574,7 +577,9 @@ async function handleDraftCommand(params: {
   }
 
   if (lower === "показать" || lower === "show" || lower === "/show") {
-    await sendDraftPreviewMessage(chatId, draft);
+    if (!silentSuccess) {
+      await sendDraftPreviewMessage(chatId, draft);
+    }
     return { handled: true, result: "draft_shown" };
   }
 
@@ -588,7 +593,9 @@ async function handleDraftCommand(params: {
       telegram_file_id: draftWithMeta._telegram_file_id ?? null,
     });
     await deleteTelegramDraft(chatId);
-    await sendTelegramMessage(chatId, formatSavedSummary(draft, saved.totalAmount, saved.receiptId));
+    if (!silentSuccess) {
+      await sendTelegramMessage(chatId, formatSavedSummary(draft, saved.totalAmount, saved.receiptId));
+    }
     return { handled: true, result: "draft_saved" };
   }
 
@@ -604,7 +611,9 @@ async function handleDraftCommand(params: {
     }
     draft.purchase_date = parsed;
     await saveTelegramDraft(chatId, userId, draft);
-    await sendDraftPreviewMessage(chatId, draft, "Дата обновлена.");
+    if (!silentSuccess) {
+      await sendDraftPreviewMessage(chatId, draft, "Дата обновлена.");
+    }
     return { handled: true, result: "draft_date_updated" };
   }
 
@@ -612,7 +621,9 @@ async function handleDraftCommand(params: {
   if (match) {
     draft.store_name = match[1].trim();
     await saveTelegramDraft(chatId, userId, draft);
-    await sendDraftPreviewMessage(chatId, draft, "Магазин обновлен.");
+    if (!silentSuccess) {
+      await sendDraftPreviewMessage(chatId, draft, "Магазин обновлен.");
+    }
     return { handled: true, result: "draft_store_updated" };
   }
 
@@ -640,7 +651,9 @@ async function handleDraftCommand(params: {
     }
 
     await saveTelegramDraft(chatId, userId, draft);
-    await sendDraftPreviewMessage(chatId, draft, "Сумма обновлена.");
+    if (!silentSuccess) {
+      await sendDraftPreviewMessage(chatId, draft, "Сумма обновлена.");
+    }
     return { handled: true, result: "draft_sum_updated" };
   }
   match = /^(?:price|цена)\s+(\d+)\s+(.+)$/i.exec(cmd);
@@ -660,7 +673,9 @@ async function handleDraftCommand(params: {
     }
     draft.items[index].price = price;
     await saveTelegramDraft(chatId, userId, draft);
-    await sendDraftPreviewMessage(chatId, draft, `Цена позиции ${index + 1} обновлена.`);
+    if (!silentSuccess) {
+      await sendDraftPreviewMessage(chatId, draft, `Цена позиции ${index + 1} обновлена.`);
+    }
     return { handled: true, result: "draft_price_updated" };
   }
 
@@ -673,7 +688,9 @@ async function handleDraftCommand(params: {
     }
     draft.items[index].name = match[2].trim();
     await saveTelegramDraft(chatId, userId, draft);
-    await sendDraftPreviewMessage(chatId, draft, `Название позиции ${index + 1} обновлено.`);
+    if (!silentSuccess) {
+      await sendDraftPreviewMessage(chatId, draft, `Название позиции ${index + 1} обновлено.`);
+    }
     return { handled: true, result: "draft_name_updated" };
   }
 
@@ -691,7 +708,9 @@ async function handleDraftCommand(params: {
       draft.items[0].name = match[1].trim();
     }
     await saveTelegramDraft(chatId, userId, draft);
-    await sendDraftPreviewMessage(chatId, draft, "Название товара обновлено.");
+    if (!silentSuccess) {
+      await sendDraftPreviewMessage(chatId, draft, "Название товара обновлено.");
+    }
     return { handled: true, result: "draft_single_item_name_updated" };
   }
 
@@ -709,7 +728,9 @@ async function handleDraftCommand(params: {
       draft.items[0].name = match[1].trim();
     }
     await saveTelegramDraft(chatId, userId, draft);
-    await sendDraftPreviewMessage(chatId, draft, "Название товара обновлено.");
+    if (!silentSuccess) {
+      await sendDraftPreviewMessage(chatId, draft, "Название товара обновлено.");
+    }
     return { handled: true, result: "draft_single_item_name_updated" };
   }
 
@@ -722,7 +743,9 @@ async function handleDraftCommand(params: {
     }
     draft.items[index].category = match[2].trim();
     await saveTelegramDraft(chatId, userId, draft);
-    await sendDraftPreviewMessage(chatId, draft, `Категория позиции ${index + 1} обновлена.`);
+    if (!silentSuccess) {
+      await sendDraftPreviewMessage(chatId, draft, `Категория позиции ${index + 1} обновлена.`);
+    }
     return { handled: true, result: "draft_category_updated" };
   }
 
@@ -736,11 +759,15 @@ async function handleDraftCommand(params: {
     draft.items.splice(index, 1);
     if (draft.items.length === 0) {
       await deleteTelegramDraft(chatId);
-      await sendTelegramMessage(chatId, "Все позиции удалены, черновик удален.");
+      if (!silentSuccess) {
+        await sendTelegramMessage(chatId, "Все позиции удалены, черновик удален.");
+      }
       return { handled: true, result: "draft_deleted_empty" };
     }
     await saveTelegramDraft(chatId, userId, draft);
-    await sendDraftPreviewMessage(chatId, draft, `Позиция ${index + 1} удалена.`);
+    if (!silentSuccess) {
+      await sendDraftPreviewMessage(chatId, draft, `Позиция ${index + 1} удалена.`);
+    }
     return { handled: true, result: "draft_item_deleted" };
   }
 
@@ -764,11 +791,13 @@ async function handleDraftCommandBatch(params: {
   let handledAny = false;
   let lastResult: string | undefined;
 
-  for (const line of lines) {
+  for (const [index, line] of lines.entries()) {
+    const isLastLine = index === lines.length - 1;
     const step = await handleDraftCommand({
       chatId: params.chatId,
       userId: params.userId,
       text: line,
+      silentSuccess: !isLastLine,
     });
 
     if (!step.handled) {
