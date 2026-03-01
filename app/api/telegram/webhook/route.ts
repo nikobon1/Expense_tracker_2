@@ -747,6 +747,41 @@ async function handleDraftCommand(params: {
   return { handled: false };
 }
 
+async function handleDraftCommandBatch(params: {
+  chatId: number;
+  userId: number | null;
+  text: string;
+}): Promise<{ handled: boolean; result?: string }> {
+  const lines = params.text
+    .split(/\r?\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length <= 1) {
+    return handleDraftCommand(params);
+  }
+
+  let handledAny = false;
+  let lastResult: string | undefined;
+
+  for (const line of lines) {
+    const step = await handleDraftCommand({
+      chatId: params.chatId,
+      userId: params.userId,
+      text: line,
+    });
+
+    if (!step.handled) {
+      return handledAny ? { handled: true, result: lastResult ?? "draft_command_batch_partial" } : step;
+    }
+
+    handledAny = true;
+    lastResult = step.result;
+  }
+
+  return { handled: handledAny, result: lastResult ?? "draft_command_batch" };
+}
+
 function todayIsoDate(): string {
   const now = new Date();
   const year = now.getFullYear();
@@ -909,7 +944,7 @@ export async function POST(request: NextRequest) {
       if (mainMenuCommand.handled) {
         return NextResponse.json({ ok: true, handled: mainMenuCommand.result ?? "main_menu_text" });
       }
-      const draftCommand = await handleDraftCommand({ chatId, userId: fromUserId, text });
+      const draftCommand = await handleDraftCommandBatch({ chatId, userId: fromUserId, text });
       if (draftCommand.handled) {
         return NextResponse.json({ ok: true, handled: draftCommand.result ?? "draft_command" });
       }
