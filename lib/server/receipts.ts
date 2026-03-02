@@ -1,5 +1,6 @@
 import { neon } from "@neondatabase/serverless";
 import type { ReceiptData, ReceiptItem } from "@/features/expenses/types";
+import { normalizeCategory } from "@/lib/category-normalization";
 
 type DbClient = ReturnType<typeof neon>;
 
@@ -134,7 +135,7 @@ export async function saveReceiptToDb(payload: {
         ${receiptId},
         ${item.name},
         ${Number(item.price || 0)},
-        ${item.category || "Другое"}
+        ${normalizeCategory(item.category)}
       )
     `;
   }
@@ -188,7 +189,7 @@ export async function getReceiptById(
     items: itemRows.map((item) => ({
       name: item.name ?? "",
       price: Number(item.price ?? 0),
-      category: item.category ?? "Другое",
+      category: normalizeCategory(item.category),
     })),
   };
 }
@@ -239,7 +240,7 @@ export async function updateReceiptInDb(
         ${receiptId},
         ${item.name},
         ${Number(item.price || 0)},
-        ${item.category || "Другое"}
+        ${normalizeCategory(item.category)}
       )
     `;
   }

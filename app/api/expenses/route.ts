@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
+import { normalizeCategory } from '@/lib/category-normalization';
 
 function getDb() {
     const databaseUrl = process.env.DATABASE_URL;
@@ -56,7 +57,7 @@ export async function GET(request: NextRequest) {
                 store: e.store,
                 item: e.item,
                 price: Number(e.price),
-                category: e.category
+                category: normalizeCategory(String(e.category ?? ""))
             })),
             prevMonthTotal: Number(prevMonthResult[0]?.total || 0)
         });
