@@ -22,6 +22,22 @@
   - fixed runtime token loading by applying `.trim()` before calling Telegram API
 - Removed mojibake / broken encoding from Telegram bot texts.
 - Restored the Telegram bot UX back to Russian text while keeping English command aliases as a fallback.
+- Disabled `DEV_LOGIN_ENABLED` in `Vercel production` and confirmed the temporary dev login path is no longer exposed on `/login`.
+- Fixed broken text encoding on the web `Сканирование` tab and restored readable Russian labels in the upload / review flow.
+- Restored readable category names in the web app and added new categories:
+  - `Отпуск`
+  - `Развлечения`
+  - `Подарки`
+  - `Авто`
+- Improved Telegram manual entry parsing:
+  - flexible amount formats (`12.49`, `12,49`, `1 234,56`, currency symbols)
+  - flexible date formats (`14/02/26`, `14-02-2026`, `2026-02-14`, compact digits, `сегодня`)
+  - custom item naming for manual drafts via `Товар ...`
+  - extended `/manual` seed format with an optional item name
+- Improved Telegram multi-line command handling:
+  - one message with multiple lines is now processed line-by-line
+  - successful intermediate lines are applied silently
+  - the bot sends a single final response instead of multiple intermediate replies
 
 ## Production State
 
@@ -35,6 +51,7 @@
   - `TELEGRAM_BOT_TOKEN`
   - `TELEGRAM_WEBHOOK_SECRET`
   - `TELEGRAM_ALLOWED_USER_IDS`
+- `DEV_LOGIN_ENABLED` is no longer present in `Vercel production`.
 
 ## Relevant Commits
 
@@ -46,6 +63,11 @@
 - `6c23dad` Trim Telegram bot token from env
 - `915edc2` Fix Telegram bot message encoding
 - `3b95190` Restore Russian Telegram bot copy
+- `63d056f` Fix scan tab text encoding
+- `12d2a83` Improve Telegram manual input parsing
+- `6f9596a` Support multi-line Telegram draft commands
+- `593c743` Send one final reply for multi-line Telegram commands
+- `123e2ce` Add travel and lifestyle categories
 
 ## Verified
 
@@ -54,15 +76,17 @@
 - Production deploy completed successfully after the latest Telegram keyboard change.
 - Production deploy completed successfully after Telegram env repair and Russian copy restore.
 - Telegram bot is now responding again and the user confirmed the latest Russian flow is OK.
+- Production deploy completed successfully after disabling the temporary dev login path.
+- Production deploy completed successfully after fixing `Сканирование` tab encoding.
+- Production deploy completed successfully after Telegram parsing improvements and category additions.
 
 ## Known Issues / Follow-Up
 
 - There are still old inline menu messages in existing chats; users should use `/start` again and then use the lower reply keyboard, not stale inline buttons in older messages.
 - Next.js warns about multiple lockfiles and inferred Turbopack root. This is non-blocking but should be cleaned up later.
-- `DEV_LOGIN_ENABLED` is still enabled in production for testing and should be removed after validation is complete.
 
 ## Suggested Next Steps
 
-1. Re-test the Telegram reply keyboard flow end-to-end in a real client after using `/start` to refresh the latest keyboard.
-2. Remove or disable `DEV_LOGIN_ENABLED` in production after testing is complete.
+1. Re-test the Telegram reply keyboard and multi-line manual entry flow end-to-end in a real client after using `/start` to refresh the latest keyboard.
+2. Consider updating old receipts / drafts that still contain historical mojibake category values in saved data, if any.
 3. Clean up the extra lockfile / Turbopack root warning in Next.js.
