@@ -589,10 +589,10 @@ export default function DashboardTab({
           <div className="metric-label">🧾 Количество товаров</div>
           <div className="metric-value">{expenses.length}</div>
         </div>
-        <div className="metric-card">
-          <div className="metric-label">📅 Пред. месяц</div>
-          <div className="metric-value">{prevMonthTotal.toFixed(2)} €</div>
-        </div>
+          <div className="metric-card">
+            <div className="metric-label">📅 Тот же период</div>
+            <div className="metric-value">{prevMonthTotal.toFixed(2)} €</div>
+          </div>
       </div>
 
       {expenses.length > 0 ? (
