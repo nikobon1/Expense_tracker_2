@@ -90,3 +90,14 @@
 1. Re-test the Telegram reply keyboard and multi-line manual entry flow end-to-end in a real client after using `/start` to refresh the latest keyboard.
 2. Consider updating old receipts / drafts that still contain historical mojibake category values in saved data, if any.
 3. Clean up the extra lockfile / Turbopack root warning in Next.js.
+
+## Latest Update (2026-03-03)
+
+- Fixed malformed category rendering in the expense detail table by normalizing broken category values before returning them from the expenses API and when reading/saving receipts.
+- Updated the dashboard `Общие расходы` comparison logic:
+  - it now compares with the same date range shifted one calendar month back
+  - example: `2026-03-01` to `2026-03-03` compares with `2026-02-01` to `2026-02-03`
+- Renamed the dashboard comparison metric label from `Пред. месяц` to `Тот же период`.
+- Commit already pushed: `d177926` (`Normalize malformed expense categories`)
+- Commit already pushed: `8d66fcd` (`Compare dashboard totals to same prior-period range`)
+- Production was redeployed successfully after both changes, and `https://porto-receipts.vercel.app` is serving the updated dashboard logic.
