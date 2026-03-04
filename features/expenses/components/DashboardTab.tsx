@@ -207,6 +207,7 @@ export default function DashboardTab({
   const [editorReceipt, setEditorReceipt] = useState<EditableReceipt | null>(null);
   const [comparisonImage, setComparisonImage] = useState<string | null>(null);
   const [comparisonData, setComparisonData] = useState<ReceiptData | null>(null);
+  const [selectedStore, setSelectedStore] = useState("all");
   const compareFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const getReceiptSegmentColor = (segment: DailyReceiptSegment, index: number) =>
@@ -234,6 +235,25 @@ export default function DashboardTab({
     prevMonthTotal > 0 ? (amountChange / prevMonthTotal) * 100 : 0;
   const categoryData = buildCategoryData(expenses);
   const dailyData = buildDailyData(expenses);
+  const storeOptions = useMemo(
+    () =>
+      [...new Set(expenses.map((expense) => String(expense.store ?? "").trim()).filter(Boolean))].sort((a, b) =>
+        a.localeCompare(b, "ru")
+      ),
+    [expenses]
+  );
+  const activeStore = selectedStore === "all" || storeOptions.includes(selectedStore) ? selectedStore : "all";
+  const storeFilteredExpenses = useMemo(
+    () => (activeStore === "all" ? expenses : expenses.filter((expense) => expense.store === activeStore)),
+    [activeStore, expenses]
+  );
+  const transactionCount = useMemo(
+    () => new Set(storeFilteredExpenses.map((expense) => expense.receiptId)).size,
+    [storeFilteredExpenses]
+  );
+  const averageTransactionValue = transactionCount > 0
+    ? storeFilteredExpenses.reduce((sum, expense) => sum + expense.price, 0) / transactionCount
+    : 0;
 
   const receiptFirstExpenseId = useMemo(() => {
     const first = new Map<number, number>();
@@ -590,8 +610,37 @@ export default function DashboardTab({
           )}
         </div>
         <div className="metric-card">
-          <div className="metric-label">🧾 Количество товаров</div>
-          <div className="metric-value">{expenses.length}</div>
+          <div className="metric-label">🧾 Товары и покупки</div>
+          <div className="metric-card-filter">
+            <label htmlFor="dashboard-store-filter" className="metric-filter-label">
+              Магазин
+            </label>
+            <select
+              id="dashboard-store-filter"
+              className="metric-filter-select"
+              value={activeStore}
+              onChange={(e) => setSelectedStore(e.target.value)}
+            >
+              <option value="all">Все магазины</option>
+              {storeOptions.map((store) => (
+                <option key={store} value={store}>
+                  {store}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="metric-value">{storeFilteredExpenses.length}</div>
+          <div className="metric-secondary">Товаров</div>
+          <div className="metric-breakdown">
+            <div className="metric-breakdown-row">
+              <span>Транзакций</span>
+              <strong>{transactionCount}</strong>
+            </div>
+            <div className="metric-breakdown-row">
+              <span>Средний чек</span>
+              <strong>{averageTransactionValue.toFixed(2)} €</strong>
+            </div>
+          </div>
         </div>
       </div>
 

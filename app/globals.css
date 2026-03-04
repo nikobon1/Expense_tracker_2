@@ -647,6 +647,45 @@ td select:focus {
   opacity: 0.82;
 }
 
+.metric-card-filter {
+  display: grid;
+  gap: 0.35rem;
+  margin-bottom: 0.75rem;
+}
+
+.metric-filter-label {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+.metric-filter-select {
+  width: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  padding: 0.5rem 0.7rem;
+  font-size: 0.85rem;
+}
+
+.metric-breakdown {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.75rem;
+}
+
+.metric-breakdown-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  font-size: 0.8rem;
+}
+
+.metric-breakdown-row strong {
+  font-size: 0.9rem;
+}
+
 .metric-delta {
   font-size: 0.75rem;
   margin-top: 0.25rem;
