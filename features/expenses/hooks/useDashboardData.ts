@@ -16,6 +16,8 @@ function getInitialDateRange() {
 export function useDashboardData() {
   const [startDate, setStartDate] = useState(() => getInitialDateRange().start);
   const [endDate, setEndDate] = useState(() => getInitialDateRange().end);
+  const [selectedStore, setSelectedStore] = useState("all");
+  const [stores, setStores] = useState<string[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [prevMonthTotal, setPrevMonthTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -25,24 +27,28 @@ export function useDashboardData() {
 
     setIsLoading(true);
     try {
-      const data = await getExpenses(startDate, endDate);
+      const data = await getExpenses(startDate, endDate, selectedStore);
       setExpenses(data.expenses);
       setPrevMonthTotal(data.prevMonthTotal);
+      setStores(data.stores);
     } catch (error) {
       console.error("Error loading expenses:", error);
     } finally {
       setIsLoading(false);
     }
-  }, [startDate, endDate]);
+  }, [startDate, endDate, selectedStore]);
 
   return {
     startDate,
     endDate,
+    selectedStore,
+    stores,
     expenses,
     prevMonthTotal,
     isLoading,
     setStartDate,
     setEndDate,
+    setSelectedStore,
     loadExpenses,
   };
 }

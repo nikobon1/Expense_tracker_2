@@ -32,6 +32,8 @@ export async function GET(request: NextRequest) {
         const { searchParams } = new URL(request.url);
         const startDate = searchParams.get('start');
         const endDate = searchParams.get('end');
+        const store = (searchParams.get('store') ?? '').trim();
+        const hasStoreFilter = store.length > 0 && store.toLowerCase() !== 'all';
 
         if (!startDate || !endDate) {
             return NextResponse.json({ error: 'Missing date range' }, { status: 400 });
@@ -40,7 +42,21 @@ export async function GET(request: NextRequest) {
         const sql = getDb();
 
         // Get expenses for the period
-        const expenses = await sql`
+        const expenses = hasStoreFilter ? await sql`
+      SELECT 
+        i.id,
+        r.id as receipt_id,
+        r.purchase_date as date,
+        r.store_name as store,
+        i.name as item,
+        i.price,
+        i.category
+      FROM receipts r
+      JOIN items i ON r.id = i.receipt_id
+      WHERE r.purchase_date BETWEEN ${startDate} AND ${endDate}
+        AND r.store_name = ${store}
+      ORDER BY r.purchase_date DESC
+    ` : await sql`
       SELECT 
         i.id,
         r.id as receipt_id,
@@ -59,10 +75,24 @@ export async function GET(request: NextRequest) {
         const prevPeriodStart = shiftDateByMonths(startDate, -1);
         const prevPeriodEnd = shiftDateByMonths(endDate, -1);
 
-        const prevMonthResult = await sql`
+        const prevMonthResult = hasStoreFilter ? await sql`
       SELECT COALESCE(SUM(total_amount), 0) as total
       FROM receipts
       WHERE purchase_date BETWEEN ${prevPeriodStart} AND ${prevPeriodEnd}
+        AND store_name = ${store}
+    ` : await sql`
+      SELECT COALESCE(SUM(total_amount), 0) as total
+      FROM receipts
+      WHERE purchase_date BETWEEN ${prevPeriodStart} AND ${prevPeriodEnd}
+    `;
+
+        const stores = await sql`
+      SELECT DISTINCT TRIM(store_name) as store
+      FROM receipts
+      WHERE purchase_date BETWEEN ${startDate} AND ${endDate}
+        AND store_name IS NOT NULL
+        AND TRIM(store_name) <> ''
+      ORDER BY store
     `;
 
         return NextResponse.json({
@@ -75,7 +105,10 @@ export async function GET(request: NextRequest) {
                 price: Number(e.price),
                 category: normalizeCategory(String(e.category ?? ""))
             })),
-            prevMonthTotal: Number(prevMonthResult[0]?.total || 0)
+            prevMonthTotal: Number(prevMonthResult[0]?.total || 0),
+            stores: stores
+                .map((row) => String(row.store ?? "").trim())
+                .filter(Boolean)
         });
     } catch (error) {
         console.error('Get expenses error:', error);
@@ -84,7 +117,8 @@ export async function GET(request: NextRequest) {
         if (error instanceof Error && error.message.includes('DATABASE_URL')) {
             return NextResponse.json({
                 expenses: [],
-                prevMonthTotal: 0
+                prevMonthTotal: 0,
+                stores: []
             });
         }
 

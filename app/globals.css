@@ -668,6 +668,11 @@ td select:focus {
   font-size: 0.85rem;
 }
 
+.metric-filter-hint {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
 .metric-breakdown {
   display: grid;
   gap: 0.35rem;

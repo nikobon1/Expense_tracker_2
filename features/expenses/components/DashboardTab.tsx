@@ -22,11 +22,14 @@ import type { Expense, ReceiptData, ReceiptItem } from "@/features/expenses/type
 interface DashboardTabProps {
   startDate: string;
   endDate: string;
+  selectedStore: string;
+  stores: string[];
   expenses: Expense[];
   prevMonthTotal: number;
   isLoading?: boolean;
   onStartDateChange: (value: string) => void;
   onEndDateChange: (value: string) => void;
+  onStoreChange: (value: string) => void;
   onRefresh?: () => void;
 }
 
@@ -190,11 +193,14 @@ function buildComparisonSummary(current: EditableReceipt, analyzed: ReceiptData)
 export default function DashboardTab({
   startDate,
   endDate,
+  selectedStore,
+  stores,
   expenses,
   prevMonthTotal,
   isLoading = false,
   onStartDateChange,
   onEndDateChange,
+  onStoreChange,
   onRefresh,
 }: DashboardTabProps) {
   const [activeBarDate, setActiveBarDate] = useState<string | null>(null);
@@ -207,7 +213,6 @@ export default function DashboardTab({
   const [editorReceipt, setEditorReceipt] = useState<EditableReceipt | null>(null);
   const [comparisonImage, setComparisonImage] = useState<string | null>(null);
   const [comparisonData, setComparisonData] = useState<ReceiptData | null>(null);
-  const [selectedStore, setSelectedStore] = useState("all");
   const compareFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const getReceiptSegmentColor = (segment: DailyReceiptSegment, index: number) =>
@@ -235,24 +240,24 @@ export default function DashboardTab({
     prevMonthTotal > 0 ? (amountChange / prevMonthTotal) * 100 : 0;
   const categoryData = buildCategoryData(expenses);
   const dailyData = buildDailyData(expenses);
-  const storeOptions = useMemo(
-    () =>
-      [...new Set(expenses.map((expense) => String(expense.store ?? "").trim()).filter(Boolean))].sort((a, b) =>
-        a.localeCompare(b, "ru")
-      ),
+  const storeOptions = useMemo(() => {
+    const baseStores = [...new Set(stores.map((store) => String(store ?? "").trim()).filter(Boolean))].sort((a, b) =>
+      a.localeCompare(b, "ru")
+    );
+
+    if (selectedStore !== "all" && !baseStores.includes(selectedStore)) {
+      return [...baseStores, selectedStore].sort((a, b) => a.localeCompare(b, "ru"));
+    }
+
+    return baseStores;
+  }, [selectedStore, stores]);
+  const activeStore = selectedStore === "all" ? "all" : selectedStore;
+  const transactionCount = useMemo(
+    () => new Set(expenses.map((expense) => expense.receiptId)).size,
     [expenses]
   );
-  const activeStore = selectedStore === "all" || storeOptions.includes(selectedStore) ? selectedStore : "all";
-  const storeFilteredExpenses = useMemo(
-    () => (activeStore === "all" ? expenses : expenses.filter((expense) => expense.store === activeStore)),
-    [activeStore, expenses]
-  );
-  const transactionCount = useMemo(
-    () => new Set(storeFilteredExpenses.map((expense) => expense.receiptId)).size,
-    [storeFilteredExpenses]
-  );
   const averageTransactionValue = transactionCount > 0
-    ? storeFilteredExpenses.reduce((sum, expense) => sum + expense.price, 0) / transactionCount
+    ? expensesTotal / transactionCount
     : 0;
 
   const receiptFirstExpenseId = useMemo(() => {
@@ -619,7 +624,7 @@ export default function DashboardTab({
               id="dashboard-store-filter"
               className="metric-filter-select"
               value={activeStore}
-              onChange={(e) => setSelectedStore(e.target.value)}
+              onChange={(e) => onStoreChange(e.target.value)}
             >
               <option value="all">Все магазины</option>
               {storeOptions.map((store) => (
@@ -628,8 +633,9 @@ export default function DashboardTab({
                 </option>
               ))}
             </select>
+            <span className="metric-filter-hint">Фильтр применяется ко всему дашборду</span>
           </div>
-          <div className="metric-value">{storeFilteredExpenses.length}</div>
+          <div className="metric-value">{expenses.length}</div>
           <div className="metric-secondary">Товаров</div>
           <div className="metric-breakdown">
             <div className="metric-breakdown-row">

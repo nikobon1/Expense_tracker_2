@@ -13,10 +13,13 @@ export default function Home() {
   const {
     startDate,
     endDate,
+    selectedStore,
+    stores,
     expenses,
     prevMonthTotal,
     setStartDate,
     setEndDate,
+    setSelectedStore,
     loadExpenses,
   } = dashboardData;
 
@@ -98,11 +101,14 @@ export default function Home() {
           <DashboardTab
             startDate={startDate}
             endDate={endDate}
+            selectedStore={selectedStore}
+            stores={stores}
             expenses={expenses}
             prevMonthTotal={prevMonthTotal}
             isLoading={dashboardData.isLoading}
             onStartDateChange={setStartDate}
             onEndDateChange={setEndDate}
+            onStoreChange={setSelectedStore}
             onRefresh={() => void loadExpenses()}
           />
         )}

@@ -3,6 +3,7 @@ import type { Expense, ReceiptData, ReceiptDetails, ReceiptItem } from "@/featur
 interface ExpensesResponse {
   expenses: Expense[];
   prevMonthTotal: number;
+  stores: string[];
 }
 
 function normalizeIsoDate(value: string): string {
@@ -148,8 +149,17 @@ export async function getReceiptImageFromTelegram(receiptId: number): Promise<st
   return image;
 }
 
-export async function getExpenses(startDate: string, endDate: string): Promise<ExpensesResponse> {
-  const response = await fetch(`/api/expenses?start=${startDate}&end=${endDate}`);
+export async function getExpenses(startDate: string, endDate: string, store: string = "all"): Promise<ExpensesResponse> {
+  const params = new URLSearchParams({
+    start: startDate,
+    end: endDate,
+  });
+
+  if (store && store !== "all") {
+    params.set("store", store);
+  }
+
+  const response = await fetch(`/api/expenses?${params.toString()}`);
   if (!response.ok) {
     throw new Error("Failed to load expenses");
   }
