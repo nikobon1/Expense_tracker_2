@@ -641,9 +641,19 @@ td select:focus {
   font-weight: 700;
 }
 
+.metric-secondary {
+  font-size: 0.8rem;
+  margin-top: 0.4rem;
+  opacity: 0.82;
+}
+
 .metric-delta {
   font-size: 0.75rem;
   margin-top: 0.25rem;
+}
+
+.metric-delta.neutral {
+  color: var(--text-secondary);
 }
 
 .metric-delta.positive {
@@ -652,6 +662,14 @@ td select:focus {
 
 .metric-delta.negative {
   color: var(--error);
+}
+
+.metric-card.primary .metric-secondary,
+.metric-card.primary .metric-delta,
+.metric-card.primary .metric-delta.neutral,
+.metric-card.primary .metric-delta.positive,
+.metric-card.primary .metric-delta.negative {
+  color: rgba(255, 255, 255, 0.88);
 }
 
 /* Charts grid */

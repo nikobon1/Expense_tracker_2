@@ -229,8 +229,9 @@ export default function DashboardTab({
   };
 
   const expensesTotal = expenses.reduce((sum, exp) => sum + exp.price, 0);
+  const amountChange = expensesTotal - prevMonthTotal;
   const percentChange =
-    prevMonthTotal > 0 ? ((expensesTotal - prevMonthTotal) / prevMonthTotal) * 100 : 0;
+    prevMonthTotal > 0 ? (amountChange / prevMonthTotal) * 100 : 0;
   const categoryData = buildCategoryData(expenses);
   const dailyData = buildDailyData(expenses);
 
@@ -579,20 +580,19 @@ export default function DashboardTab({
         <div className="metric-card primary">
           <div className="metric-label">💰 Общие расходы</div>
           <div className="metric-value">{expensesTotal.toFixed(2)} €</div>
-          {prevMonthTotal > 0 && (
-            <div className={`metric-delta ${percentChange >= 0 ? "negative" : "positive"}`}>
-              {percentChange >= 0 ? "↑" : "↓"} {Math.abs(percentChange).toFixed(1)}% vs пред. месяц
+          <div className="metric-secondary">Тот же период: {prevMonthTotal.toFixed(2)} €</div>
+          {prevMonthTotal > 0 ? (
+            <div className={`metric-delta ${amountChange >= 0 ? "negative" : "positive"}`}>
+              {amountChange >= 0 ? "↑" : "↓"} {Math.abs(amountChange).toFixed(2)} € ({Math.abs(percentChange).toFixed(1)}%)
             </div>
+          ) : (
+            <div className="metric-delta neutral">Нет данных для сравнения</div>
           )}
         </div>
         <div className="metric-card">
           <div className="metric-label">🧾 Количество товаров</div>
           <div className="metric-value">{expenses.length}</div>
         </div>
-          <div className="metric-card">
-            <div className="metric-label">📅 Тот же период</div>
-            <div className="metric-value">{prevMonthTotal.toFixed(2)} €</div>
-          </div>
       </div>
 
       {expenses.length > 0 ? (
