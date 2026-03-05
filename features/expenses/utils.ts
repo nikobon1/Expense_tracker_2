@@ -22,6 +22,17 @@ function isIsoDate(value: string) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
+function normalizeDateKey(value: string) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  if (isIsoDate(raw)) return raw;
+  if (/^\d{4}-\d{2}-\d{2}T/.test(raw)) return raw.slice(0, 10);
+
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return "";
+  return parsed.toISOString().slice(0, 10);
+}
+
 function buildDateRange(startDate: string, endDate: string): string[] {
   if (!isIsoDate(startDate) || !isIsoDate(endDate)) return [];
   if (startDate > endDate) return [];
@@ -54,10 +65,13 @@ export function buildDailyData(expenses: Expense[], startDate?: string, endDate?
   const byDate = new Map<string, { amount: number; receipts: Map<number, DailyReceiptSegment> }>();
 
   for (const exp of expenses) {
-    let dateEntry = byDate.get(exp.date);
+    const dateKey = normalizeDateKey(exp.date);
+    if (!dateKey) continue;
+
+    let dateEntry = byDate.get(dateKey);
     if (!dateEntry) {
       dateEntry = { amount: 0, receipts: new Map<number, DailyReceiptSegment>() };
-      byDate.set(exp.date, dateEntry);
+      byDate.set(dateKey, dateEntry);
     }
 
     dateEntry.amount += exp.price;
