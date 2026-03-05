@@ -207,6 +207,7 @@ export default function DashboardTab({
 }: DashboardTabProps) {
   const [activeBarDate, setActiveBarDate] = useState<string | null>(null);
   const [tooltipReceiptLimit, setTooltipReceiptLimit] = useState<TooltipReceiptLimit>(5);
+  const [isCategoryComparisonOpen, setIsCategoryComparisonOpen] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isEditorLoading, setIsEditorLoading] = useState(false);
   const [isEditorSaving, setIsEditorSaving] = useState(false);
@@ -807,47 +808,62 @@ export default function DashboardTab({
           </div>
 
           <div className="card">
-            <h3>🔎 Сравнение категорий по периодам</h3>
+            <div className="compare-card-header">
+              <h3>🔎 Сравнение категорий по периодам</h3>
+              <button
+                type="button"
+                className="btn btn-secondary compare-toggle-btn"
+                onClick={() => setIsCategoryComparisonOpen((prev) => !prev)}
+                aria-expanded={isCategoryComparisonOpen}
+                aria-controls="category-comparison-content"
+              >
+                {isCategoryComparisonOpen ? "Свернуть" : "Показать"}
+              </button>
+            </div>
             <p className="card-subtitle">Этот период vs тот же период прошлого месяца</p>
-            {categoryComparisonRows.length > 0 ? (
-              <div className="table-container">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Категория</th>
-                      <th style={{ textAlign: "right" }}>Этот период</th>
-                      <th style={{ textAlign: "right" }}>Тот же период</th>
-                      <th style={{ textAlign: "right" }}>Δ</th>
-                      <th style={{ textAlign: "right" }}>Δ%</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {categoryComparisonRows.map((row) => (
-                      <tr key={`compare-${row.category}`}>
-                        <td>{row.category}</td>
-                        <td style={{ textAlign: "right" }}>{row.currentTotal.toFixed(2)} €</td>
-                        <td style={{ textAlign: "right" }}>{row.previousTotal.toFixed(2)} €</td>
-                        <td
-                          style={{ textAlign: "right" }}
-                          className={row.delta > 0 ? "compare-negative" : row.delta < 0 ? "compare-positive" : "compare-neutral"}
-                        >
-                          {row.delta > 0 ? "↑ " : row.delta < 0 ? "↓ " : ""}
-                          {Math.abs(row.delta).toFixed(2)} €
-                        </td>
-                        <td
-                          style={{ textAlign: "right" }}
-                          className={row.delta > 0 ? "compare-negative" : row.delta < 0 ? "compare-positive" : "compare-neutral"}
-                        >
-                          {row.percent === null ? "—" : `${row.percent > 0 ? "+" : ""}${row.percent.toFixed(1)}%`}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="empty-state">
-                <p>Нет данных для сравнения категорий за выбранные периоды</p>
+            {isCategoryComparisonOpen && (
+              <div id="category-comparison-content">
+                {categoryComparisonRows.length > 0 ? (
+                  <div className="table-container">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Категория</th>
+                          <th style={{ textAlign: "right" }}>Этот период</th>
+                          <th style={{ textAlign: "right" }}>Тот же период</th>
+                          <th style={{ textAlign: "right" }}>Δ</th>
+                          <th style={{ textAlign: "right" }}>Δ%</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {categoryComparisonRows.map((row) => (
+                          <tr key={`compare-${row.category}`}>
+                            <td>{row.category}</td>
+                            <td style={{ textAlign: "right" }}>{row.currentTotal.toFixed(2)} €</td>
+                            <td style={{ textAlign: "right" }}>{row.previousTotal.toFixed(2)} €</td>
+                            <td
+                              style={{ textAlign: "right" }}
+                              className={row.delta > 0 ? "compare-negative" : row.delta < 0 ? "compare-positive" : "compare-neutral"}
+                            >
+                              {row.delta > 0 ? "↑ " : row.delta < 0 ? "↓ " : ""}
+                              {Math.abs(row.delta).toFixed(2)} €
+                            </td>
+                            <td
+                              style={{ textAlign: "right" }}
+                              className={row.delta > 0 ? "compare-negative" : row.delta < 0 ? "compare-positive" : "compare-neutral"}
+                            >
+                              {row.percent === null ? "—" : `${row.percent > 0 ? "+" : ""}${row.percent.toFixed(1)}%`}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="empty-state">
+                    <p>Нет данных для сравнения категорий за выбранные периоды</p>
+                  </div>
+                )}
               </div>
             )}
           </div>

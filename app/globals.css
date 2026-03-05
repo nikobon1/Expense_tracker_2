@@ -744,6 +744,19 @@ td select:focus {
   font-size: 0.8rem;
 }
 
+.compare-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.compare-toggle-btn {
+  padding: 0.35rem 0.7rem;
+  font-size: 0.78rem;
+}
+
 .compare-positive {
   color: var(--success);
   font-weight: 600;
