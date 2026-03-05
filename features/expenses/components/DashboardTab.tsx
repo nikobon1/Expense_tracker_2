@@ -239,7 +239,7 @@ export default function DashboardTab({
   const percentChange =
     prevMonthTotal > 0 ? (amountChange / prevMonthTotal) * 100 : 0;
   const categoryData = buildCategoryData(expenses);
-  const dailyData = buildDailyData(expenses);
+  const dailyData = buildDailyData(expenses, startDate, endDate);
   const storeOptions = useMemo(() => {
     const baseStores = [...new Set(stores.map((store) => String(store ?? "").trim()).filter(Boolean))].sort((a, b) =>
       a.localeCompare(b, "ru")

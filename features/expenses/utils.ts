@@ -18,6 +18,26 @@ export interface DailyReceiptSegment {
   amount: number;
 }
 
+function isIsoDate(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function buildDateRange(startDate: string, endDate: string): string[] {
+  if (!isIsoDate(startDate) || !isIsoDate(endDate)) return [];
+  if (startDate > endDate) return [];
+
+  const result: string[] = [];
+  const cursor = new Date(`${startDate}T00:00:00.000Z`);
+  const end = new Date(`${endDate}T00:00:00.000Z`);
+
+  while (cursor <= end) {
+    result.push(cursor.toISOString().slice(0, 10));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+
+  return result;
+}
+
 export function buildCategoryData(expenses: Expense[]): CategoryPoint[] {
   return expenses.reduce<CategoryPoint[]>((acc, exp) => {
     const existing = acc.find((d) => d.name === exp.category);
@@ -30,7 +50,7 @@ export function buildCategoryData(expenses: Expense[]): CategoryPoint[] {
   }, []);
 }
 
-export function buildDailyData(expenses: Expense[]): DailyPoint[] {
+export function buildDailyData(expenses: Expense[], startDate?: string, endDate?: string): DailyPoint[] {
   const byDate = new Map<string, { amount: number; receipts: Map<number, DailyReceiptSegment> }>();
 
   for (const exp of expenses) {
@@ -50,6 +70,14 @@ export function buildDailyData(expenses: Expense[]): DailyPoint[] {
         store: exp.store,
         amount: exp.price,
       });
+    }
+  }
+
+  if (startDate && endDate) {
+    for (const date of buildDateRange(startDate, endDate)) {
+      if (!byDate.has(date)) {
+        byDate.set(date, { amount: 0, receipts: new Map<number, DailyReceiptSegment>() });
+      }
     }
   }
 
