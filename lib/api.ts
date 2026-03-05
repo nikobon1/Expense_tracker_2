@@ -3,6 +3,7 @@ import type { Expense, ReceiptData, ReceiptDetails, ReceiptItem } from "@/featur
 interface ExpensesResponse {
   expenses: Expense[];
   prevMonthTotal: number;
+  prevPeriodCategoryTotals: Array<{ category: string; total: number }>;
   stores: string[];
 }
 

@@ -26,6 +26,7 @@ interface DashboardTabProps {
   stores: string[];
   expenses: Expense[];
   prevMonthTotal: number;
+  prevPeriodCategoryTotals: Array<{ category: string; total: number }>;
   isLoading?: boolean;
   onStartDateChange: (value: string) => void;
   onEndDateChange: (value: string) => void;
@@ -197,6 +198,7 @@ export default function DashboardTab({
   stores,
   expenses,
   prevMonthTotal,
+  prevPeriodCategoryTotals,
   isLoading = false,
   onStartDateChange,
   onEndDateChange,
@@ -246,6 +248,46 @@ export default function DashboardTab({
     () => categoryData.reduce((sum, point) => sum + point.value, 0),
     [categoryData]
   );
+  const prevCategoryTotalMap = useMemo(() => {
+    const totals = new Map<string, number>();
+    for (const point of prevPeriodCategoryTotals) {
+      const category = String(point.category ?? "").trim();
+      const total = Number(point.total ?? 0);
+      if (!category || !Number.isFinite(total)) continue;
+      totals.set(category, (totals.get(category) ?? 0) + total);
+    }
+    return totals;
+  }, [prevPeriodCategoryTotals]);
+  const categoryComparisonRows = useMemo(() => {
+    const currentTotals = new Map<string, number>();
+    for (const point of categoryData) {
+      currentTotals.set(point.name, point.value);
+    }
+
+    const allCategories = new Set<string>([
+      ...currentTotals.keys(),
+      ...prevCategoryTotalMap.keys(),
+    ]);
+
+    return Array.from(allCategories)
+      .map((category) => {
+        const currentTotal = currentTotals.get(category) ?? 0;
+        const previousTotal = prevCategoryTotalMap.get(category) ?? 0;
+        const delta = currentTotal - previousTotal;
+        const percent = previousTotal > 0 ? (delta / previousTotal) * 100 : null;
+
+        return {
+          category,
+          currentTotal,
+          previousTotal,
+          delta,
+          percent,
+          sortValue: currentTotal + previousTotal,
+        };
+      })
+      .filter((row) => row.currentTotal > 0 || row.previousTotal > 0)
+      .sort((a, b) => b.sortValue - a.sortValue);
+  }, [categoryData, prevCategoryTotalMap]);
   const dailyData = buildDailyData(expenses, startDate, endDate);
   const storeOptions = useMemo(() => {
     const baseStores = [...new Set(stores.map((store) => String(store ?? "").trim()).filter(Boolean))].sort((a, b) =>
@@ -762,6 +804,52 @@ export default function DashboardTab({
                 </BarChart>
               </ResponsiveContainer>
             </div>
+          </div>
+
+          <div className="card">
+            <h3>🔎 Сравнение категорий по периодам</h3>
+            <p className="card-subtitle">Этот период vs тот же период прошлого месяца</p>
+            {categoryComparisonRows.length > 0 ? (
+              <div className="table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Категория</th>
+                      <th style={{ textAlign: "right" }}>Этот период</th>
+                      <th style={{ textAlign: "right" }}>Тот же период</th>
+                      <th style={{ textAlign: "right" }}>Δ</th>
+                      <th style={{ textAlign: "right" }}>Δ%</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {categoryComparisonRows.map((row) => (
+                      <tr key={`compare-${row.category}`}>
+                        <td>{row.category}</td>
+                        <td style={{ textAlign: "right" }}>{row.currentTotal.toFixed(2)} €</td>
+                        <td style={{ textAlign: "right" }}>{row.previousTotal.toFixed(2)} €</td>
+                        <td
+                          style={{ textAlign: "right" }}
+                          className={row.delta > 0 ? "compare-negative" : row.delta < 0 ? "compare-positive" : "compare-neutral"}
+                        >
+                          {row.delta > 0 ? "↑ " : row.delta < 0 ? "↓ " : ""}
+                          {Math.abs(row.delta).toFixed(2)} €
+                        </td>
+                        <td
+                          style={{ textAlign: "right" }}
+                          className={row.delta > 0 ? "compare-negative" : row.delta < 0 ? "compare-positive" : "compare-neutral"}
+                        >
+                          {row.percent === null ? "—" : `${row.percent > 0 ? "+" : ""}${row.percent.toFixed(1)}%`}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="empty-state">
+                <p>Нет данных для сравнения категорий за выбранные периоды</p>
+              </div>
+            )}
           </div>
 
           <div className="card">

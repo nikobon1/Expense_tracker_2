@@ -20,6 +20,7 @@ export function useDashboardData() {
   const [stores, setStores] = useState<string[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [prevMonthTotal, setPrevMonthTotal] = useState(0);
+  const [prevPeriodCategoryTotals, setPrevPeriodCategoryTotals] = useState<Array<{ category: string; total: number }>>([]);
   const [isLoading, setIsLoading] = useState(false);
 
   const loadExpenses = useCallback(async () => {
@@ -30,6 +31,7 @@ export function useDashboardData() {
       const data = await getExpenses(startDate, endDate, selectedStore);
       setExpenses(data.expenses);
       setPrevMonthTotal(data.prevMonthTotal);
+      setPrevPeriodCategoryTotals(data.prevPeriodCategoryTotals);
       setStores(data.stores);
     } catch (error) {
       console.error("Error loading expenses:", error);
@@ -45,6 +47,7 @@ export function useDashboardData() {
     stores,
     expenses,
     prevMonthTotal,
+    prevPeriodCategoryTotals,
     isLoading,
     setStartDate,
     setEndDate,

@@ -737,6 +737,27 @@ td select:focus {
   margin-bottom: 1rem;
 }
 
+.card-subtitle {
+  margin-top: -0.35rem;
+  margin-bottom: 0.9rem;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.compare-positive {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.compare-negative {
+  color: var(--error);
+  font-weight: 600;
+}
+
+.compare-neutral {
+  color: var(--text-secondary);
+}
+
 .category-legend {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
