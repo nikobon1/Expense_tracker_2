@@ -737,6 +737,49 @@ td select:focus {
   margin-bottom: 1rem;
 }
 
+.category-legend {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem 0.9rem;
+  margin-top: 0.5rem;
+}
+
+.category-legend-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  min-width: 0;
+}
+
+.category-legend-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.category-legend-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.category-legend-name {
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.category-legend-value {
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  white-space: nowrap;
+}
+
 /* Date filter */
 .date-filter {
   display: flex;
@@ -1047,6 +1090,10 @@ td select:focus {
 }
 
 @media (max-width: 640px) {
+  .category-legend {
+    grid-template-columns: 1fr;
+  }
+
   .scan-date-today-btn {
     padding: 0.25rem 0.5rem;
     font-size: 0.72rem;

@@ -238,7 +238,14 @@ export default function DashboardTab({
   const amountChange = expensesTotal - prevMonthTotal;
   const percentChange =
     prevMonthTotal > 0 ? (amountChange / prevMonthTotal) * 100 : 0;
-  const categoryData = buildCategoryData(expenses);
+  const categoryData = useMemo(
+    () => buildCategoryData(expenses).sort((a, b) => b.value - a.value),
+    [expenses]
+  );
+  const categoryTotal = useMemo(
+    () => categoryData.reduce((sum, point) => sum + point.value, 0),
+    [categoryData]
+  );
   const dailyData = buildDailyData(expenses, startDate, endDate);
   const storeOptions = useMemo(() => {
     const baseStores = [...new Set(stores.map((store) => String(store ?? "").trim()).filter(Boolean))].sort((a, b) =>
@@ -665,9 +672,7 @@ export default function DashboardTab({
                     outerRadius={100}
                     paddingAngle={2}
                     dataKey="value"
-                    label={({ name, percent }: { name?: string; percent?: number }) =>
-                      `${name || ""} ${((percent || 0) * 100).toFixed(0)}%`
-                    }
+                    label={false}
                     labelLine={false}
                   >
                     {categoryData.map((_, index) => (
@@ -677,6 +682,25 @@ export default function DashboardTab({
                   <Tooltip formatter={(value) => `${Number(value).toFixed(2)} €`} />
                 </PieChart>
               </ResponsiveContainer>
+              <div className="category-legend" aria-label="Легенда категорий">
+                {categoryData.map((entry, index) => {
+                  const percent = categoryTotal > 0 ? (entry.value / categoryTotal) * 100 : 0;
+                  return (
+                    <div key={`legend-${entry.name}`} className="category-legend-item">
+                      <div className="category-legend-left">
+                        <span
+                          className="category-legend-dot"
+                          style={{ background: CHART_COLORS[index % CHART_COLORS.length] }}
+                        />
+                        <span className="category-legend-name">{entry.name}</span>
+                      </div>
+                      <span className="category-legend-value">
+                        {entry.value.toFixed(2)} € ({percent.toFixed(0)}%)
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="chart-card">
