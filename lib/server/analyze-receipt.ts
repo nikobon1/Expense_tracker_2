@@ -38,6 +38,57 @@ Additional receipt rules:
 
 const EFFECTIVE_SYSTEM_PROMPT = `${SYSTEM_PROMPT}\n\n${TOTAL_AMOUNT_HINTS}`;
 
+type UsagePayload = {
+  provider: "openai:gpt-4o" | "google:gemini-2.0-flash";
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+};
+
+function parsePositiveNumber(value: string | undefined): number | null {
+  if (!value) return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
+  return parsed;
+}
+
+function estimateUsdCost(payload: UsagePayload): number | null {
+  // Defaults are estimates in USD per 1M tokens and can be overridden via env.
+  const defaultInputRatePerMillion = payload.provider === "openai:gpt-4o" ? 2.5 : 0.1;
+  const defaultOutputRatePerMillion = payload.provider === "openai:gpt-4o" ? 10 : 0.4;
+
+  const inputRatePerMillion =
+    payload.provider === "openai:gpt-4o"
+      ? parsePositiveNumber(process.env.RECEIPT_COST_OPENAI_INPUT_PER_1M_USD) ?? defaultInputRatePerMillion
+      : parsePositiveNumber(process.env.RECEIPT_COST_GEMINI_INPUT_PER_1M_USD) ?? defaultInputRatePerMillion;
+  const outputRatePerMillion =
+    payload.provider === "openai:gpt-4o"
+      ? parsePositiveNumber(process.env.RECEIPT_COST_OPENAI_OUTPUT_PER_1M_USD) ?? defaultOutputRatePerMillion
+      : parsePositiveNumber(process.env.RECEIPT_COST_GEMINI_OUTPUT_PER_1M_USD) ?? defaultOutputRatePerMillion;
+
+  const inputCost = (payload.inputTokens / 1_000_000) * inputRatePerMillion;
+  const outputCost = (payload.outputTokens / 1_000_000) * outputRatePerMillion;
+  return Number((inputCost + outputCost).toFixed(8));
+}
+
+function logAnalyzeUsage(payload: UsagePayload) {
+  const estimatedCostUsd = estimateUsdCost(payload);
+  console.info("receipt_analyze_usage", {
+    provider: payload.provider,
+    input_tokens: payload.inputTokens,
+    output_tokens: payload.outputTokens,
+    total_tokens: payload.totalTokens,
+    estimated_cost_usd: estimatedCostUsd,
+    cost_rates_configured:
+      payload.provider === "openai:gpt-4o"
+        ? Boolean(process.env.RECEIPT_COST_OPENAI_INPUT_PER_1M_USD) &&
+          Boolean(process.env.RECEIPT_COST_OPENAI_OUTPUT_PER_1M_USD)
+        : Boolean(process.env.RECEIPT_COST_GEMINI_INPUT_PER_1M_USD) &&
+          Boolean(process.env.RECEIPT_COST_GEMINI_OUTPUT_PER_1M_USD),
+    logged_at: new Date().toISOString(),
+  });
+}
+
 function extractJson(text: string): string {
   let cleaned = text.trim();
   if (cleaned.startsWith("```")) {
@@ -89,6 +140,18 @@ export async function analyzeReceiptImageDataUrl(image: string): Promise<Receipt
       max_tokens: 2000,
     });
 
+    const promptTokens = Number(response.usage?.prompt_tokens ?? 0);
+    const completionTokens = Number(response.usage?.completion_tokens ?? 0);
+    const totalTokens =
+      Number(response.usage?.total_tokens ?? promptTokens + completionTokens);
+
+    logAnalyzeUsage({
+      provider: "openai:gpt-4o",
+      inputTokens: Number.isFinite(promptTokens) ? promptTokens : 0,
+      outputTokens: Number.isFinite(completionTokens) ? completionTokens : 0,
+      totalTokens: Number.isFinite(totalTokens) ? totalTokens : 0,
+    });
+
     const content = response.choices[0]?.message?.content ?? "";
     return JSON.parse(extractJson(content)) as ReceiptData;
   }
@@ -130,7 +193,24 @@ export async function analyzeReceiptImageDataUrl(image: string): Promise<Receipt
 
   const geminiData = (await geminiResponse.json()) as {
     candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+    usageMetadata?: {
+      promptTokenCount?: number;
+      candidatesTokenCount?: number;
+      totalTokenCount?: number;
+    };
   };
+
+  const promptTokens = Number(geminiData.usageMetadata?.promptTokenCount ?? 0);
+  const completionTokens = Number(geminiData.usageMetadata?.candidatesTokenCount ?? 0);
+  const totalTokens = Number(geminiData.usageMetadata?.totalTokenCount ?? promptTokens + completionTokens);
+
+  logAnalyzeUsage({
+    provider: "google:gemini-2.0-flash",
+    inputTokens: Number.isFinite(promptTokens) ? promptTokens : 0,
+    outputTokens: Number.isFinite(completionTokens) ? completionTokens : 0,
+    totalTokens: Number.isFinite(totalTokens) ? totalTokens : 0,
+  });
+
   const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
   return JSON.parse(extractJson(text)) as ReceiptData;
 }
