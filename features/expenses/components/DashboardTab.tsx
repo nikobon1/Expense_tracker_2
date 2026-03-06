@@ -27,6 +27,21 @@ interface DashboardTabProps {
   expenses: Expense[];
   prevMonthTotal: number;
   prevPeriodCategoryTotals: Array<{ category: string; total: number }>;
+  analyzeCost: {
+    totalUsd: number;
+    count: number;
+    items: Array<{
+      id: number;
+      provider: string;
+      model: string;
+      inputTokens: number;
+      outputTokens: number;
+      totalTokens: number;
+      estimatedCostUsd: number;
+      storeName: string;
+      createdAt: string;
+    }>;
+  };
   isLoading?: boolean;
   onStartDateChange: (value: string) => void;
   onEndDateChange: (value: string) => void;
@@ -199,6 +214,7 @@ export default function DashboardTab({
   expenses,
   prevMonthTotal,
   prevPeriodCategoryTotals,
+  analyzeCost,
   isLoading = false,
   onStartDateChange,
   onEndDateChange,
@@ -208,6 +224,7 @@ export default function DashboardTab({
   const [activeBarDate, setActiveBarDate] = useState<string | null>(null);
   const [tooltipReceiptLimit, setTooltipReceiptLimit] = useState<TooltipReceiptLimit>(5);
   const [isCategoryComparisonOpen, setIsCategoryComparisonOpen] = useState(false);
+  const [isAnalyzeCostOpen, setIsAnalyzeCostOpen] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isEditorLoading, setIsEditorLoading] = useState(false);
   const [isEditorSaving, setIsEditorSaving] = useState(false);
@@ -353,6 +370,17 @@ export default function DashboardTab({
     } finally {
       setIsEditorLoading(false);
     }
+  };
+
+  const formatDateTime = (value: string) => {
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return new Intl.DateTimeFormat("ru-RU", {
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(parsed);
   };
 
   const closeEditor = () => {
@@ -698,6 +726,56 @@ export default function DashboardTab({
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="cost-dropdown-card">
+        <button
+          type="button"
+          className="cost-dropdown-toggle"
+          onClick={() => setIsAnalyzeCostOpen((prev) => !prev)}
+          aria-expanded={isAnalyzeCostOpen}
+          aria-controls="analyze-cost-dropdown-content"
+        >
+          <span>🧠 Стоимость распознавания</span>
+          <span>
+            {analyzeCost.totalUsd.toFixed(4)} $ · {analyzeCost.count} фото · {isAnalyzeCostOpen ? "▲" : "▼"}
+          </span>
+        </button>
+
+        {isAnalyzeCostOpen && (
+          <div id="analyze-cost-dropdown-content" className="cost-dropdown-content">
+            {analyzeCost.items.length > 0 ? (
+              <div className="table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Когда</th>
+                      <th>Магазин</th>
+                      <th>Модель</th>
+                      <th style={{ textAlign: "right" }}>Токены</th>
+                      <th style={{ textAlign: "right" }}>Стоимость</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {analyzeCost.items.map((item) => (
+                      <tr key={`analyze-cost-${item.id}`}>
+                        <td>{formatDateTime(item.createdAt)}</td>
+                        <td>{item.storeName || "—"}</td>
+                        <td>{item.model}</td>
+                        <td style={{ textAlign: "right" }}>{item.totalTokens}</td>
+                        <td style={{ textAlign: "right" }}>{item.estimatedCostUsd.toFixed(6)} $</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="empty-state">
+                <p>Нет данных по стоимости распознавания за выбранный период</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {expenses.length > 0 ? (

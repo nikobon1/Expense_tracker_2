@@ -4,6 +4,21 @@ interface ExpensesResponse {
   expenses: Expense[];
   prevMonthTotal: number;
   prevPeriodCategoryTotals: Array<{ category: string; total: number }>;
+  analyzeCost: {
+    totalUsd: number;
+    count: number;
+    items: Array<{
+      id: number;
+      provider: string;
+      model: string;
+      inputTokens: number;
+      outputTokens: number;
+      totalTokens: number;
+      estimatedCostUsd: number;
+      storeName: string;
+      createdAt: string;
+    }>;
+  };
   stores: string[];
 }
 

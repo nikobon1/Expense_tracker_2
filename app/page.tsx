@@ -18,6 +18,7 @@ export default function Home() {
     expenses,
     prevMonthTotal,
     prevPeriodCategoryTotals,
+    analyzeCost,
     setStartDate,
     setEndDate,
     setSelectedStore,
@@ -107,6 +108,7 @@ export default function Home() {
             expenses={expenses}
             prevMonthTotal={prevMonthTotal}
             prevPeriodCategoryTotals={prevPeriodCategoryTotals}
+            analyzeCost={analyzeCost}
             isLoading={dashboardData.isLoading}
             onStartDateChange={setStartDate}
             onEndDateChange={setEndDate}

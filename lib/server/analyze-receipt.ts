@@ -1,31 +1,32 @@
-﻿import OpenAI from "openai";
+import OpenAI from "openai";
 import type { ReceiptData } from "@/features/expenses/types";
+import { saveReceiptAnalyzeLog } from "@/lib/server/receipts";
 
-const SYSTEM_PROMPT = `РўС‹ вЂ” РїРѕРјРѕС‰РЅРёРє РґР»СЏ Р°РЅР°Р»РёР·Р° РїСЂРѕРґСѓРєС‚РѕРІС‹С… С‡РµРєРѕРІ РёР· РјР°РіР°Р·РёРЅРѕРІ РџРѕСЂС‚СѓРіР°Р»РёРё.
-РџСЂРѕР°РЅР°Р»РёР·РёСЂСѓР№ С„РѕС‚Рѕ С‡РµРєР°. РР·РІР»РµРєРё:
-1. Р”Р°С‚Сѓ РїРѕРєСѓРїРєРё (С„РѕСЂРјР°С‚: YYYY-MM-DD)
-2. РќР°Р·РІР°РЅРёРµ РјР°РіР°Р·РёРЅР°
-3. РЎРїРёСЃРѕРє С‚РѕРІР°СЂРѕРІ СЃ С†РµРЅР°РјРё
+const SYSTEM_PROMPT = `Ты — помощник для анализа продуктовых чеков из магазинов Португалии.
+Проанализируй фото чека. Извлеки:
+1. Дату покупки (формат: YYYY-MM-DD)
+2. Название магазина
+3. Список товаров с ценами
 
-Р”Р»СЏ РєР°Р¶РґРѕРіРѕ С‚РѕРІР°СЂР° РѕРїСЂРµРґРµР»Рё РєР°С‚РµРіРѕСЂРёСЋ РЅР° СЂСѓСЃСЃРєРѕРј СЏР·С‹РєРµ. Р’РѕР·РјРѕР¶РЅС‹Рµ РєР°С‚РµРіРѕСЂРёРё:
-- РђР»РєРѕРіРѕР»СЊ
-- РћРІРѕС‰Рё
-- Р¤СЂСѓРєС‚С‹
-- РњСЏСЃРѕ
-- Р С‹Р±Р°
-- РњРѕР»РѕС‡РєР°
-- РҐР»РµР±
-- РЎРЅСЌРєРё
-- Р‘С‹С‚РѕРІР°СЏ С…РёРјРёСЏ
-- Р”СЂСѓРіРѕРµ
-- РљР°С„Рµ/Р РµСЃС‚РѕСЂР°РЅ
+Для каждого товара определи категорию на русском языке. Возможные категории:
+- Алкоголь
+- Овощи
+- Фрукты
+- Мясо
+- Рыба
+- Молочка
+- Хлеб
+- Снэки
+- Бытовая химия
+- Другое
+- Кафе/Ресторан
 
-Р’РµСЂРЅРё РўРћР›Р¬РљРћ С‡РёСЃС‚С‹Р№ JSON Р±РµР· markdown С„РѕСЂРјР°С‚РёСЂРѕРІР°РЅРёСЏ РІ СЃР»РµРґСѓСЋС‰РµРј С„РѕСЂРјР°С‚Рµ:
+Верни ТОЛЬКО чистый JSON без markdown форматирования в следующем формате:
 {
-  "store_name": "РќР°Р·РІР°РЅРёРµ РјР°РіР°Р·РёРЅР°",
+  "store_name": "Название магазина",
   "purchase_date": "YYYY-MM-DD",
   "items": [
-    {"name": "РќР°Р·РІР°РЅРёРµ С‚РѕРІР°СЂР° РЅР° СЂСѓСЃСЃРєРѕРј", "price": 1.99, "category": "РљР°С‚РµРіРѕСЂРёСЏ"}
+    {"name": "Название товара на русском", "price": 1.99, "category": "Категория"}
   ]
 }`;
 
@@ -40,6 +41,7 @@ const EFFECTIVE_SYSTEM_PROMPT = `${SYSTEM_PROMPT}\n\n${TOTAL_AMOUNT_HINTS}`;
 
 type UsagePayload = {
   provider: "openai:gpt-4o" | "google:gemini-2.0-flash";
+  model: "gpt-4o" | "gemini-2.0-flash";
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
@@ -71,14 +73,16 @@ function estimateUsdCost(payload: UsagePayload): number | null {
   return Number((inputCost + outputCost).toFixed(8));
 }
 
-function logAnalyzeUsage(payload: UsagePayload) {
+async function logAnalyzeUsage(payload: UsagePayload, storeName?: string | null) {
   const estimatedCostUsd = estimateUsdCost(payload);
-  console.info("receipt_analyze_usage", {
+  const logPayload = {
     provider: payload.provider,
+    model: payload.model,
     input_tokens: payload.inputTokens,
     output_tokens: payload.outputTokens,
     total_tokens: payload.totalTokens,
     estimated_cost_usd: estimatedCostUsd,
+    store_name: storeName?.trim() || null,
     cost_rates_configured:
       payload.provider === "openai:gpt-4o"
         ? Boolean(process.env.RECEIPT_COST_OPENAI_INPUT_PER_1M_USD) &&
@@ -86,7 +90,23 @@ function logAnalyzeUsage(payload: UsagePayload) {
         : Boolean(process.env.RECEIPT_COST_GEMINI_INPUT_PER_1M_USD) &&
           Boolean(process.env.RECEIPT_COST_GEMINI_OUTPUT_PER_1M_USD),
     logged_at: new Date().toISOString(),
-  });
+  };
+
+  console.info("receipt_analyze_usage", logPayload);
+
+  try {
+    await saveReceiptAnalyzeLog({
+      provider: payload.provider,
+      model: payload.model,
+      inputTokens: payload.inputTokens,
+      outputTokens: payload.outputTokens,
+      totalTokens: payload.totalTokens,
+      estimatedCostUsd,
+      storeName: storeName?.trim() || null,
+    });
+  } catch (error) {
+    console.warn("Failed to persist receipt analyze usage:", error);
+  }
 }
 
 function extractJson(text: string): string {
@@ -129,7 +149,7 @@ export async function analyzeReceiptImageDataUrl(image: string): Promise<Receipt
         {
           role: "user",
           content: [
-            { type: "text", text: "РџСЂРѕР°РЅР°Р»РёР·РёСЂСѓР№ СЌС‚РѕС‚ С‡РµРє Рё РёР·РІР»РµРєРё РґР°РЅРЅС‹Рµ:" },
+            { type: "text", text: "Проанализируй этот чек и извлеки данные:" },
             {
               type: "image_url",
               image_url: { url: `data:${mimeType};base64,${base64Data}` },
@@ -145,15 +165,18 @@ export async function analyzeReceiptImageDataUrl(image: string): Promise<Receipt
     const totalTokens =
       Number(response.usage?.total_tokens ?? promptTokens + completionTokens);
 
-    logAnalyzeUsage({
+    const content = response.choices[0]?.message?.content ?? "";
+    const parsed = JSON.parse(extractJson(content)) as ReceiptData;
+
+    await logAnalyzeUsage({
       provider: "openai:gpt-4o",
+      model: "gpt-4o",
       inputTokens: Number.isFinite(promptTokens) ? promptTokens : 0,
       outputTokens: Number.isFinite(completionTokens) ? completionTokens : 0,
       totalTokens: Number.isFinite(totalTokens) ? totalTokens : 0,
-    });
+    }, parsed.store_name);
 
-    const content = response.choices[0]?.message?.content ?? "";
-    return JSON.parse(extractJson(content)) as ReceiptData;
+    return parsed;
   }
 
   const geminiResponse = await fetch(
@@ -165,7 +188,7 @@ export async function analyzeReceiptImageDataUrl(image: string): Promise<Receipt
         contents: [
           {
             parts: [
-              { text: `${EFFECTIVE_SYSTEM_PROMPT}\n\nРџСЂРѕР°РЅР°Р»РёР·РёСЂСѓР№ СЌС‚РѕС‚ С‡РµРє Рё РёР·РІР»РµРєРё РґР°РЅРЅС‹Рµ:` },
+              { text: `${EFFECTIVE_SYSTEM_PROMPT}\n\nПроанализируй этот чек и извлеки данные:` },
               {
                 inline_data: {
                   mime_type: mimeType,
@@ -204,14 +227,20 @@ export async function analyzeReceiptImageDataUrl(image: string): Promise<Receipt
   const completionTokens = Number(geminiData.usageMetadata?.candidatesTokenCount ?? 0);
   const totalTokens = Number(geminiData.usageMetadata?.totalTokenCount ?? promptTokens + completionTokens);
 
-  logAnalyzeUsage({
+  const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  const parsed = JSON.parse(extractJson(text)) as ReceiptData;
+
+  await logAnalyzeUsage({
     provider: "google:gemini-2.0-flash",
+    model: "gemini-2.0-flash",
     inputTokens: Number.isFinite(promptTokens) ? promptTokens : 0,
     outputTokens: Number.isFinite(completionTokens) ? completionTokens : 0,
     totalTokens: Number.isFinite(totalTokens) ? totalTokens : 0,
-  });
+  }, parsed.store_name);
 
-  const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
-  return JSON.parse(extractJson(text)) as ReceiptData;
+  return parsed;
 }
+
+
+
 

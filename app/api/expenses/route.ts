@@ -125,6 +125,55 @@ export async function GET(request: NextRequest) {
       ORDER BY store
     `;
 
+        await sql`
+      CREATE TABLE IF NOT EXISTS receipt_analyze_logs (
+        id BIGSERIAL PRIMARY KEY,
+        provider TEXT NOT NULL,
+        model TEXT NOT NULL,
+        input_tokens INTEGER NOT NULL DEFAULT 0,
+        output_tokens INTEGER NOT NULL DEFAULT 0,
+        total_tokens INTEGER NOT NULL DEFAULT 0,
+        estimated_cost_usd NUMERIC(12, 8),
+        store_name TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+
+        const analyzeCostRows = hasStoreFilter ? await sql`
+      SELECT
+        id,
+        provider,
+        model,
+        input_tokens,
+        output_tokens,
+        total_tokens,
+        estimated_cost_usd,
+        store_name,
+        created_at
+      FROM receipt_analyze_logs
+      WHERE created_at::date BETWEEN ${startDate} AND ${endDate}
+        AND store_name = ${store}
+      ORDER BY created_at DESC
+      LIMIT 20
+    ` : await sql`
+      SELECT
+        id,
+        provider,
+        model,
+        input_tokens,
+        output_tokens,
+        total_tokens,
+        estimated_cost_usd,
+        store_name,
+        created_at
+      FROM receipt_analyze_logs
+      WHERE created_at::date BETWEEN ${startDate} AND ${endDate}
+      ORDER BY created_at DESC
+      LIMIT 20
+    `;
+
+        const analyzeCostTotal = analyzeCostRows.reduce((sum, row) => sum + Number(row.estimated_cost_usd ?? 0), 0);
+
         return NextResponse.json({
             expenses: expenses.map(e => ({
                 id: e.id,
@@ -137,6 +186,21 @@ export async function GET(request: NextRequest) {
             })),
             prevMonthTotal: Number(prevMonthResult[0]?.total || 0),
             prevPeriodCategoryTotals: aggregateCategoryTotals(prevPeriodCategoryRows),
+            analyzeCost: {
+                totalUsd: Number(analyzeCostTotal.toFixed(8)),
+                count: analyzeCostRows.length,
+                items: analyzeCostRows.map((row) => ({
+                    id: Number(row.id ?? 0),
+                    provider: String(row.provider ?? ""),
+                    model: String(row.model ?? ""),
+                    inputTokens: Number(row.input_tokens ?? 0),
+                    outputTokens: Number(row.output_tokens ?? 0),
+                    totalTokens: Number(row.total_tokens ?? 0),
+                    estimatedCostUsd: Number(row.estimated_cost_usd ?? 0),
+                    storeName: String(row.store_name ?? ""),
+                    createdAt: row.created_at,
+                })),
+            },
             stores: stores
                 .map((row) => String(row.store ?? "").trim())
                 .filter(Boolean)
@@ -150,6 +214,11 @@ export async function GET(request: NextRequest) {
                 expenses: [],
                 prevMonthTotal: 0,
                 prevPeriodCategoryTotals: [],
+                analyzeCost: {
+                    totalUsd: 0,
+                    count: 0,
+                    items: []
+                },
                 stores: []
             });
         }

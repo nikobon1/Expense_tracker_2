@@ -92,6 +92,30 @@ export async function initDb(): Promise<void> {
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS receipt_analyze_logs (
+        id BIGSERIAL PRIMARY KEY,
+        provider TEXT NOT NULL,
+        model TEXT NOT NULL,
+        input_tokens INTEGER NOT NULL DEFAULT 0,
+        output_tokens INTEGER NOT NULL DEFAULT 0,
+        total_tokens INTEGER NOT NULL DEFAULT 0,
+        estimated_cost_usd NUMERIC(12, 8),
+        store_name TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `;
+
+    await sql`
+      CREATE INDEX IF NOT EXISTS receipt_analyze_logs_created_at_idx
+      ON receipt_analyze_logs (created_at DESC)
+    `;
+
+    await sql`
+      CREATE INDEX IF NOT EXISTS receipt_analyze_logs_store_name_idx
+      ON receipt_analyze_logs (store_name)
+    `;
   })();
 
   try {
@@ -313,5 +337,39 @@ export async function deleteTelegramDraft(chatId: number): Promise<void> {
   await sql`
     DELETE FROM telegram_receipt_drafts
     WHERE chat_id = ${chatId}
+  `;
+}
+
+export async function saveReceiptAnalyzeLog(payload: {
+  provider: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  estimatedCostUsd: number | null;
+  storeName?: string | null;
+}): Promise<void> {
+  await initDb();
+  const sql = getDb();
+
+  await sql`
+    INSERT INTO receipt_analyze_logs (
+      provider,
+      model,
+      input_tokens,
+      output_tokens,
+      total_tokens,
+      estimated_cost_usd,
+      store_name
+    )
+    VALUES (
+      ${payload.provider},
+      ${payload.model},
+      ${Math.max(0, Math.floor(Number(payload.inputTokens || 0)))},
+      ${Math.max(0, Math.floor(Number(payload.outputTokens || 0)))},
+      ${Math.max(0, Math.floor(Number(payload.totalTokens || 0)))},
+      ${payload.estimatedCostUsd},
+      ${payload.storeName?.trim() || null}
+    )
   `;
 }
