@@ -126,6 +126,47 @@ function ensureSupportedImageDataUrl(image: string): { mimeType: string; base64D
   return { mimeType: match[1], base64Data: match[2] };
 }
 
+function toIsoDateUtc(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function normalizeAnalyzedPurchaseDate(value: string): string {
+  const normalized = String(value ?? "").trim();
+  const now = new Date();
+  const currentYear = now.getUTCFullYear();
+  const minYear = currentYear - 5;
+  const maxYear = currentYear + 1;
+
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+    return toIsoDateUtc(now);
+  }
+
+  const parsed = new Date(`${normalized}T00:00:00.000Z`);
+  if (Number.isNaN(parsed.getTime())) {
+    return toIsoDateUtc(now);
+  }
+
+  const year = parsed.getUTCFullYear();
+  if (year >= minYear && year <= maxYear) {
+    return normalized;
+  }
+
+  // Common OCR case: short year interpreted as 20 years in the past (e.g. 2006 instead of 2026).
+  const shiftedYear = year + 20;
+  if (shiftedYear >= minYear && shiftedYear <= maxYear) {
+    return `${shiftedYear}-${String(parsed.getUTCMonth() + 1).padStart(2, "0")}-${String(parsed.getUTCDate()).padStart(2, "0")}`;
+  }
+
+  return toIsoDateUtc(now);
+}
+
+function sanitizeAnalyzedReceipt(receipt: ReceiptData): ReceiptData {
+  return {
+    ...receipt,
+    purchase_date: normalizeAnalyzedPurchaseDate(receipt.purchase_date),
+  };
+}
+
 export async function analyzeReceiptImageDataUrl(image: string): Promise<ReceiptData> {
   if (!image) {
     throw new Error("Image is required");
@@ -166,7 +207,7 @@ export async function analyzeReceiptImageDataUrl(image: string): Promise<Receipt
       Number(response.usage?.total_tokens ?? promptTokens + completionTokens);
 
     const content = response.choices[0]?.message?.content ?? "";
-    const parsed = JSON.parse(extractJson(content)) as ReceiptData;
+    const parsed = sanitizeAnalyzedReceipt(JSON.parse(extractJson(content)) as ReceiptData);
 
     await logAnalyzeUsage({
       provider: "openai:gpt-4o",
@@ -228,7 +269,7 @@ export async function analyzeReceiptImageDataUrl(image: string): Promise<Receipt
   const totalTokens = Number(geminiData.usageMetadata?.totalTokenCount ?? promptTokens + completionTokens);
 
   const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
-  const parsed = JSON.parse(extractJson(text)) as ReceiptData;
+  const parsed = sanitizeAnalyzedReceipt(JSON.parse(extractJson(text)) as ReceiptData);
 
   await logAnalyzeUsage({
     provider: "google:gemini-2.0-flash",
