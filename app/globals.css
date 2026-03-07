@@ -873,6 +873,11 @@ td select:focus {
   max-width: 180px;
 }
 
+.dashboard-action-buttons {
+  display: grid;
+  gap: 0.45rem;
+}
+
 .dashboard-refresh-btn {
   width: 100%;
   min-height: 46px;

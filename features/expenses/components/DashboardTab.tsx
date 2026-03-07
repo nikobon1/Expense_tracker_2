@@ -161,6 +161,64 @@ function sanitizeItems(items: ReceiptItem[]): ReceiptItem[] {
     .filter((item) => item.name || item.price > 0);
 }
 
+function escapeExcelXml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function buildExpensesExcelXml(params: {
+  startDate: string;
+  endDate: string;
+  selectedStore: string;
+  expenses: Expense[];
+}): string {
+  const { startDate, endDate, selectedStore, expenses } = params;
+  const storeLabel = selectedStore === "all" ? "Все магазины" : selectedStore;
+  const generatedAt = new Date().toISOString();
+
+  const headerRows = [
+    ["Отчет", "Расходы"],
+    ["Период", `${startDate} - ${endDate}`],
+    ["Магазин", storeLabel],
+    ["Сгенерировано", generatedAt],
+    ["", ""],
+    ["Дата", "Магазин", "Товар", "Категория", "Цена (€)", "Чек ID"],
+  ];
+
+  const dataRows = expenses.map((expense) => [
+    expense.date,
+    expense.store,
+    expense.item,
+    expense.category,
+    expense.price.toFixed(2),
+    String(expense.receiptId),
+  ]);
+
+  const allRows = [...headerRows, ...dataRows];
+
+  const toCell = (value: string) =>
+    `<Cell><Data ss:Type="String">${escapeExcelXml(String(value ?? ""))}</Data></Cell>`;
+
+  const xmlRows = allRows
+    .map((row) => `<Row>${row.map((cell) => toCell(String(cell))).join("")}</Row>`)
+    .join("");
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+  xmlns:o="urn:schemas-microsoft-com:office:office"
+  xmlns:x="urn:schemas-microsoft-com:office:excel"
+  xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+  xmlns:html="http://www.w3.org/TR/REC-html40">
+  <Worksheet ss:Name="Расходы">
+    <Table>${xmlRows}</Table>
+  </Worksheet>
+</Workbook>`;
+}
+
 function buildComparisonSummary(current: EditableReceipt, analyzed: ReceiptData): ComparisonSummary {
   const currentItems = sanitizeItems(current.items);
   const analyzedItems = sanitizeItems(analyzed.items ?? []);
@@ -660,6 +718,28 @@ export default function DashboardTab({
     );
   };
 
+  const handleExportExcel = () => {
+    const xml = buildExpensesExcelXml({
+      startDate,
+      endDate,
+      selectedStore: activeStore,
+      expenses,
+    });
+
+    const blob = new Blob([`\uFEFF${xml}`], {
+      type: "application/vnd.ms-excel;charset=utf-8;",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const storePart = activeStore === "all" ? "all-stores" : activeStore.replace(/[^\w\-]+/g, "_");
+    link.href = url;
+    link.download = `expenses_${startDate}_${endDate}_${storePart}.xls`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div>
       <div className="date-filter">
@@ -673,9 +753,19 @@ export default function DashboardTab({
         </div>
         <div className="dashboard-refresh-wrap">
           <label>Обновление</label>
-          <button type="button" className="btn btn-secondary dashboard-refresh-btn" onClick={onRefresh} disabled={isLoading}>
-            {isLoading ? "Обновляем..." : "Обновить"}
-          </button>
+          <div className="dashboard-action-buttons">
+            <button type="button" className="btn btn-secondary dashboard-refresh-btn" onClick={onRefresh} disabled={isLoading}>
+              {isLoading ? "Обновляем..." : "Обновить"}
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary dashboard-refresh-btn"
+              onClick={handleExportExcel}
+              disabled={isLoading || expenses.length === 0}
+            >
+              Экспорт в Excel
+            </button>
+          </div>
         </div>
       </div>
 
