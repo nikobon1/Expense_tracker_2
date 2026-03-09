@@ -135,6 +135,15 @@ function toIsoDateUtc(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
+function daysBetween(dateA: Date, dateB: Date): number {
+  const msPerDay = 24 * 60 * 60 * 1000;
+  return Math.round((dateA.getTime() - dateB.getTime()) / msPerDay);
+}
+
+function buildUtcDate(year: number, month: number, day: number): Date {
+  return new Date(Date.UTC(year, month - 1, day));
+}
+
 function normalizeAnalyzedPurchaseDate(value: string): string {
   const normalized = String(value ?? "").trim();
   const now = new Date();
@@ -153,6 +162,20 @@ function normalizeAnalyzedPurchaseDate(value: string): string {
 
   const year = parsed.getUTCFullYear();
   if (year >= minYear && year <= maxYear) {
+    const month = parsed.getUTCMonth() + 1;
+    const day = parsed.getUTCDate();
+    const daysFromNow = daysBetween(parsed, now);
+
+    // If OCR produced an ambiguous mm/dd variant far in the future, prefer swapped dd/mm
+    // when it lands near the current date.
+    if (month <= 12 && day <= 12 && daysFromNow > 7) {
+      const swapped = buildUtcDate(year, day, month);
+      const swappedDaysFromNow = daysBetween(swapped, now);
+      if (swappedDaysFromNow >= -365 && swappedDaysFromNow <= 7) {
+        return toIsoDateUtc(swapped);
+      }
+    }
+
     return normalized;
   }
 
