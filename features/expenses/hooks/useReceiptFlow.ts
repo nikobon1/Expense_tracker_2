@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CATEGORIES } from "@/features/expenses/constants";
 import { analyzeReceipt, saveReceipt } from "@/lib/api";
+import { getReceiptDateWarning } from "@/lib/receipt-date-warning";
 import type { AlertState, ReceiptData, ReceiptItem } from "@/features/expenses/types";
 
 const MAX_UPLOAD_DIMENSION = 1600;
@@ -110,6 +111,28 @@ function getLocalTodayIso(): string {
   return local.toISOString().slice(0, 10);
 }
 
+function getDateWarningThresholdDays(): number {
+  const raw = process.env.NEXT_PUBLIC_RECEIPT_DATE_WARNING_DAYS;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 0) return 1;
+  return Math.floor(parsed);
+}
+
+function getDateWarningText(purchaseDate: string): string | null {
+  const warning = getReceiptDateWarning(purchaseDate, getDateWarningThresholdDays());
+  if (!warning?.shouldWarn) return null;
+
+  if (warning.direction === "past") {
+    return `Дата чека на ${warning.diffDays} дн. раньше сегодняшней. Проверьте дату перед сохранением.`;
+  }
+
+  if (warning.direction === "future") {
+    return `Дата чека на ${warning.diffDays} дн. позже сегодняшней. Проверьте дату перед сохранением.`;
+  }
+
+  return null;
+}
+
 export function useReceiptFlow() {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -125,6 +148,7 @@ export function useReceiptFlow() {
   const [alert, setAlert] = useState<AlertState | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const purchaseDateWarningText = useMemo(() => getDateWarningText(purchaseDate), [purchaseDate]);
 
   useEffect(() => {
     if (!alert) return;
@@ -198,6 +222,15 @@ export function useReceiptFlow() {
 
   const handleSaveReceipt = useCallback(async () => {
     if (editedItems.length === 0) return;
+
+    const warning = getReceiptDateWarning(purchaseDate, getDateWarningThresholdDays());
+    if (warning?.shouldWarn && typeof window !== "undefined") {
+      const directionText = warning.direction === "past" ? "раньше" : "позже";
+      const confirmed = window.confirm(
+        `Дата чека на ${warning.diffDays} дн. ${directionText} сегодняшней. Сохранить всё равно?`
+      );
+      if (!confirmed) return;
+    }
 
     setIsSaving(true);
     try {
@@ -299,6 +332,7 @@ export function useReceiptFlow() {
     storeName,
     purchaseDate,
     purchaseDateManual,
+    purchaseDateWarningText,
     manualStoreName,
     manualPurchaseDate,
     manualTotal,

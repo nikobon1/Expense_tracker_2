@@ -77,6 +77,7 @@ export default function Home() {
             storeName={receiptFlow.storeName}
             purchaseDate={receiptFlow.purchaseDate}
             purchaseDateManual={receiptFlow.purchaseDateManual}
+            purchaseDateWarningText={receiptFlow.purchaseDateWarningText}
             manualStoreName={receiptFlow.manualStoreName}
             manualPurchaseDate={receiptFlow.manualPurchaseDate}
             manualTotal={receiptFlow.manualTotal}

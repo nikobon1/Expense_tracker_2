@@ -1,6 +1,7 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import type { ReceiptData, ReceiptItem } from "@/features/expenses/types";
 import { analyzeReceiptImageDataUrl } from "@/lib/server/analyze-receipt";
+import { getReceiptDateWarning } from "@/lib/receipt-date-warning";
 import {
   claimTelegramUpdate,
   deleteTelegramDraft,
@@ -283,6 +284,34 @@ function truncate(input: string, max = 42): string {
   return `${input.slice(0, max - 3)}...`;
 }
 
+function getTelegramDateWarningThresholdDays(): number {
+  const raw = process.env.RECEIPT_DATE_WARNING_DAYS;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 0) return 1;
+  return Math.floor(parsed);
+}
+
+function getDraftDateWarningLines(purchaseDate: string): string[] {
+  const warning = getReceiptDateWarning(purchaseDate, getTelegramDateWarningThresholdDays());
+  if (!warning?.shouldWarn) return [];
+
+  if (warning.direction === "past") {
+    return [
+      `\u26A0\uFE0F \u0414\u0430\u0442\u0430 \u0447\u0435\u043A\u0430 \u043D\u0430 ${warning.diffDays} \u0434\u043D. \u0440\u0430\u043D\u044C\u0448\u0435 \u0441\u0435\u0433\u043E\u0434\u043D\u044F\u0448\u043D\u0435\u0439.`,
+      `\u0415\u0441\u043B\u0438 \u0447\u0435\u043A \u0437\u0430 \u0441\u0435\u0433\u043E\u0434\u043D\u044F, \u043D\u0430\u0436\u043C\u0438\u0442\u0435 \u00AB\u0421\u0435\u0433\u043E\u0434\u043D\u044F\u00BB.`,
+    ];
+  }
+
+  if (warning.direction === "future") {
+    return [
+      `\u26A0\uFE0F \u0414\u0430\u0442\u0430 \u0447\u0435\u043A\u0430 \u043D\u0430 ${warning.diffDays} \u0434\u043D. \u043F\u043E\u0437\u0436\u0435 \u0441\u0435\u0433\u043E\u0434\u043D\u044F\u0448\u043D\u0435\u0439.`,
+      `\u0415\u0441\u043B\u0438 \u0447\u0435\u043A \u0437\u0430 \u0441\u0435\u0433\u043E\u0434\u043D\u044F, \u043D\u0430\u0436\u043C\u0438\u0442\u0435 \u00AB\u0421\u0435\u0433\u043E\u0434\u043D\u044F\u00BB.`,
+    ];
+  }
+
+  return [];
+}
+
 function formatDraftPreview(receipt: ReceiptData, note?: string): string {
   const items = receipt.items ?? [];
   const total = sumItems(items);
@@ -300,6 +329,11 @@ function formatDraftPreview(receipt: ReceiptData, note?: string): string {
   lines.push(`Позиций: <b>${items.length}</b>`);
   lines.push("");
   lines.push("<b>Позиции:</b>");
+
+  const dateWarningLines = getDraftDateWarningLines(receipt.purchase_date || "");
+  if (dateWarningLines.length > 0) {
+    lines.push(...dateWarningLines);
+  }
 
   const maxItems = 12;
   for (const [idx, item] of items.slice(0, maxItems).entries()) {
