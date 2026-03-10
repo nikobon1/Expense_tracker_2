@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { neon } from '@neondatabase/serverless';
 import { normalizeCategory } from '@/lib/category-normalization';
+import { normalizeStoreName } from '@/lib/store-normalization';
 
 function shiftDateByMonths(dateString: string, monthOffset: number) {
     const [yearPart, monthPart, dayPart] = dateString.split('-').map(Number);
@@ -56,22 +57,10 @@ export async function GET(request: NextRequest) {
 
         const sql = getDb();
 
-        // Get expenses for the period
-        const expenses = hasStoreFilter ? await sql`
-      SELECT 
-        i.id,
-        r.id as receipt_id,
-        r.purchase_date as date,
-        r.store_name as store,
-        i.name as item,
-        i.price,
-        i.category
-      FROM receipts r
-      JOIN items i ON r.id = i.receipt_id
-      WHERE r.purchase_date BETWEEN ${startDate} AND ${endDate}
-        AND r.store_name = ${store}
-      ORDER BY r.purchase_date DESC
-    ` : await sql`
+        const normalizedStoreFilter = hasStoreFilter ? normalizeStoreName(store) : '';
+
+        // Get expenses for the period.
+        const expensesRows = await sql`
       SELECT 
         i.id,
         r.id as receipt_id,
@@ -90,30 +79,19 @@ export async function GET(request: NextRequest) {
         const prevPeriodStart = shiftDateByMonths(startDate, -1);
         const prevPeriodEnd = shiftDateByMonths(endDate, -1);
 
-        const prevMonthResult = hasStoreFilter ? await sql`
-      SELECT COALESCE(SUM(total_amount), 0) as total
+        const prevMonthRows = await sql`
+      SELECT store_name, COALESCE(SUM(total_amount), 0) as total
       FROM receipts
       WHERE purchase_date BETWEEN ${prevPeriodStart} AND ${prevPeriodEnd}
-        AND store_name = ${store}
-    ` : await sql`
-      SELECT COALESCE(SUM(total_amount), 0) as total
-      FROM receipts
-      WHERE purchase_date BETWEEN ${prevPeriodStart} AND ${prevPeriodEnd}
+      GROUP BY store_name
     `;
 
-        const prevPeriodCategoryRows = hasStoreFilter ? await sql`
-      SELECT i.category, COALESCE(SUM(i.price), 0) as total
+        const prevPeriodCategoryRows = await sql`
+      SELECT r.store_name, i.category, COALESCE(SUM(i.price), 0) as total
       FROM receipts r
       JOIN items i ON r.id = i.receipt_id
       WHERE r.purchase_date BETWEEN ${prevPeriodStart} AND ${prevPeriodEnd}
-        AND r.store_name = ${store}
-      GROUP BY i.category
-    ` : await sql`
-      SELECT i.category, COALESCE(SUM(i.price), 0) as total
-      FROM receipts r
-      JOIN items i ON r.id = i.receipt_id
-      WHERE r.purchase_date BETWEEN ${prevPeriodStart} AND ${prevPeriodEnd}
-      GROUP BY i.category
+      GROUP BY r.store_name, i.category
     `;
 
         const stores = await sql`
@@ -139,23 +117,7 @@ export async function GET(request: NextRequest) {
       )
     `;
 
-        const analyzeCostRows = hasStoreFilter ? await sql`
-      SELECT
-        id,
-        provider,
-        model,
-        input_tokens,
-        output_tokens,
-        total_tokens,
-        estimated_cost_usd,
-        store_name,
-        created_at
-      FROM receipt_analyze_logs
-      WHERE created_at::date BETWEEN ${startDate} AND ${endDate}
-        AND store_name = ${store}
-      ORDER BY created_at DESC
-      LIMIT 20
-    ` : await sql`
+        const analyzeCostRows = await sql`
       SELECT
         id,
         provider,
@@ -172,24 +134,56 @@ export async function GET(request: NextRequest) {
       LIMIT 20
     `;
 
-        const analyzeCostTotal = analyzeCostRows.reduce((sum, row) => sum + Number(row.estimated_cost_usd ?? 0), 0);
+        const matchesStoreFilter = (rawStore: unknown) => {
+            if (!hasStoreFilter) return true;
+            return normalizeStoreName(String(rawStore ?? "")) === normalizedStoreFilter;
+        };
 
-        return NextResponse.json({
-            expenses: expenses.map(e => ({
+        const expenses = expensesRows
+            .map((e) => ({
                 id: e.id,
                 receiptId: Number(e.receipt_id),
                 date: e.date,
-                store: e.store,
+                store: normalizeStoreName(String(e.store ?? "")),
                 item: e.item,
                 price: Number(e.price),
                 category: normalizeCategory(String(e.category ?? ""))
-            })),
-            prevMonthTotal: Number(prevMonthResult[0]?.total || 0),
-            prevPeriodCategoryTotals: aggregateCategoryTotals(prevPeriodCategoryRows),
+            }))
+            .filter((entry) => matchesStoreFilter(entry.store));
+
+        const prevMonthTotal = prevMonthRows.reduce((sum, row) => {
+            if (!matchesStoreFilter(row.store_name)) return sum;
+            return sum + Number(row.total ?? 0);
+        }, 0);
+
+        const prevPeriodCategoryTotals = aggregateCategoryTotals(
+            prevPeriodCategoryRows
+                .filter((row) => matchesStoreFilter(row.store_name))
+                .map((row) => ({
+                    category: row.category,
+                    total: row.total
+                }))
+        );
+
+        const filteredAnalyzeCostRows = analyzeCostRows.filter((row) => matchesStoreFilter(row.store_name));
+        const analyzeCostTotal = filteredAnalyzeCostRows.reduce((sum, row) => sum + Number(row.estimated_cost_usd ?? 0), 0);
+
+        const normalizedStores = Array.from(
+            new Set(
+                stores
+                    .map((row) => normalizeStoreName(String(row.store ?? "")))
+                    .filter(Boolean)
+            )
+        ).sort((a, b) => a.localeCompare(b));
+
+        return NextResponse.json({
+            expenses,
+            prevMonthTotal: Number(prevMonthTotal || 0),
+            prevPeriodCategoryTotals,
             analyzeCost: {
                 totalUsd: Number(analyzeCostTotal.toFixed(8)),
-                count: analyzeCostRows.length,
-                items: analyzeCostRows.map((row) => ({
+                count: filteredAnalyzeCostRows.length,
+                items: filteredAnalyzeCostRows.map((row) => ({
                     id: Number(row.id ?? 0),
                     provider: String(row.provider ?? ""),
                     model: String(row.model ?? ""),
@@ -197,13 +191,11 @@ export async function GET(request: NextRequest) {
                     outputTokens: Number(row.output_tokens ?? 0),
                     totalTokens: Number(row.total_tokens ?? 0),
                     estimatedCostUsd: Number(row.estimated_cost_usd ?? 0),
-                    storeName: String(row.store_name ?? ""),
+                    storeName: normalizeStoreName(String(row.store_name ?? "")),
                     createdAt: row.created_at,
                 })),
             },
-            stores: stores
-                .map((row) => String(row.store ?? "").trim())
-                .filter(Boolean)
+            stores: normalizedStores
         });
     } catch (error) {
         console.error('Get expenses error:', error);

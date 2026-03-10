@@ -1,6 +1,7 @@
 import { neon } from "@neondatabase/serverless";
 import type { ReceiptData, ReceiptItem } from "@/features/expenses/types";
 import { normalizeCategory } from "@/lib/category-normalization";
+import { normalizeStoreName } from "@/lib/store-normalization";
 
 type DbClient = ReturnType<typeof neon>;
 
@@ -134,8 +135,9 @@ export async function saveReceiptToDb(payload: {
   telegram_file_id?: string | null;
 }): Promise<{ receiptId: number; totalAmount: number }> {
   const { store_name, purchase_date, items, source, telegram_file_id } = payload;
+  const normalizedStoreName = normalizeStoreName(store_name);
 
-  if (!store_name || !purchase_date || !items || items.length === 0) {
+  if (!normalizedStoreName || !purchase_date || !items || items.length === 0) {
     throw new Error("Missing required fields");
   }
 
@@ -146,7 +148,7 @@ export async function saveReceiptToDb(payload: {
 
   const receiptResult = (await sql`
     INSERT INTO receipts (store_name, purchase_date, total_amount, source, telegram_file_id)
-    VALUES (${store_name}, ${purchase_date}, ${totalAmount}, ${source ?? null}, ${telegram_file_id ?? null})
+    VALUES (${normalizedStoreName}, ${purchase_date}, ${totalAmount}, ${source ?? null}, ${telegram_file_id ?? null})
     RETURNING id
   `) as Array<{ id: number | string }>;
 
@@ -205,7 +207,7 @@ export async function getReceiptById(
 
   return {
     id: Number(receipt.id),
-    store_name: receipt.store_name ?? "",
+    store_name: normalizeStoreName(receipt.store_name ?? ""),
     purchase_date: purchaseDate,
     total_amount: Number(receipt.total_amount ?? 0),
     source: receipt.source ?? null,
@@ -223,8 +225,9 @@ export async function updateReceiptInDb(
   payload: { store_name: string; purchase_date: string; items: ReceiptItem[] }
 ): Promise<{ receiptId: number; totalAmount: number }> {
   const { store_name, purchase_date, items } = payload;
+  const normalizedStoreName = normalizeStoreName(store_name);
 
-  if (!store_name || !purchase_date || !items || items.length === 0) {
+  if (!normalizedStoreName || !purchase_date || !items || items.length === 0) {
     throw new Error("Missing required fields");
   }
 
@@ -246,7 +249,7 @@ export async function updateReceiptInDb(
 
   await sql`
     UPDATE receipts
-    SET store_name = ${store_name},
+    SET store_name = ${normalizedStoreName},
         purchase_date = ${purchase_date},
         total_amount = ${totalAmount}
     WHERE id = ${receiptId}
