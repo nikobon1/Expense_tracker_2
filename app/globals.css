@@ -1,18 +1,18 @@
 :root {
-  --bg-primary: #0a0a0f;
-  --bg-secondary: #12121a;
-  --bg-card: #1a1a24;
+  --bg-primary: #eef1f5;
+  --bg-secondary: #e4e9f0;
+  --bg-card: #f6f8fb;
   --accent-primary: #6366f1;
   --accent-secondary: #8b5cf6;
   --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-  --text-primary: #ffffff;
-  --text-secondary: #a1a1aa;
-  --border-color: #27272a;
+  --text-primary: #1f2937;
+  --text-secondary: #5f6b7a;
+  --border-color: #c8d1de;
   --success: #22c55e;
   --warning: #f59e0b;
   --error: #ef4444;
   --radius: 12px;
-  --shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  --shadow: 0 8px 30px rgba(31, 41, 55, 0.08);
 }
 
 * {
@@ -74,19 +74,19 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 100%);
+  background: linear-gradient(135deg, #eef2f7 0%, #dfe5ee 100%);
   padding: 1rem;
 }
 
 .login-card {
-  background: #1a1a24;
-  border: 1px solid #27272a;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
   border-radius: 16px;
   padding: 3rem 2rem;
   text-align: center;
   max-width: 400px;
   width: 100%;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--shadow);
 }
 
 .login-icon {
@@ -105,7 +105,7 @@ body {
 }
 
 .login-card p {
-  color: #a1a1aa;
+  color: var(--text-secondary);
   margin-bottom: 2rem;
 }
 
@@ -128,7 +128,7 @@ body {
 
 .google-btn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 25px rgba(99, 102, 241, 0.18);
 }
 
 .google-btn:disabled {
@@ -139,14 +139,14 @@ body {
 
 .login-footer {
   font-size: 0.75rem;
-  color: #52525b;
+  color: #7a8594;
   margin-top: 2rem;
   margin-bottom: 0;
 }
 
 .login-helper {
   font-size: 0.85rem;
-  color: #a1a1aa;
+  color: var(--text-secondary);
   margin-bottom: 1rem;
 }
 
@@ -164,9 +164,9 @@ body {
   width: 100%;
   padding: 0.75rem 0.9rem;
   border-radius: 10px;
-  border: 1px solid #3f3f46;
-  background: #111118;
-  color: #ffffff;
+  border: 1px solid var(--border-color);
+  background: #ffffff;
+  color: var(--text-primary);
   outline: none;
 }
 
@@ -175,9 +175,9 @@ body {
 }
 
 .dev-btn {
-  background: #27272a;
-  color: #ffffff;
-  border: 1px solid #3f3f46;
+  background: #e8edf4;
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
 }
 
 .dev-btn:hover {
