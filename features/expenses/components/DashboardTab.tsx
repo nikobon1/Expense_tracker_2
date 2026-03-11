@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Image from "next/image";
 import { useMemo, useRef, useState } from "react";
@@ -87,6 +87,27 @@ function getLocalTodayIso() {
   const now = new Date();
   const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
   return local.toISOString().slice(0, 10);
+}
+
+function shiftDateByMonths(dateString: string, monthOffset: number): string {
+  const [yearPart, monthPart, dayPart] = dateString.split("-").map(Number);
+  const year = Number.isFinite(yearPart) ? yearPart : 0;
+  const month = Number.isFinite(monthPart) ? monthPart : 0;
+  const day = Number.isFinite(dayPart) ? dayPart : 0;
+
+  const targetMonthIndex = month - 1 + monthOffset;
+  const targetYear = year + Math.floor(targetMonthIndex / 12);
+  const normalizedMonthIndex = ((targetMonthIndex % 12) + 12) % 12;
+  const lastDayOfTargetMonth = new Date(Date.UTC(targetYear, normalizedMonthIndex + 1, 0)).getUTCDate();
+  const normalizedDay = Math.min(day, lastDayOfTargetMonth);
+
+  return new Date(Date.UTC(targetYear, normalizedMonthIndex, normalizedDay)).toISOString().split("T")[0];
+}
+
+function formatPeriodLabel(value: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return value;
+  return `${match[3]}/${match[2]}/${match[1]}`;
 }
 
 function readFileAsDataUrl(file: File): Promise<string> {
@@ -316,6 +337,10 @@ export default function DashboardTab({
   const amountChange = expensesTotal - prevMonthTotal;
   const percentChange =
     prevMonthTotal > 0 ? (amountChange / prevMonthTotal) * 100 : 0;
+  const prevPeriodStart = shiftDateByMonths(startDate, -1);
+  const prevPeriodEnd = shiftDateByMonths(endDate, -1);
+  const currentPeriodLabel = `${formatPeriodLabel(startDate)} - ${formatPeriodLabel(endDate)}`;
+  const previousPeriodLabel = `${formatPeriodLabel(prevPeriodStart)} - ${formatPeriodLabel(prevPeriodEnd)}`;
   const periodCompareMax = Math.max(expensesTotal, prevMonthTotal, 0);
   const currentPeriodWidth = periodCompareMax > 0 ? (expensesTotal / periodCompareMax) * 100 : 0;
   const previousPeriodWidth = periodCompareMax > 0 ? (prevMonthTotal / periodCompareMax) * 100 : 0;
@@ -1007,7 +1032,7 @@ export default function DashboardTab({
                 {isCategoryComparisonOpen ? "Свернуть" : "Показать"}
               </button>
             </div>
-            <p className="card-subtitle">Этот период vs тот же период прошлого месяца</p>
+            <p className="card-subtitle">{`${currentPeriodLabel} vs ${previousPeriodLabel}`}</p>
             {isCategoryComparisonOpen && (
               <div id="category-comparison-content">
                 {categoryComparisonRows.length > 0 ? (
@@ -1016,8 +1041,8 @@ export default function DashboardTab({
                       <thead>
                         <tr>
                           <th>Категория</th>
-                          <th style={{ textAlign: "right" }}>Этот период</th>
-                          <th style={{ textAlign: "right" }}>Тот же период</th>
+                          <th style={{ textAlign: "right" }}>{currentPeriodLabel}</th>
+                          <th style={{ textAlign: "right" }}>{previousPeriodLabel}</th>
                           <th style={{ textAlign: "right" }}>Δ</th>
                           <th style={{ textAlign: "right" }}>Δ%</th>
                         </tr>
