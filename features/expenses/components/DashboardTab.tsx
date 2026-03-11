@@ -114,7 +114,7 @@ function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = (e) => resolve(String(e.target?.result ?? ""));
-    reader.onerror = () => reject(new Error("Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С—РЎР‚Р С•РЎвЂЎР С‘РЎвЂљР В°РЎвЂљРЎРЉ РЎвЂћР В°Р в„–Р В»"));
+    reader.onerror = () => reject(new Error("Не удалось прочитать файл"));
     reader.readAsDataURL(file);
   });
 }
@@ -123,7 +123,7 @@ function loadImage(dataUrl: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new window.Image();
     img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error("Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р В·Р В°Р С–РЎР‚РЎС“Р В·Р С‘РЎвЂљРЎРЉ Р С‘Р В·Р С•Р В±РЎР‚Р В°Р В¶Р ВµР Р…Р С‘Р Вµ"));
+    img.onerror = () => reject(new Error("Не удалось загрузить изображение"));
     img.src = dataUrl;
   });
 }
@@ -148,7 +148,7 @@ async function optimizeImageForUpload(file: File): Promise<string> {
 
   const ctx = canvas.getContext("2d");
   if (!ctx) {
-    throw new Error("Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С—Р С•Р Т‘Р С–Р С•РЎвЂљР С•Р Р†Р С‘РЎвЂљРЎРЉ Р С‘Р В·Р С•Р В±РЎР‚Р В°Р В¶Р ВµР Р…Р С‘Р Вµ");
+    throw new Error("Не удалось подготовить изображение");
   }
 
   ctx.drawImage(image, 0, 0, width, height);
@@ -162,7 +162,7 @@ async function optimizeImageForUpload(file: File): Promise<string> {
   }
 
   if (dataUrl.length > MAX_ANALYZE_PAYLOAD_CHARS) {
-    throw new Error("Р В¤Р С•РЎвЂљР С• РЎРѓР В»Р С‘РЎв‚¬Р С”Р С•Р С Р В±Р С•Р В»РЎРЉРЎв‚¬Р С•Р Вµ. Р С›Р В±РЎР‚Р ВµР В¶РЎРЉРЎвЂљР Вµ Р С‘Р В·Р С•Р В±РЎР‚Р В°Р В¶Р ВµР Р…Р С‘Р Вµ РЎвЂЎР ВµР С”Р В° Р С‘Р В»Р С‘ РЎРѓР Т‘Р ВµР В»Р В°Р в„–РЎвЂљР Вµ РЎвЂћР С•РЎвЂљР С• Р В±Р В»Р С‘Р В¶Р Вµ.");
+    throw new Error("Фото слишком большое. Обрежьте изображение чека или сделайте фото ближе.");
   }
 
   return dataUrl;
@@ -177,7 +177,7 @@ function sanitizeItems(items: ReceiptItem[]): ReceiptItem[] {
     .map((item) => ({
       name: String(item.name ?? "").trim(),
       price: Number(item.price ?? 0),
-      category: String(item.category ?? "").trim() || "Р вЂќРЎР‚РЎС“Р С–Р С•Р Вµ",
+      category: String(item.category ?? "").trim() || "Другое",
     }))
     .filter((item) => item.name || item.price > 0);
 }
@@ -198,16 +198,16 @@ function buildExpensesExcelXml(params: {
   expenses: Expense[];
 }): string {
   const { startDate, endDate, selectedStore, expenses } = params;
-  const storeLabel = selectedStore === "all" ? "Р вЂ™РЎРѓР Вµ Р СР В°Р С–Р В°Р В·Р С‘Р Р…РЎвЂ№" : selectedStore;
+  const storeLabel = selectedStore === "all" ? "Все магазины" : selectedStore;
   const generatedAt = new Date().toISOString();
 
   const headerRows = [
-    ["Р С›РЎвЂљРЎвЂЎР ВµРЎвЂљ", "Р В Р В°РЎРѓРЎвЂ¦Р С•Р Т‘РЎвЂ№"],
-    ["Р СџР ВµРЎР‚Р С‘Р С•Р Т‘", `${startDate} - ${endDate}`],
-    ["Р СљР В°Р С–Р В°Р В·Р С‘Р Р…", storeLabel],
-    ["Р РЋР С–Р ВµР Р…Р ВµРЎР‚Р С‘РЎР‚Р С•Р Р†Р В°Р Р…Р С•", generatedAt],
+    ["Отчет", "Расходы"],
+    ["Период", `${startDate} - ${endDate}`],
+    ["Магазин", storeLabel],
+    ["Сгенерировано", generatedAt],
     ["", ""],
-    ["Р вЂќР В°РЎвЂљР В°", "Р СљР В°Р С–Р В°Р В·Р С‘Р Р…", "Р СћР С•Р Р†Р В°РЎР‚", "Р С™Р В°РЎвЂљР ВµР С–Р С•РЎР‚Р С‘РЎРЏ", "Р В¦Р ВµР Р…Р В° (РІвЂљВ¬)", "Р В§Р ВµР С” ID"],
+    ["Дата", "Магазин", "Товар", "Категория", "Цена (€)", "Чек ID"],
   ];
 
   const dataRows = expenses.map((expense) => [
@@ -234,7 +234,7 @@ function buildExpensesExcelXml(params: {
   xmlns:x="urn:schemas-microsoft-com:office:excel"
   xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
   xmlns:html="http://www.w3.org/TR/REC-html40">
-  <Worksheet ss:Name="Р В Р В°РЎРѓРЎвЂ¦Р С•Р Т‘РЎвЂ№">
+  <Worksheet ss:Name="Расходы">
     <Table>${xmlRows}</Table>
   </Worksheet>
 </Workbook>`;
@@ -247,15 +247,15 @@ function buildComparisonSummary(current: EditableReceipt, analyzed: ReceiptData)
   const changes: string[] = [];
 
   if (current.store_name.trim() !== (analyzed.store_name ?? "").trim()) {
-    changes.push(`Р СљР В°Р С–Р В°Р В·Р С‘Р Р…: "${current.store_name || "Р Р…Р Вµ РЎС“Р С”Р В°Р В·Р В°Р Р…"}" -> "${analyzed.store_name || "Р Р…Р Вµ РЎС“Р С”Р В°Р В·Р В°Р Р…"}"`);
+    changes.push(`Магазин: "${current.store_name || "не указан"}" -> "${analyzed.store_name || "не указан"}"`);
   }
 
   if (current.purchase_date !== (analyzed.purchase_date ?? "")) {
-    changes.push(`Р вЂќР В°РЎвЂљР В°: ${current.purchase_date || "Р Р…Р Вµ РЎС“Р С”Р В°Р В·Р В°Р Р…Р В°"} -> ${analyzed.purchase_date || "Р Р…Р Вµ РЎС“Р С”Р В°Р В·Р В°Р Р…Р В°"}`);
+    changes.push(`Дата: ${current.purchase_date || "не указана"} -> ${analyzed.purchase_date || "не указана"}`);
   }
 
   if (currentItems.length !== analyzedItems.length) {
-    changes.push(`Р С™Р С•Р В»Р С‘РЎвЂЎР ВµРЎРѓРЎвЂљР Р†Р С• Р С—Р С•Р В·Р С‘РЎвЂ Р С‘Р в„–: ${currentItems.length} -> ${analyzedItems.length}`);
+    changes.push(`Количество позиций: ${currentItems.length} -> ${analyzedItems.length}`);
   }
 
   const currentNames = new Set(currentItems.map((item) => normalizeItemName(item.name)).filter(Boolean));
@@ -265,17 +265,17 @@ function buildComparisonSummary(current: EditableReceipt, analyzed: ReceiptData)
   const extraInDashboard = [...currentNames].filter((name) => !analyzedNames.has(name));
 
   if (missingInDashboard.length > 0) {
-    changes.push(`Р СњР Вµ РЎвЂ¦Р Р†Р В°РЎвЂљР В°Р ВµРЎвЂљ Р Р† Р Т‘Р В°Р Р…Р Р…РЎвЂ№РЎвЂ¦ Р Т‘Р В°РЎв‚¬Р В±Р С•РЎР‚Р Т‘Р В°: ${missingInDashboard.slice(0, 3).join(", ")}${missingInDashboard.length > 3 ? "..." : ""}`);
+    changes.push(`Не хватает в данных дашборда: ${missingInDashboard.slice(0, 3).join(", ")}${missingInDashboard.length > 3 ? "..." : ""}`);
   }
 
   if (extraInDashboard.length > 0) {
-    changes.push(`Р вЂєР С‘РЎв‚¬Р Р…Р С‘Р Вµ Р Р† Р Т‘Р В°Р Р…Р Р…РЎвЂ№РЎвЂ¦ Р Т‘Р В°РЎв‚¬Р В±Р С•РЎР‚Р Т‘Р В°: ${extraInDashboard.slice(0, 3).join(", ")}${extraInDashboard.length > 3 ? "..." : ""}`);
+    changes.push(`Лишние в данных дашборда: ${extraInDashboard.slice(0, 3).join(", ")}${extraInDashboard.length > 3 ? "..." : ""}`);
   }
 
   const currentTotal = currentItems.reduce((sum, item) => sum + Number(item.price || 0), 0);
   const analyzedTotal = analyzedItems.reduce((sum, item) => sum + Number(item.price || 0), 0);
   if (Math.abs(currentTotal - analyzedTotal) >= 0.01) {
-    changes.push(`Р РЋРЎС“Р СР СР В°: ${currentTotal.toFixed(2)} РІвЂљВ¬ -> ${analyzedTotal.toFixed(2)} РІвЂљВ¬`);
+    changes.push(`Сумма: ${currentTotal.toFixed(2)} € -> ${analyzedTotal.toFixed(2)} €`);
   }
 
   return {
@@ -453,7 +453,7 @@ export default function DashboardTab({
         telegram_file_id: receipt.telegram_file_id ?? null,
       });
     } catch (error) {
-      setEditorError(error instanceof Error ? error.message : "Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р В·Р В°Р С–РЎР‚РЎС“Р В·Р С‘РЎвЂљРЎРЉ РЎвЂЎР ВµР С”");
+      setEditorError(error instanceof Error ? error.message : "Не удалось загрузить чек");
       setEditorReceipt(null);
     } finally {
       setIsEditorLoading(false);
@@ -502,7 +502,7 @@ export default function DashboardTab({
       if (!prev) return prev;
       return {
         ...prev,
-        items: [...prev.items, { name: "", price: 0, category: "Р вЂќРЎР‚РЎС“Р С–Р С•Р Вµ" }],
+        items: [...prev.items, { name: "", price: 0, category: "Другое" }],
       };
     });
   };
@@ -519,7 +519,7 @@ export default function DashboardTab({
       const analyzed = await analyzeReceipt(optimizedImage);
       setComparisonData(analyzed);
     } catch (error) {
-      setEditorError(error instanceof Error ? error.message : "Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ РЎРѓРЎР‚Р В°Р Р†Р Р…Р С‘РЎвЂљРЎРЉ РЎРѓ РЎвЂћР С•РЎвЂљР С•");
+      setEditorError(error instanceof Error ? error.message : "Не удалось сравнить с фото");
     } finally {
       setIsComparing(false);
     }
@@ -537,7 +537,7 @@ export default function DashboardTab({
       const analyzed = await analyzeReceipt(imageDataUrl);
       setComparisonData(analyzed);
     } catch (error) {
-      setEditorError(error instanceof Error ? error.message : "Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ РЎРѓРЎР‚Р В°Р Р†Р Р…Р С‘РЎвЂљРЎРЉ РЎРѓ РЎвЂћР С•РЎвЂљР С• Р С‘Р В· Telegram");
+      setEditorError(error instanceof Error ? error.message : "Не удалось сравнить с фото из Telegram");
     } finally {
       setIsComparing(false);
     }
@@ -559,17 +559,17 @@ export default function DashboardTab({
 
     const preparedItems = sanitizeItems(editorReceipt.items);
     if (!editorReceipt.store_name.trim()) {
-      setEditorError("Р Р€Р С”Р В°Р В¶Р С‘РЎвЂљР Вµ Р СР В°Р С–Р В°Р В·Р С‘Р Р…");
+      setEditorError("Укажите магазин");
       return;
     }
 
     if (!editorReceipt.purchase_date) {
-      setEditorError("Р Р€Р С”Р В°Р В¶Р С‘РЎвЂљР Вµ Р Т‘Р В°РЎвЂљРЎС“ Р С—Р С•Р С”РЎС“Р С—Р С”Р С‘");
+      setEditorError("Укажите дату покупки");
       return;
     }
 
     if (preparedItems.length === 0) {
-      setEditorError("Р вЂќР С•Р В±Р В°Р Р†РЎРЉРЎвЂљР Вµ РЎвЂ¦Р С•РЎвЂљРЎРЏ Р В±РЎвЂ№ Р С•Р Т‘Р Р…РЎС“ Р С—Р С•Р В·Р С‘РЎвЂ Р С‘РЎР‹");
+      setEditorError("Добавьте хотя бы одну позицию");
       return;
     }
 
@@ -586,7 +586,7 @@ export default function DashboardTab({
       closeEditor();
       onRefresh?.();
     } catch (error) {
-      setEditorError(error instanceof Error ? error.message : "Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ РЎРѓР С•РЎвЂ¦РЎР‚Р В°Р Р…Р С‘РЎвЂљРЎРЉ Р С‘Р В·Р СР ВµР Р…Р ВµР Р…Р С‘РЎРЏ");
+      setEditorError(error instanceof Error ? error.message : "Не удалось сохранить изменения");
     } finally {
       setIsEditorSaving(false);
     }
@@ -599,7 +599,7 @@ export default function DashboardTab({
     if (!point) return null;
 
     const count = point.receiptCount ?? 0;
-    const receiptLabel = count === 1 ? "РЎвЂЎР ВµР С”" : count >= 2 && count <= 4 ? "РЎвЂЎР ВµР С”Р В°" : "РЎвЂЎР ВµР С”Р С•Р Р†";
+    const receiptLabel = count === 1 ? "чек" : count >= 2 && count <= 4 ? "чека" : "чеков";
     const visibleSegments =
       tooltipReceiptLimit === "all"
         ? point.receiptSegments
@@ -624,7 +624,7 @@ export default function DashboardTab({
         <div style={{ color: "#e4e4e7", fontWeight: 600, marginBottom: 6 }}>
           {formatDashboardDate(String(label ?? point.date))}
         </div>
-        <div style={{ color: "#fafafa", fontWeight: 700, marginBottom: 2 }}>{point.amount.toFixed(2)} РІвЂљВ¬</div>
+        <div style={{ color: "#fafafa", fontWeight: 700, marginBottom: 2 }}>{point.amount.toFixed(2)} €</div>
         <div style={{ color: "#a1a1aa", fontSize: 12, marginBottom: point.receiptSegments.length ? 8 : 0 }}>
           {count} {receiptLabel}
         </div>
@@ -646,9 +646,9 @@ export default function DashboardTab({
                   }}
                 />
                 <span style={{ color: "#d4d4d8", fontSize: 12, lineHeight: 1.2 }}>
-                  {segment.store || "Р вЂР ВµР В· Р СР В°Р С–Р В°Р В·Р С‘Р Р…Р В°"} #{segment.receiptId}
+                  {segment.store || "Без магазина"} #{segment.receiptId}
                 </span>
-                <span style={{ color: "#f4f4f5", fontSize: 12, fontWeight: 600 }}>{segment.amount.toFixed(2)} РІвЂљВ¬</span>
+                <span style={{ color: "#f4f4f5", fontSize: 12, fontWeight: 600 }}>{segment.amount.toFixed(2)} €</span>
               </div>
             ))}
 
@@ -673,9 +673,9 @@ export default function DashboardTab({
                   }}
                 />
                 <span style={{ color: "#a1a1aa", fontSize: 12, lineHeight: 1.2 }}>
-                  Р В Р ВµРЎвЂ°РЎвЂ {hiddenCount} {hiddenCount === 1 ? "РЎвЂЎР ВµР С”" : hiddenCount >= 2 && hiddenCount <= 4 ? "РЎвЂЎР ВµР С”Р В°" : "РЎвЂЎР ВµР С”Р С•Р Р†"}
+                  И ещё {hiddenCount} {hiddenCount === 1 ? "чек" : hiddenCount >= 2 && hiddenCount <= 4 ? "чека" : "чеков"}
                 </span>
-                <span style={{ color: "#d4d4d8", fontSize: 12, fontWeight: 600 }}>{hiddenTotal.toFixed(2)} РІвЂљВ¬</span>
+                <span style={{ color: "#d4d4d8", fontSize: 12, fontWeight: 600 }}>{hiddenTotal.toFixed(2)} €</span>
               </div>
             )}
           </div>
@@ -774,18 +774,18 @@ export default function DashboardTab({
     <div>
       <div className="date-filter">
         <div>
-          <label>СЂСџвЂњвЂ¦ Р СњР В°РЎвЂЎР В°Р В»Р С• Р С—Р ВµРЎР‚Р С‘Р С•Р Т‘Р В°</label>
+          <label>📅 Начало периода</label>
           <input type="date" value={startDate} onChange={(e) => onStartDateChange(e.target.value)} />
         </div>
         <div>
-          <label>СЂСџвЂњвЂ¦ Р С™Р С•Р Р…Р ВµРЎвЂ  Р С—Р ВµРЎР‚Р С‘Р С•Р Т‘Р В°</label>
+          <label>📅 Конец периода</label>
           <input type="date" value={endDate} onChange={(e) => onEndDateChange(e.target.value)} />
         </div>
         <div className="dashboard-refresh-wrap">
-          <label>Р С›Р В±Р Р…Р С•Р Р†Р В»Р ВµР Р…Р С‘Р Вµ</label>
+          <label>Обновление</label>
           <div className="dashboard-action-buttons">
             <button type="button" className="btn btn-secondary dashboard-refresh-btn" onClick={onRefresh} disabled={isLoading}>
-              {isLoading ? "Р С›Р В±Р Р…Р С•Р Р†Р В»РЎРЏР ВµР С..." : "Р С›Р В±Р Р…Р С•Р Р†Р С‘РЎвЂљРЎРЉ"}
+              {isLoading ? "Обновляем..." : "Обновить"}
             </button>
             <button
               type="button"
@@ -793,7 +793,7 @@ export default function DashboardTab({
               onClick={handleExportExcel}
               disabled={isLoading || expenses.length === 0}
             >
-              Р В­Р С”РЎРѓР С—Р С•РЎР‚РЎвЂљ Р Р† Excel
+              Экспорт в Excel
             </button>
           </div>
         </div>
@@ -801,9 +801,9 @@ export default function DashboardTab({
 
       <div className="metrics-grid">
         <div className="metric-card primary">
-          <div className="metric-label">СЂСџвЂ™В° Р С›Р В±РЎвЂ°Р С‘Р Вµ РЎР‚Р В°РЎРѓРЎвЂ¦Р С•Р Т‘РЎвЂ№</div>
-          <div className="metric-value">{expensesTotal.toFixed(2)} РІвЂљВ¬</div>
-          <div className="metric-secondary">Р СћР С•РЎвЂљ Р В¶Р Вµ Р С—Р ВµРЎР‚Р С‘Р С•Р Т‘: {prevMonthTotal.toFixed(2)} РІвЂљВ¬</div>
+          <div className="metric-label">💰 Общие расходы</div>
+          <div className="metric-value">{expensesTotal.toFixed(2)} €</div>
+          <div className="metric-secondary">Тот же период: {prevMonthTotal.toFixed(2)} €</div>
           <div className="metric-period-compare" aria-hidden="true">
             <div className="metric-period-row">
               <span className="metric-period-name">This period</span>
@@ -820,17 +820,17 @@ export default function DashboardTab({
           </div>
           {prevMonthTotal > 0 ? (
             <div className={`metric-delta ${amountChange >= 0 ? "negative" : "positive"}`}>
-              {amountChange >= 0 ? "РІвЂ вЂ" : "РІвЂ вЂњ"} {Math.abs(amountChange).toFixed(2)} РІвЂљВ¬ ({Math.abs(percentChange).toFixed(1)}%)
+              {amountChange >= 0 ? "↑" : "↓"} {Math.abs(amountChange).toFixed(2)} € ({Math.abs(percentChange).toFixed(1)}%)
             </div>
           ) : (
-            <div className="metric-delta neutral">Р СњР ВµРЎвЂљ Р Т‘Р В°Р Р…Р Р…РЎвЂ№РЎвЂ¦ Р Т‘Р В»РЎРЏ РЎРѓРЎР‚Р В°Р Р†Р Р…Р ВµР Р…Р С‘РЎРЏ</div>
+            <div className="metric-delta neutral">Нет данных для сравнения</div>
           )}
         </div>
         <div className="metric-card">
-          <div className="metric-label">СЂСџВ§С• Р СћР С•Р Р†Р В°РЎР‚РЎвЂ№ Р С‘ Р С—Р С•Р С”РЎС“Р С—Р С”Р С‘</div>
+          <div className="metric-label">🧾 Товары и покупки</div>
           <div className="metric-card-filter">
             <label htmlFor="dashboard-store-filter" className="metric-filter-label">
-              Р СљР В°Р С–Р В°Р В·Р С‘Р Р…
+              Магазин
             </label>
             <select
               id="dashboard-store-filter"
@@ -838,27 +838,27 @@ export default function DashboardTab({
               value={activeStore}
               onChange={(e) => onStoreChange(e.target.value)}
             >
-              <option value="all">Р вЂ™РЎРѓР Вµ Р СР В°Р С–Р В°Р В·Р С‘Р Р…РЎвЂ№</option>
+              <option value="all">Все магазины</option>
               {storeOptions.map((store) => (
                 <option key={store} value={store}>
                   {store}
                 </option>
               ))}
             </select>
-            <span className="metric-filter-hint">Р В¤Р С‘Р В»РЎРЉРЎвЂљРЎР‚ Р С—РЎР‚Р С‘Р СР ВµР Р…РЎРЏР ВµРЎвЂљРЎРѓРЎРЏ Р С”Р С• Р Р†РЎРѓР ВµР СРЎС“ Р Т‘Р В°РЎв‚¬Р В±Р С•РЎР‚Р Т‘РЎС“</span>
+            <span className="metric-filter-hint">Фильтр применяется ко всему дашборду</span>
           </div>
           <div className="metric-breakdown">
             <div className="metric-breakdown-row">
-              <span>{"\u0422\u043e\u0432\u0430\u0440\u043e\u0432"}</span>
+              <span>Товаров</span>
               <strong>{expenses.length}</strong>
             </div>
             <div className="metric-breakdown-row">
-              <span>Р СћРЎР‚Р В°Р Р…Р В·Р В°Р С”РЎвЂ Р С‘Р в„–</span>
+              <span>Транзакций</span>
               <strong>{transactionCount}</strong>
             </div>
             <div className="metric-breakdown-row">
-              <span>Р РЋРЎР‚Р ВµР Т‘Р Р…Р С‘Р в„– РЎвЂЎР ВµР С”</span>
-              <strong>{averageTransactionValue.toFixed(2)} РІвЂљВ¬</strong>
+              <span>Средний чек</span>
+              <strong>{averageTransactionValue.toFixed(2)} €</strong>
             </div>
           </div>
         </div>
@@ -872,9 +872,9 @@ export default function DashboardTab({
           aria-expanded={isAnalyzeCostOpen}
           aria-controls="analyze-cost-dropdown-content"
         >
-          <span>СЂСџВ§В  Р РЋРЎвЂљР С•Р С‘Р СР С•РЎРѓРЎвЂљРЎРЉ РЎР‚Р В°РЎРѓР С—Р С•Р В·Р Р…Р В°Р Р†Р В°Р Р…Р С‘РЎРЏ</span>
+          <span>🧠 Стоимость распознавания</span>
           <span>
-            {analyzeCost.totalUsd.toFixed(4)} $ Р’В· {analyzeCost.count} РЎвЂћР С•РЎвЂљР С• Р’В· {isAnalyzeCostOpen ? "РІвЂ“Р†" : "РІвЂ“С"}
+            {analyzeCost.totalUsd.toFixed(4)} $ · {analyzeCost.count} фото · {isAnalyzeCostOpen ? "▲" : "▼"}
           </span>
         </button>
 
@@ -885,18 +885,18 @@ export default function DashboardTab({
                 <table>
                   <thead>
                     <tr>
-                      <th>Р С™Р С•Р С–Р Т‘Р В°</th>
-                      <th>Р СљР В°Р С–Р В°Р В·Р С‘Р Р…</th>
-                      <th>Р СљР С•Р Т‘Р ВµР В»РЎРЉ</th>
-                      <th style={{ textAlign: "right" }}>Р СћР С•Р С”Р ВµР Р…РЎвЂ№</th>
-                      <th style={{ textAlign: "right" }}>Р РЋРЎвЂљР С•Р С‘Р СР С•РЎРѓРЎвЂљРЎРЉ</th>
+                      <th>Когда</th>
+                      <th>Магазин</th>
+                      <th>Модель</th>
+                      <th style={{ textAlign: "right" }}>Токены</th>
+                      <th style={{ textAlign: "right" }}>Стоимость</th>
                     </tr>
                   </thead>
                   <tbody>
                     {analyzeCost.items.map((item) => (
                       <tr key={`analyze-cost-${item.id}`}>
                         <td>{formatDateTime(item.createdAt)}</td>
-                        <td>{item.storeName || "РІР‚вЂќ"}</td>
+                        <td>{item.storeName || "—"}</td>
                         <td>{item.model}</td>
                         <td style={{ textAlign: "right" }}>{item.totalTokens}</td>
                         <td style={{ textAlign: "right" }}>{item.estimatedCostUsd.toFixed(6)} $</td>
@@ -907,7 +907,7 @@ export default function DashboardTab({
               </div>
             ) : (
               <div className="empty-state">
-                <p>Р СњР ВµРЎвЂљ Р Т‘Р В°Р Р…Р Р…РЎвЂ№РЎвЂ¦ Р С—Р С• РЎРѓРЎвЂљР С•Р С‘Р СР С•РЎРѓРЎвЂљР С‘ РЎР‚Р В°РЎРѓР С—Р С•Р В·Р Р…Р В°Р Р†Р В°Р Р…Р С‘РЎРЏ Р В·Р В° Р Р†РЎвЂ№Р В±РЎР‚Р В°Р Р…Р Р…РЎвЂ№Р в„– Р С—Р ВµРЎР‚Р С‘Р С•Р Т‘</p>
+                <p>Нет данных по стоимости распознавания за выбранный период</p>
               </div>
             )}
           </div>
@@ -918,7 +918,7 @@ export default function DashboardTab({
         <>
           <div className="charts-grid">
             <div className="chart-card">
-              <h4>СЂСџТђВ§ Р В Р В°РЎРѓРЎвЂ¦Р С•Р Т‘РЎвЂ№ Р С—Р С• Р С”Р В°РЎвЂљР ВµР С–Р С•РЎР‚Р С‘РЎРЏР С</h4>
+              <h4>🥧 Расходы по категориям</h4>
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                   <Pie
@@ -936,10 +936,10 @@ export default function DashboardTab({
                       <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value) => `${Number(value).toFixed(2)} РІвЂљВ¬`} />
+                  <Tooltip formatter={(value) => `${Number(value).toFixed(2)} €`} />
                 </PieChart>
               </ResponsiveContainer>
-              <div className="category-legend" aria-label="Р вЂєР ВµР С–Р ВµР Р…Р Т‘Р В° Р С”Р В°РЎвЂљР ВµР С–Р С•РЎР‚Р С‘Р в„–">
+              <div className="category-legend" aria-label="Легенда категорий">
                 {categoryData.map((entry, index) => {
                   const percent = categoryTotal > 0 ? (entry.value / categoryTotal) * 100 : 0;
                   return (
@@ -952,7 +952,7 @@ export default function DashboardTab({
                         <span className="category-legend-name">{entry.name}</span>
                       </div>
                       <span className="category-legend-value">
-                        {entry.value.toFixed(2)} РІвЂљВ¬ ({percent.toFixed(0)}%)
+                        {entry.value.toFixed(2)} € ({percent.toFixed(0)}%)
                       </span>
                     </div>
                   );
@@ -961,7 +961,7 @@ export default function DashboardTab({
             </div>
 
             <div className="chart-card">
-              <h4>СЂСџвЂњР‰ Р В Р В°РЎРѓРЎвЂ¦Р С•Р Т‘РЎвЂ№ Р С—Р С• Р Т‘Р Р…РЎРЏР С</h4>
+              <h4>📊 Расходы по дням</h4>
               <div
                 style={{
                   display: "flex",
@@ -972,12 +972,12 @@ export default function DashboardTab({
                   flexWrap: "wrap",
                 }}
               >
-                <span style={{ color: "#a1a1aa", fontSize: 12 }}>Р В§Р ВµР С”Р С•Р Р† Р Р† Р С—Р С•Р Т‘РЎРѓР С”Р В°Р В·Р С”Р Вµ</span>
+                <span style={{ color: "#a1a1aa", fontSize: 12 }}>Чеков в подсказке</span>
                 <div style={{ display: "inline-flex", gap: 6 }}>
                   {([
                     { value: 5, label: "5" },
                     { value: 10, label: "10" },
-                    { value: "all", label: "Р Р†РЎРѓР Вµ" },
+                    { value: "all", label: "все" },
                   ] as const).map((option) => {
                     const isActive = tooltipReceiptLimit === option.value;
                     return (
@@ -1023,7 +1023,7 @@ export default function DashboardTab({
 
           <div className="card">
             <div className="compare-card-header">
-              <h3>СЂСџвЂќР‹ Р РЋРЎР‚Р В°Р Р†Р Р…Р ВµР Р…Р С‘Р Вµ Р С”Р В°РЎвЂљР ВµР С–Р С•РЎР‚Р С‘Р в„– Р С—Р С• Р С—Р ВµРЎР‚Р С‘Р С•Р Т‘Р В°Р С</h3>
+              <h3>🔎 Сравнение категорий по периодам</h3>
               <button
                 type="button"
                 className="btn btn-secondary compare-toggle-btn"
@@ -1031,7 +1031,7 @@ export default function DashboardTab({
                 aria-expanded={isCategoryComparisonOpen}
                 aria-controls="category-comparison-content"
               >
-                {isCategoryComparisonOpen ? "Р РЋР Р†Р ВµРЎР‚Р Р…РЎС“РЎвЂљРЎРЉ" : "Р СџР С•Р С”Р В°Р В·Р В°РЎвЂљРЎРЉ"}
+                {isCategoryComparisonOpen ? "Свернуть" : "Показать"}
               </button>
             </div>
             <p className="card-subtitle">{`${currentPeriodLabel} vs ${previousPeriodLabel}`}</p>
@@ -1042,31 +1042,31 @@ export default function DashboardTab({
                     <table>
                       <thead>
                         <tr>
-                          <th>Р С™Р В°РЎвЂљР ВµР С–Р С•РЎР‚Р С‘РЎРЏ</th>
+                          <th>Категория</th>
                           <th style={{ textAlign: "right" }}>{currentPeriodLabel}</th>
                           <th style={{ textAlign: "right" }}>{previousPeriodLabel}</th>
-                          <th style={{ textAlign: "right" }}>РћвЂќ</th>
-                          <th style={{ textAlign: "right" }}>РћвЂќ%</th>
+                          <th style={{ textAlign: "right" }}>Δ</th>
+                          <th style={{ textAlign: "right" }}>Δ%</th>
                         </tr>
                       </thead>
                       <tbody>
                         {categoryComparisonRows.map((row) => (
                           <tr key={`compare-${row.category}`}>
                             <td>{row.category}</td>
-                            <td style={{ textAlign: "right" }}>{row.currentTotal.toFixed(2)} РІвЂљВ¬</td>
-                            <td style={{ textAlign: "right" }}>{row.previousTotal.toFixed(2)} РІвЂљВ¬</td>
+                            <td style={{ textAlign: "right" }}>{row.currentTotal.toFixed(2)} €</td>
+                            <td style={{ textAlign: "right" }}>{row.previousTotal.toFixed(2)} €</td>
                             <td
                               style={{ textAlign: "right" }}
                               className={row.delta > 0 ? "compare-negative" : row.delta < 0 ? "compare-positive" : "compare-neutral"}
                             >
-                              {row.delta > 0 ? "РІвЂ вЂ " : row.delta < 0 ? "РІвЂ вЂњ " : ""}
-                              {Math.abs(row.delta).toFixed(2)} РІвЂљВ¬
+                              {row.delta > 0 ? "↑ " : row.delta < 0 ? "↓ " : ""}
+                              {Math.abs(row.delta).toFixed(2)} €
                             </td>
                             <td
                               style={{ textAlign: "right" }}
                               className={row.delta > 0 ? "compare-negative" : row.delta < 0 ? "compare-positive" : "compare-neutral"}
                             >
-                              {row.percent === null ? "РІР‚вЂќ" : `${row.percent > 0 ? "+" : ""}${row.percent.toFixed(1)}%`}
+                              {row.percent === null ? "—" : `${row.percent > 0 ? "+" : ""}${row.percent.toFixed(1)}%`}
                             </td>
                           </tr>
                         ))}
@@ -1075,7 +1075,7 @@ export default function DashboardTab({
                   </div>
                 ) : (
                   <div className="empty-state">
-                    <p>Р СњР ВµРЎвЂљ Р Т‘Р В°Р Р…Р Р…РЎвЂ№РЎвЂ¦ Р Т‘Р В»РЎРЏ РЎРѓРЎР‚Р В°Р Р†Р Р…Р ВµР Р…Р С‘РЎРЏ Р С”Р В°РЎвЂљР ВµР С–Р С•РЎР‚Р С‘Р в„– Р В·Р В° Р Р†РЎвЂ№Р В±РЎР‚Р В°Р Р…Р Р…РЎвЂ№Р Вµ Р С—Р ВµРЎР‚Р С‘Р С•Р Т‘РЎвЂ№</p>
+                    <p>Нет данных для сравнения категорий за выбранные периоды</p>
                   </div>
                 )}
               </div>
@@ -1083,16 +1083,16 @@ export default function DashboardTab({
           </div>
 
           <div className="card">
-            <h3>СЂСџвЂњвЂ№ Р вЂќР ВµРЎвЂљР В°Р В»Р С‘Р В·Р В°РЎвЂ Р С‘РЎРЏ РЎР‚Р В°РЎРѓРЎвЂ¦Р С•Р Т‘Р С•Р Р†</h3>
+            <h3>📋 Детализация расходов</h3>
             <div className="table-container">
               <table>
                 <thead>
                   <tr>
-                    <th>Р вЂќР В°РЎвЂљР В°</th>
-                    <th>Р СљР В°Р С–Р В°Р В·Р С‘Р Р…</th>
-                    <th>Р СћР С•Р Р†Р В°РЎР‚</th>
-                    <th>Р С™Р В°РЎвЂљР ВµР С–Р С•РЎР‚Р С‘РЎРЏ</th>
-                    <th style={{ textAlign: "right" }}>Р В¦Р ВµР Р…Р В°</th>
+                    <th>Дата</th>
+                    <th>Магазин</th>
+                    <th>Товар</th>
+                    <th>Категория</th>
+                    <th style={{ textAlign: "right" }}>Цена</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1112,14 +1112,14 @@ export default function DashboardTab({
                                 style={{ padding: "0.2rem 0.45rem", fontSize: "0.72rem", lineHeight: 1.2 }}
                                 onClick={() => void openEditor(exp.receiptId)}
                               >
-                                РІСљРЏРїС‘РЏ Р В§Р ВµР С” #{exp.receiptId}
+                                ✏️ Чек #{exp.receiptId}
                               </button>
                             )}
                           </div>
                         </td>
                         <td>{exp.item}</td>
                         <td>{exp.category}</td>
-                        <td style={{ textAlign: "right" }}>{exp.price.toFixed(2)} РІвЂљВ¬</td>
+                        <td style={{ textAlign: "right" }}>{exp.price.toFixed(2)} €</td>
                       </tr>
                     );
                   })}
@@ -1131,10 +1131,10 @@ export default function DashboardTab({
       ) : (
         <div className="card">
           <div className="empty-state">
-            <div className="icon">СЂСџвЂњВ­</div>
-            <p>Р СњР ВµРЎвЂљ Р Т‘Р В°Р Р…Р Р…РЎвЂ№РЎвЂ¦ Р В·Р В° Р Р†РЎвЂ№Р В±РЎР‚Р В°Р Р…Р Р…РЎвЂ№Р в„– Р С—Р ВµРЎР‚Р С‘Р С•Р Т‘</p>
+            <div className="icon">📭</div>
+            <p>Нет данных за выбранный период</p>
             <p style={{ fontSize: "0.875rem", marginTop: "0.5rem" }}>
-              Р вЂ”Р В°Р С–РЎР‚РЎС“Р В·Р С‘РЎвЂљР Вµ РЎвЂЎР ВµР С”Р С‘ Р Р†Р С• Р Р†Р С”Р В»Р В°Р Т‘Р С”Р Вµ &quot;Р РЋР С”Р В°Р Р…Р С‘РЎР‚Р С•Р Р†Р В°Р Р…Р С‘Р Вµ&quot;
+              Загрузите чеки во вкладке &quot;Сканирование&quot;
             </p>
           </div>
         </div>
@@ -1144,21 +1144,21 @@ export default function DashboardTab({
         <div className="receipt-editor-overlay" onClick={closeEditor}>
           <div className="receipt-editor-modal" onClick={(e) => e.stopPropagation()}>
             <div className="receipt-editor-header">
-              <h3>РІСљРЏРїС‘РЏ Р В Р ВµР Т‘Р В°Р С”РЎвЂљР С‘РЎР‚Р С•Р Р†Р В°Р Р…Р С‘Р Вµ РЎвЂЎР ВµР С”Р В°{editorReceipt ? ` #${editorReceipt.id}` : ""}</h3>
+              <h3>✏️ Редактирование чека{editorReceipt ? ` #${editorReceipt.id}` : ""}</h3>
               <button
                 type="button"
                 className="btn btn-secondary"
                 onClick={closeEditor}
                 disabled={isEditorSaving || isComparing}
               >
-                Р вЂ”Р В°Р С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ
+                Закрыть
               </button>
             </div>
 
             {isEditorLoading && (
               <div className="receipt-editor-loading">
                 <div className="spinner"></div>
-                <span>Р вЂ”Р В°Р С–РЎР‚РЎС“Р В¶Р В°Р ВµР С РЎвЂЎР ВµР С”...</span>
+                <span>Загружаем чек...</span>
               </div>
             )}
 
@@ -1172,7 +1172,7 @@ export default function DashboardTab({
               <>
                 <div className="scan-form-grid" style={{ marginBottom: "1rem" }}>
                   <div>
-                    <label className="scan-field-label">СЂСџРЏР„ Р СљР В°Р С–Р В°Р В·Р С‘Р Р…</label>
+                    <label className="scan-field-label">🏪 Магазин</label>
                     <input
                       type="text"
                       className="scan-field-input"
@@ -1184,7 +1184,7 @@ export default function DashboardTab({
                   </div>
                   <div>
                     <div className="scan-date-label-row">
-                      <label className="scan-field-label">СЂСџвЂњвЂ¦ Р вЂќР В°РЎвЂљР В° Р С—Р С•Р С”РЎС“Р С—Р С”Р С‘</label>
+                      <label className="scan-field-label">📅 Дата покупки</label>
                       <button
                         type="button"
                         className="scan-date-today-btn"
@@ -1199,7 +1199,7 @@ export default function DashboardTab({
                           )
                         }
                       >
-                        Р РЋР ВµР С–Р С•Р Т‘Р Р…РЎРЏ
+                        Сегодня
                       </button>
                     </div>
                     <input
@@ -1215,7 +1215,7 @@ export default function DashboardTab({
 
                 <div className="receipt-editor-compare">
                   <div className="receipt-editor-compare-head">
-                    <h4>СЂСџвЂњС‘ Р РЋР Р†Р ВµРЎР‚Р С”Р В° РЎРѓ РЎвЂћР С•РЎвЂљР С•</h4>
+                    <h4>📸 Сверка с фото</h4>
                     <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
                       <input
                         ref={compareFileInputRef}
@@ -1236,7 +1236,7 @@ export default function DashboardTab({
                         onClick={() => compareFileInputRef.current?.click()}
                         disabled={isComparing}
                       >
-                        {isComparing ? "Р РЋРЎР‚Р В°Р Р†Р Р…Р С‘Р Р†Р В°Р ВµР С..." : "Р вЂ”Р В°Р С–РЎР‚РЎС“Р В·Р С‘РЎвЂљРЎРЉ РЎвЂћР С•РЎвЂљР С• Р Т‘Р В»РЎРЏ РЎРѓРЎР‚Р В°Р Р†Р Р…Р ВµР Р…Р С‘РЎРЏ"}
+                        {isComparing ? "Сравниваем..." : "Загрузить фото для сравнения"}
                       </button>
                       {editorReceipt.source === "telegram" && editorReceipt.telegram_file_id && (
                         <button
@@ -1245,7 +1245,7 @@ export default function DashboardTab({
                           onClick={() => void handleCompareTelegramImage()}
                           disabled={isComparing}
                         >
-                          {isComparing ? "Р РЋРЎР‚Р В°Р Р†Р Р…Р С‘Р Р†Р В°Р ВµР С..." : "Р СџР С•Р Т‘РЎвЂљРЎРЏР Р…РЎС“РЎвЂљРЎРЉ РЎвЂћР С•РЎвЂљР С• Р С‘Р В· Telegram"}
+                          {isComparing ? "Сравниваем..." : "Подтянуть фото из Telegram"}
                         </button>
                       )}
                     </div>
@@ -1255,7 +1255,7 @@ export default function DashboardTab({
                     <div className="receipt-editor-image-wrap">
                       <Image
                         src={comparisonImage}
-                        alt="Р В¤Р С•РЎвЂљР С• РЎвЂЎР ВµР С”Р В° Р Т‘Р В»РЎРЏ РЎРѓРЎР‚Р В°Р Р†Р Р…Р ВµР Р…Р С‘РЎРЏ"
+                        alt="Фото чека для сравнения"
                         width={600}
                         height={900}
                         unoptimized
@@ -1273,25 +1273,25 @@ export default function DashboardTab({
                           ))}
                         </ul>
                       ) : (
-                        <p>Р В Р В°РЎРѓРЎвЂ¦Р С•Р В¶Р Т‘Р ВµР Р…Р С‘Р в„– Р Р…Р Вµ Р Р…Р В°Р в„–Р Т‘Р ВµР Р…Р С•. Р вЂќР В°Р Р…Р Р…РЎвЂ№Р Вµ РЎРѓР С•Р Р†Р С—Р В°Р Т‘Р В°РЎР‹РЎвЂљ РЎРѓ РЎвЂћР С•РЎвЂљР С•.</p>
+                        <p>Расхождений не найдено. Данные совпадают с фото.</p>
                       )}
 
                       <div className="receipt-editor-summary-totals">
-                        <span>Р вЂ™ Р Т‘Р В°РЎв‚¬Р В±Р С•РЎР‚Р Т‘Р Вµ: {comparisonSummary.currentTotal.toFixed(2)} РІвЂљВ¬</span>
-                        <span>Р СџР С• РЎвЂћР С•РЎвЂљР С•: {comparisonSummary.analyzedTotal.toFixed(2)} РІвЂљВ¬</span>
+                        <span>В дашборде: {comparisonSummary.currentTotal.toFixed(2)} €</span>
+                        <span>По фото: {comparisonSummary.analyzedTotal.toFixed(2)} €</span>
                       </div>
 
                       <button type="button" className="btn btn-secondary" onClick={handleApplyComparison}>
-                        Р СџРЎР‚Р С‘Р СР ВµР Р…Р С‘РЎвЂљРЎРЉ Р Т‘Р В°Р Р…Р Р…РЎвЂ№Р Вµ РЎРѓ РЎвЂћР С•РЎвЂљР С•
+                        Применить данные с фото
                       </button>
                     </div>
                   )}
                 </div>
 
                 <div className="receipt-editor-items-head">
-                  <h4>СЂСџВ§С• Р СџР С•Р В·Р С‘РЎвЂ Р С‘Р С‘</h4>
+                  <h4>🧾 Позиции</h4>
                   <button type="button" className="btn btn-secondary" onClick={addEditorItem}>
-                    + Р вЂќР С•Р В±Р В°Р Р†Р С‘РЎвЂљРЎРЉ Р С—Р С•Р В·Р С‘РЎвЂ Р С‘РЎР‹
+                    + Добавить позицию
                   </button>
                 </div>
 
@@ -1299,9 +1299,9 @@ export default function DashboardTab({
                   <table>
                     <thead>
                       <tr>
-                        <th>Р СњР В°Р В·Р Р†Р В°Р Р…Р С‘Р Вµ</th>
-                        <th className="scan-col-price">Р В¦Р ВµР Р…Р В° (РІвЂљВ¬)</th>
-                        <th className="scan-col-category">Р С™Р В°РЎвЂљР ВµР С–Р С•РЎР‚Р С‘РЎРЏ</th>
+                        <th>Название</th>
+                        <th className="scan-col-price">Цена (€)</th>
+                        <th className="scan-col-category">Категория</th>
                         <th className="scan-col-delete"></th>
                       </tr>
                     </thead>
@@ -1340,7 +1340,7 @@ export default function DashboardTab({
                           </td>
                           <td>
                             <button className="delete-btn" type="button" onClick={() => deleteEditorItem(index)}>
-                              СЂСџвЂ”вЂРїС‘РЏ
+                              🗑️
                             </button>
                           </td>
                         </tr>
@@ -1350,8 +1350,8 @@ export default function DashboardTab({
                 </div>
 
                 <div className="total-row">
-                  <span className="total-label">СЂСџвЂ™В° Р ВРЎвЂљР С•Р С–Р С•:</span>
-                  <span className="total-value">{currentEditorTotal.toFixed(2)} РІвЂљВ¬</span>
+                  <span className="total-label">💰 Итого:</span>
+                  <span className="total-value">{currentEditorTotal.toFixed(2)} €</span>
                 </div>
 
                 <div className="receipt-editor-actions">
@@ -1361,7 +1361,7 @@ export default function DashboardTab({
                     onClick={closeEditor}
                     disabled={isEditorSaving || isComparing}
                   >
-                    Р С›РЎвЂљР СР ВµР Р…Р В°
+                    Отмена
                   </button>
                   <button
                     type="button"
@@ -1369,7 +1369,7 @@ export default function DashboardTab({
                     onClick={() => void handleSaveEditor()}
                     disabled={isEditorSaving || isComparing}
                   >
-                    {isEditorSaving ? "Р РЋР С•РЎвЂ¦РЎР‚Р В°Р Р…РЎРЏР ВµР С..." : "Р РЋР С•РЎвЂ¦РЎР‚Р В°Р Р…Р С‘РЎвЂљРЎРЉ Р С‘Р В·Р СР ВµР Р…Р ВµР Р…Р С‘РЎРЏ"}
+                    {isEditorSaving ? "Сохраняем..." : "Сохранить изменения"}
                   </button>
                 </div>
               </>
