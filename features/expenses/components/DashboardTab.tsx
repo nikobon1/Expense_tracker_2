@@ -781,22 +781,6 @@ export default function DashboardTab({
           <label>📅 Конец периода</label>
           <input type="date" value={endDate} onChange={(e) => onEndDateChange(e.target.value)} />
         </div>
-        <div className="dashboard-refresh-wrap">
-          <label>Обновление</label>
-          <div className="dashboard-action-buttons">
-            <button type="button" className="btn btn-secondary dashboard-refresh-btn" onClick={onRefresh} disabled={isLoading}>
-              {isLoading ? "Обновляем..." : "Обновить"}
-            </button>
-            <button
-              type="button"
-              className="btn btn-secondary dashboard-refresh-btn"
-              onClick={handleExportExcel}
-              disabled={isLoading || expenses.length === 0}
-            >
-              Экспорт в Excel
-            </button>
-          </div>
-        </div>
       </div>
 
       <div className="metrics-grid">
@@ -860,6 +844,22 @@ export default function DashboardTab({
               <span>Средний чек</span>
               <strong>{averageTransactionValue.toFixed(2)} €</strong>
             </div>
+          </div>
+        </div>
+        <div className="metric-card metric-actions-card">
+          <div className="metric-label">{"\u0414\u0435\u0439\u0441\u0442\u0432\u0438\u044f"}</div>
+          <div className="dashboard-action-buttons">
+            <button type="button" className="btn btn-secondary dashboard-refresh-btn" onClick={onRefresh} disabled={isLoading}>
+              {isLoading ? "\u041e\u0431\u043d\u043e\u0432\u043b\u044f\u0435\u043c..." : "\u041e\u0431\u043d\u043e\u0432\u0438\u0442\u044c"}
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary dashboard-refresh-btn"
+              onClick={handleExportExcel}
+              disabled={isLoading || expenses.length === 0}
+            >
+              {"\u042d\u043a\u0441\u043f\u043e\u0440\u0442 \u0432 Excel"}
+            </button>
           </div>
         </div>
       </div>

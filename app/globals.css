@@ -694,6 +694,11 @@ td select:focus {
   padding: 1.25rem;
 }
 
+.metric-actions-card {
+  display: grid;
+  align-content: start;
+}
+
 .metric-card.primary {
   background: var(--accent-gradient);
   border: none;
@@ -996,10 +1001,6 @@ td select:focus {
   font-size: 0.9rem;
 }
 
-.dashboard-refresh-wrap {
-  max-width: 180px;
-}
-
 .dashboard-action-buttons {
   display: grid;
   gap: 0.45rem;
@@ -1266,10 +1267,6 @@ td select:focus {
   .date-filter {
     flex-direction: column;
     align-items: stretch;
-  }
-
-  .dashboard-refresh-wrap {
-    max-width: none;
   }
 
   .receipt-editor-overlay {
