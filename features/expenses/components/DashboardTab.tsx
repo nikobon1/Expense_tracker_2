@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   PieChart,
   Pie,
@@ -308,6 +308,7 @@ export default function DashboardTab({
   const [isEditorLoading, setIsEditorLoading] = useState(false);
   const [isEditorSaving, setIsEditorSaving] = useState(false);
   const [isComparing, setIsComparing] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [editorError, setEditorError] = useState<string | null>(null);
   const [editorReceipt, setEditorReceipt] = useState<EditableReceipt | null>(null);
   const [comparisonImage, setComparisonImage] = useState<string | null>(null);
@@ -350,9 +351,14 @@ export default function DashboardTab({
     () => buildCategoryData(expenses).sort((a, b) => b.value - a.value),
     [expenses]
   );
-  const categoryTotal = useMemo(
-    () => categoryData.reduce((sum, point) => sum + point.value, 0),
-    [categoryData]
+  const categoryFilterOptions = useMemo(() => categoryData.map((point) => point.name), [categoryData]);
+  const filteredCategoryData = useMemo(() => {
+    if (categoryFilter === "all") return categoryData;
+    return categoryData.filter((point) => point.name === categoryFilter);
+  }, [categoryData, categoryFilter]);
+  const filteredCategoryTotal = useMemo(
+    () => filteredCategoryData.reduce((sum, point) => sum + point.value, 0),
+    [filteredCategoryData]
   );
   const prevCategoryTotalMap = useMemo(() => {
     const totals = new Map<string, number>();
@@ -394,6 +400,11 @@ export default function DashboardTab({
       .filter((row) => row.currentTotal > 0 || row.previousTotal > 0)
       .sort((a, b) => b.sortValue - a.sortValue);
   }, [categoryData, prevCategoryTotalMap]);
+  useEffect(() => {
+    if (categoryFilter !== "all" && !categoryFilterOptions.includes(categoryFilter)) {
+      setCategoryFilter("all");
+    }
+  }, [categoryFilter, categoryFilterOptions]);
   const dailyData = buildDailyData(expenses, startDate, endDate);
   const storeOptions = useMemo(() => {
     const baseStores = [...new Set(stores.map((store) => String(store ?? "").trim()).filter(Boolean))].sort((a, b) =>
@@ -919,10 +930,28 @@ export default function DashboardTab({
           <div className="charts-grid">
             <div className="chart-card">
               <h4>🥧 Расходы по категориям</h4>
+              <div className="category-filter-row">
+                <label htmlFor="dashboard-category-filter" className="metric-filter-label">
+                  {"\u041a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f"}
+                </label>
+                <select
+                  id="dashboard-category-filter"
+                  className="category-filter-select"
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                >
+                  <option value="all">{"\u0412\u0441\u0435 \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u0438"}</option>
+                  {categoryFilterOptions.map((category) => (
+                    <option key={`category-filter-${category}`} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                   <Pie
-                    data={categoryData}
+                    data={filteredCategoryData}
                     cx="50%"
                     cy="50%"
                     innerRadius={60}
@@ -932,7 +961,7 @@ export default function DashboardTab({
                     label={false}
                     labelLine={false}
                   >
-                    {categoryData.map((_, index) => (
+                    {filteredCategoryData.map((_, index) => (
                       <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
                     ))}
                   </Pie>
@@ -940,8 +969,8 @@ export default function DashboardTab({
                 </PieChart>
               </ResponsiveContainer>
               <div className="category-legend" aria-label="Легенда категорий">
-                {categoryData.map((entry, index) => {
-                  const percent = categoryTotal > 0 ? (entry.value / categoryTotal) * 100 : 0;
+                {filteredCategoryData.map((entry, index) => {
+                  const percent = filteredCategoryTotal > 0 ? (entry.value / filteredCategoryTotal) * 100 : 0;
                   return (
                     <div key={`legend-${entry.name}`} className="category-legend-item">
                       <div className="category-legend-left">

@@ -929,6 +929,24 @@ td select:focus {
   color: var(--text-secondary);
 }
 
+.category-filter-row {
+  display: grid;
+  grid-template-columns: minmax(110px, auto) minmax(0, 1fr);
+  gap: 0.55rem;
+  align-items: center;
+  margin-bottom: 0.7rem;
+}
+
+.category-filter-select {
+  width: 100%;
+  border: 1px solid var(--border-color);
+  border-radius: 0.7rem;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  padding: 0.45rem 0.65rem;
+  font-size: 0.82rem;
+}
+
 .category-legend {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1279,6 +1297,10 @@ td select:focus {
 }
 
 @media (max-width: 640px) {
+  .category-filter-row {
+    grid-template-columns: 1fr;
+  }
+
   .category-legend {
     grid-template-columns: 1fr;
   }
