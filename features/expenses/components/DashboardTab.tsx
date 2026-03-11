@@ -316,6 +316,11 @@ export default function DashboardTab({
   const amountChange = expensesTotal - prevMonthTotal;
   const percentChange =
     prevMonthTotal > 0 ? (amountChange / prevMonthTotal) * 100 : 0;
+  const periodCompareMax = Math.max(expensesTotal, prevMonthTotal, 0);
+  const currentPeriodWidth = periodCompareMax > 0 ? (expensesTotal / periodCompareMax) * 100 : 0;
+  const previousPeriodWidth = periodCompareMax > 0 ? (prevMonthTotal / periodCompareMax) * 100 : 0;
+  const currentPeriodLineWidth = expensesTotal > 0 ? Math.max(currentPeriodWidth, 8) : 0;
+  const previousPeriodLineWidth = prevMonthTotal > 0 ? Math.max(previousPeriodWidth, 8) : 0;
   const categoryData = useMemo(
     () => buildCategoryData(expenses).sort((a, b) => b.value - a.value),
     [expenses]
@@ -774,6 +779,20 @@ export default function DashboardTab({
           <div className="metric-label">💰 Общие расходы</div>
           <div className="metric-value">{expensesTotal.toFixed(2)} €</div>
           <div className="metric-secondary">Тот же период: {prevMonthTotal.toFixed(2)} €</div>
+          <div className="metric-period-compare" aria-hidden="true">
+            <div className="metric-period-row">
+              <span className="metric-period-name">This period</span>
+              <div className="metric-period-track">
+                <div className="metric-period-line current" style={{ width: `${currentPeriodLineWidth}%` }} />
+              </div>
+            </div>
+            <div className="metric-period-row">
+              <span className="metric-period-name">Prev period</span>
+              <div className="metric-period-track">
+                <div className="metric-period-line previous" style={{ width: `${previousPeriodLineWidth}%` }} />
+              </div>
+            </div>
+          </div>
           {prevMonthTotal > 0 ? (
             <div className={`metric-delta ${amountChange >= 0 ? "negative" : "positive"}`}>
               {amountChange >= 0 ? "↑" : "↓"} {Math.abs(amountChange).toFixed(2)} € ({Math.abs(percentChange).toFixed(1)}%)

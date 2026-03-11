@@ -722,6 +722,45 @@ td select:focus {
   opacity: 0.82;
 }
 
+.metric-period-compare {
+  display: grid;
+  gap: 0.3rem;
+  margin-top: 0.45rem;
+}
+
+.metric-period-row {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr);
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.metric-period-name {
+  font-size: 0.67rem;
+  opacity: 0.9;
+}
+
+.metric-period-track {
+  width: 100%;
+  height: 0.34rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.14);
+  overflow: hidden;
+}
+
+.metric-period-line {
+  height: 100%;
+  border-radius: 999px;
+}
+
+.metric-period-line.current {
+  background: rgba(99, 102, 241, 0.95);
+}
+
+.metric-period-line.previous {
+  background: rgba(148, 163, 184, 0.9);
+}
+
 .metric-card-filter {
   display: grid;
   gap: 0.35rem;
@@ -784,11 +823,24 @@ td select:focus {
 }
 
 .metric-card.primary .metric-secondary,
+.metric-card.primary .metric-period-name,
 .metric-card.primary .metric-delta,
 .metric-card.primary .metric-delta.neutral,
 .metric-card.primary .metric-delta.positive,
 .metric-card.primary .metric-delta.negative {
   color: rgba(255, 255, 255, 0.88);
+}
+
+.metric-card.primary .metric-period-track {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.metric-card.primary .metric-period-line.current {
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.metric-card.primary .metric-period-line.previous {
+  background: rgba(224, 231, 255, 0.72);
 }
 
 /* Charts grid */
