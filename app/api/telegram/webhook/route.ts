@@ -47,6 +47,11 @@ type TelegramUpdate = {
   edited_message?: TelegramMessage;
   callback_query?: TelegramCallbackQuery;
 };
+type ManualFlowStep = "amount" | "store" | "date" | "ready";
+type TelegramDraft = ReceiptData & {
+  _telegram_file_id?: string | null;
+  _manual_flow_step?: ManualFlowStep | null;
+};
 
 function getBotToken(): string {
   const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
@@ -115,12 +120,23 @@ function getDefaultCategory(): string {
   return "Другое";
 }
 
+function getInitialManualFlowStep(seed?: {
+  storeName?: string;
+  totalAmount?: number;
+  purchaseDate?: string;
+}): ManualFlowStep {
+  if (seed?.totalAmount === undefined) return "amount";
+  if (!seed.storeName?.trim()) return "store";
+  if (!seed.purchaseDate) return "date";
+  return "ready";
+}
+
 function createManualDraft(seed?: {
   storeName?: string;
   totalAmount?: number;
   purchaseDate?: string;
   itemName?: string;
-}): ReceiptData {
+}): TelegramDraft {
   return {
     store_name: seed?.storeName?.trim() || "Ручной ввод",
     purchase_date: seed?.purchaseDate || todayIsoDate(),
@@ -131,6 +147,7 @@ function createManualDraft(seed?: {
         category: getDefaultCategory(),
       },
     ],
+    _manual_flow_step: getInitialManualFlowStep(seed),
   };
 }
 
@@ -154,10 +171,25 @@ function parseManualCommandSeed(text: string): {
   if (parts.length === 0) return {};
   if (parts.length > 4) return null;
 
-  const storeName = parts[0];
   let totalAmount: number | undefined;
   let purchaseDate: string | undefined;
   let itemName: string | undefined;
+
+  if (parts.length === 1) {
+    const parsedAmount = parsePrice(parts[0]);
+    if (parsedAmount !== null) {
+      return { totalAmount: parsedAmount };
+    }
+
+    const parsedDate = parseIsoDateFromUser(parts[0]);
+    if (parsedDate) {
+      return { purchaseDate: parsedDate };
+    }
+
+    return { storeName: parts[0] };
+  }
+
+  const storeName = parts[0];
 
   if (parts[1]) {
     const parsedAmount = parsePrice(parts[1]);
@@ -188,6 +220,7 @@ function getManualModeHelpText(): string {
     "<b>Ручной режим</b>",
     "",
     "Создайте покупку без фото чека.",
+    "После /manual бот может пошагово спросить сумму, магазин и дату.",
     "Команды:",
     "- <code>Магазин Lidl</code>",
     "- <code>Сумма 12.49</code> или <code>Сумма 1 234,56</code>",
@@ -196,6 +229,7 @@ function getManualModeHelpText(): string {
     "- <code>Сохранить</code>",
     "",
     "Быстрый вариант:",
+    "- <code>/manual 12.49</code>",
     "- <code>/manual Lidl; 12.49; 14/02/26; Бананы</code>",
   ].join("\n");
 }
@@ -282,6 +316,72 @@ function formatDateHuman(isoDate: string): string {
 function truncate(input: string, max = 42): string {
   if (input.length <= max) return input;
   return `${input.slice(0, max - 3)}...`;
+}
+
+function getManualFlowStep(receipt: ReceiptData | null): ManualFlowStep | null {
+  if (!receipt) return null;
+  const step = (receipt as TelegramDraft)._manual_flow_step;
+  return step ?? null;
+}
+
+function setManualFlowStep(receipt: ReceiptData, step: ManualFlowStep | null): TelegramDraft {
+  const draft = receipt as TelegramDraft;
+  if (step) {
+    draft._manual_flow_step = step;
+  } else {
+    delete draft._manual_flow_step;
+  }
+  return draft;
+}
+
+function isSkipInput(input: string): boolean {
+  const normalized = normalizeCommand(input).toLowerCase();
+  return normalized === "пропустить" || normalized === "skip" || normalized === "нет";
+}
+
+function ensureManualDraftItem(draft: ReceiptData): ReceiptItem {
+  if (!draft.items[0]) {
+    draft.items = [
+      {
+        name: "Покупка без чека",
+        price: 0,
+        category: getDefaultCategory(),
+      },
+    ];
+  }
+
+  return draft.items[0];
+}
+
+function getManualFlowPrompt(step: ManualFlowStep, draft: ReceiptData): string {
+  const total = sumItems(draft.items ?? []);
+  const storeName = draft.store_name?.trim() || "Ручной ввод";
+
+  if (step === "amount") {
+    return [
+      "<b>Ручной режим</b>",
+      "",
+      "Отправьте сумму покупки одним сообщением.",
+      "Примеры: <code>12.49</code>, <code>12,49</code>, <code>1 234,56</code>.",
+      "Чтобы выйти, отправьте <code>Отмена</code>.",
+    ].join("\n");
+  }
+
+  if (step === "store") {
+    return [
+      `Сумма: <b>${total.toFixed(2)} EUR</b>`,
+      "Теперь отправьте название магазина.",
+      `Можно написать <code>Пропустить</code> — тогда оставлю <b>${escapeHtml(storeName)}</b>.`,
+    ].join("\n");
+  }
+
+  return [
+    `Сумма: <b>${total.toFixed(2)} EUR</b>`,
+    `Магазин: <b>${escapeHtml(storeName)}</b>`,
+    "Теперь отправьте дату покупки.",
+    "Поддерживаются: <code>14/02/26</code>, <code>14-02-2026</code>, <code>2026-02-14</code> или <code>Сегодня</code>.",
+    "Можно написать <code>Пропустить</code> — тогда оставлю сегодняшнюю дату.",
+  ].join("\n");
 }
 
 function getTelegramDateWarningThresholdDays(): number {
@@ -375,14 +475,15 @@ async function createAndSendManualDraft(
 ) {
   const manualDraft = createManualDraft(seed);
   await saveTelegramDraft(chatId, userId, manualDraft);
-  await sendDraftPreviewMessage(
-    chatId,
-    manualDraft,
-    seed?.totalAmount !== undefined
-      ? "Черновик ручной покупки создан. Проверьте и сохраните."
-      : "Ручной режим запущен. Укажите магазин и сумму, затем сохраните."
-  );
-  await sendTelegramMessage(chatId, getManualModeHelpText());
+  const step = getManualFlowStep(manualDraft);
+
+  if (step && step !== "ready") {
+    const note = step === "amount" ? "Ручной режим запущен." : "Черновик ручной покупки создан.";
+    await sendTelegramMessage(chatId, `${note}\n\n${getManualFlowPrompt(step, manualDraft)}`);
+    return;
+  }
+
+  await sendDraftPreviewMessage(chatId, manualDraft, "Черновик ручной покупки создан. Проверьте и сохраните.");
 }
 
 async function handleMainMenuTextCommand(params: {
@@ -581,6 +682,74 @@ function looksLikeDraftCommand(text: string): boolean {
   );
 }
 
+async function handleManualFlowTextInput(params: {
+  chatId: number;
+  userId: number | null;
+  text: string;
+}): Promise<{ handled: boolean; result?: string }> {
+  const draft = await getTelegramDraft(params.chatId);
+  const step = getManualFlowStep(draft);
+
+  if (!draft || !step || step === "ready") {
+    return { handled: false };
+  }
+
+  const input = normalizeCommand(params.text);
+
+  if (step === "amount") {
+    const price = parsePrice(input);
+    if (price === null) {
+      await sendTelegramMessage(
+        params.chatId,
+        [
+          "Не смог распознать сумму.",
+          "Отправьте только число, например: <code>12.49</code>, <code>12,49</code>, <code>1 234,56</code>.",
+        ].join("\n")
+      );
+      return { handled: true, result: "manual_flow_amount_invalid" };
+    }
+
+    const item = ensureManualDraftItem(draft);
+    item.price = price;
+    setManualFlowStep(draft, "store");
+    await saveTelegramDraft(params.chatId, params.userId, draft);
+    await sendTelegramMessage(params.chatId, getManualFlowPrompt("store", draft));
+    return { handled: true, result: "manual_flow_amount_updated" };
+  }
+
+  if (step === "store") {
+    if (!isSkipInput(input)) {
+      draft.store_name = input;
+    }
+    setManualFlowStep(draft, "date");
+    await saveTelegramDraft(params.chatId, params.userId, draft);
+    await sendTelegramMessage(params.chatId, getManualFlowPrompt("date", draft));
+    return { handled: true, result: "manual_flow_store_updated" };
+  }
+
+  let purchaseDate = todayIsoDate();
+  if (!isSkipInput(input)) {
+    const parsed = parseIsoDateFromUser(input);
+    if (!parsed) {
+      await sendTelegramMessage(
+        params.chatId,
+        [
+          "Не смог распознать дату.",
+          "Отправьте, например, <code>14/02/26</code>, <code>14-02-2026</code>, <code>2026-02-14</code> или <code>Сегодня</code>.",
+        ].join("\n")
+      );
+      return { handled: true, result: "manual_flow_date_invalid" };
+    }
+    purchaseDate = parsed;
+  }
+
+  draft.purchase_date = purchaseDate;
+  setManualFlowStep(draft, null);
+  await saveTelegramDraft(params.chatId, params.userId, draft);
+  await sendDraftPreviewMessage(params.chatId, draft, "Черновик ручной покупки готов. Проверьте и сохраните.");
+  return { handled: true, result: "manual_flow_completed" };
+}
+
 async function handleDraftCommand(params: {
   chatId: number;
   userId: number | null;
@@ -618,6 +787,12 @@ async function handleDraftCommand(params: {
   }
 
   if (lower === "сохранить" || lower === "save" || lower === "/save") {
+    const manualStep = getManualFlowStep(draft);
+    if (manualStep && manualStep !== "ready") {
+      await sendTelegramMessage(chatId, `Сначала завершите ручной ввод.\n\n${getManualFlowPrompt(manualStep, draft)}`);
+      return { handled: true, result: "manual_flow_incomplete" };
+    }
+
     const draftWithMeta = draft as ReceiptData & { _telegram_file_id?: string | null };
     const saved = await saveReceiptToDb({
       store_name: draft.store_name,
@@ -644,6 +819,7 @@ async function handleDraftCommand(params: {
       return { handled: true, result: "draft_date_invalid" };
     }
     draft.purchase_date = parsed;
+    setManualFlowStep(draft, null);
     await saveTelegramDraft(chatId, userId, draft);
     if (!silentSuccess) {
       await sendDraftPreviewMessage(chatId, draft, "Дата обновлена.");
@@ -654,6 +830,7 @@ async function handleDraftCommand(params: {
   match = /^(?:store|магазин)\s+(.+)$/i.exec(cmd);
   if (match) {
     draft.store_name = match[1].trim();
+    setManualFlowStep(draft, null);
     await saveTelegramDraft(chatId, userId, draft);
     if (!silentSuccess) {
       await sendDraftPreviewMessage(chatId, draft, "Магазин обновлен.");
@@ -684,6 +861,7 @@ async function handleDraftCommand(params: {
       draft.items[0].price = price;
     }
 
+    setManualFlowStep(draft, null);
     await saveTelegramDraft(chatId, userId, draft);
     if (!silentSuccess) {
       await sendDraftPreviewMessage(chatId, draft, "Сумма обновлена.");
@@ -706,6 +884,7 @@ async function handleDraftCommand(params: {
       return { handled: true, result: "draft_price_invalid" };
     }
     draft.items[index].price = price;
+    setManualFlowStep(draft, null);
     await saveTelegramDraft(chatId, userId, draft);
     if (!silentSuccess) {
       await sendDraftPreviewMessage(chatId, draft, `Цена позиции ${index + 1} обновлена.`);
@@ -721,6 +900,7 @@ async function handleDraftCommand(params: {
       return { handled: true, result: "draft_item_missing" };
     }
     draft.items[index].name = match[2].trim();
+    setManualFlowStep(draft, null);
     await saveTelegramDraft(chatId, userId, draft);
     if (!silentSuccess) {
       await sendDraftPreviewMessage(chatId, draft, `Название позиции ${index + 1} обновлено.`);
@@ -741,6 +921,7 @@ async function handleDraftCommand(params: {
     } else {
       draft.items[0].name = match[1].trim();
     }
+    setManualFlowStep(draft, null);
     await saveTelegramDraft(chatId, userId, draft);
     if (!silentSuccess) {
       await sendDraftPreviewMessage(chatId, draft, "Название товара обновлено.");
@@ -761,6 +942,7 @@ async function handleDraftCommand(params: {
     } else {
       draft.items[0].name = match[1].trim();
     }
+    setManualFlowStep(draft, null);
     await saveTelegramDraft(chatId, userId, draft);
     if (!silentSuccess) {
       await sendDraftPreviewMessage(chatId, draft, "Название товара обновлено.");
@@ -776,6 +958,7 @@ async function handleDraftCommand(params: {
       return { handled: true, result: "draft_item_missing" };
     }
     draft.items[index].category = match[2].trim();
+    setManualFlowStep(draft, null);
     await saveTelegramDraft(chatId, userId, draft);
     if (!silentSuccess) {
       await sendDraftPreviewMessage(chatId, draft, `Категория позиции ${index + 1} обновлена.`);
@@ -798,6 +981,7 @@ async function handleDraftCommand(params: {
       }
       return { handled: true, result: "draft_deleted_empty" };
     }
+    setManualFlowStep(draft, null);
     await saveTelegramDraft(chatId, userId, draft);
     if (!silentSuccess) {
       await sendDraftPreviewMessage(chatId, draft, `Позиция ${index + 1} удалена.`);
@@ -906,10 +1090,18 @@ async function handleDraftCallback(params: {
       return { handled: true, result: "no_draft" };
     }
 
+    const wasManualDateStep = getManualFlowStep(draft) === "date";
     draft.purchase_date = todayIsoDate();
+    if (wasManualDateStep) {
+      setManualFlowStep(draft, null);
+    }
     await saveTelegramDraft(chatId, userId, draft);
     await answerTelegramCallbackQuery(callbackQueryId, "Дата = сегодня");
-    await sendDraftPreviewMessage(chatId, draft, "Дата установлена на сегодня.");
+    await sendDraftPreviewMessage(
+      chatId,
+      draft,
+      wasManualDateStep ? "Дата установлена на сегодня. Черновик готов." : "Дата установлена на сегодня."
+    );
     return { handled: true, result: "draft_date_today" };
   }
 
@@ -993,9 +1185,9 @@ export async function POST(request: NextRequest) {
       }
 
       const isManualCommand = /^\/manual(?:@[a-zA-Z0-9_]+)?(?:\s+.*)?$/i.test(text);
-        const manualSeed = parseManualCommandSeed(text);
-        if (isManualCommand) {
-          if (manualSeed === null) {
+      const manualSeed = parseManualCommandSeed(text);
+      if (isManualCommand) {
+        if (manualSeed === null) {
           await sendTelegramMessage(chatId, "Неверный формат /manual.\n\n" + getManualModeHelpText());
           return NextResponse.json({ ok: true, handled: "manual_draft_invalid" });
         }
@@ -1010,6 +1202,11 @@ export async function POST(request: NextRequest) {
       const draftCommand = await handleDraftCommandBatch({ chatId, userId: fromUserId, text });
       if (draftCommand.handled) {
         return NextResponse.json({ ok: true, handled: draftCommand.result ?? "draft_command" });
+      }
+
+      const manualFlowInput = await handleManualFlowTextInput({ chatId, userId: fromUserId, text });
+      if (manualFlowInput.handled) {
+        return NextResponse.json({ ok: true, handled: manualFlowInput.result ?? "manual_flow" });
       }
     }
 

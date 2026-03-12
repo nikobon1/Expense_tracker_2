@@ -1,5 +1,28 @@
 # Session Handoff (2026-02-26)
 
+## Update (2026-03-12)
+
+### Telegram manual entry flow
+
+- Reworked `app/api/telegram/webhook/route.ts` for manual purchases without receipt photo.
+- Manual mode is now guided step-by-step: `amount -> store -> date -> save`.
+- The bot now accepts a plain numeric message as the manual amount, without requiring `Sum ...`.
+- Added fast path `/manual 12.49`.
+- Existing draft edit commands were kept as fallback.
+- Prevented saving an incomplete manual draft before the required flow is finished.
+- `Today` now completes the date step correctly for the guided manual flow.
+
+### Validation
+
+- `npm.cmd run lint` passed.
+- Local `npm.cmd run build` failed only because local auth env is missing for `/api/auth/[...nextauth]`.
+- Production Vercel build and deploy succeeded.
+
+### Deploy
+
+- Production alias remains: `https://porto-receipts.vercel.app`
+- Vercel production deploy completed on 2026-03-12.
+
 ## Что это
 
 Краткий файл-памятка для следующей сессии: что уже сделано в проекте, что задеплоено, где смотреть, что ещё можно улучшить.
