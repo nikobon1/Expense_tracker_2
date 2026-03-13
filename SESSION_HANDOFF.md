@@ -1,5 +1,17 @@
 # Session Handoff (2026-02-26)
 
+## Update (2026-03-13)
+
+### Dashboard category filter
+
+- Updated `features/expenses/components/DashboardTab.tsx`.
+- When a category is selected in the dashboard category filter, the `Expenses by day` chart now uses only expenses from that category.
+- Other categories are excluded from the daily bars and tooltip breakdown until the filter is reset to `all`.
+
+### Validation
+
+- `npm.cmd run lint` passed.
+
 ## Update (2026-03-12)
 
 ### Telegram manual entry flow

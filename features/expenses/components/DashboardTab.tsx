@@ -356,6 +356,10 @@ export default function DashboardTab({
     if (categoryFilter === "all") return categoryData;
     return categoryData.filter((point) => point.name === categoryFilter);
   }, [categoryData, categoryFilter]);
+  const categoryFilteredExpenses = useMemo(() => {
+    if (categoryFilter === "all") return expenses;
+    return expenses.filter((expense) => expense.category === categoryFilter);
+  }, [categoryFilter, expenses]);
   const filteredCategoryTotal = useMemo(
     () => filteredCategoryData.reduce((sum, point) => sum + point.value, 0),
     [filteredCategoryData]
@@ -405,7 +409,10 @@ export default function DashboardTab({
       setCategoryFilter("all");
     }
   }, [categoryFilter, categoryFilterOptions]);
-  const dailyData = buildDailyData(expenses, startDate, endDate);
+  const dailyData = useMemo(
+    () => buildDailyData(categoryFilteredExpenses, startDate, endDate),
+    [categoryFilteredExpenses, endDate, startDate]
+  );
   const storeOptions = useMemo(() => {
     const baseStores = [...new Set(stores.map((store) => String(store ?? "").trim()).filter(Boolean))].sort((a, b) =>
       a.localeCompare(b, "ru")
