@@ -7,6 +7,8 @@
 - Updated `features/expenses/components/DashboardTab.tsx`.
 - When a category is selected in the dashboard category filter, the `Expenses by day` chart now uses only expenses from that category.
 - Other categories are excluded from the daily bars and tooltip breakdown until the filter is reset to `all`.
+- The `Детализация расходов` table now follows the same category filter and hides rows from other categories.
+- Receipt action buttons in the table stay attached to the first visible row after category filtering.
 
 ### Validation
 

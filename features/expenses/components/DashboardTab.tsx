@@ -435,13 +435,13 @@ export default function DashboardTab({
 
   const receiptFirstExpenseId = useMemo(() => {
     const first = new Map<number, number>();
-    for (const exp of expenses) {
+    for (const exp of categoryFilteredExpenses) {
       if (!first.has(exp.receiptId)) {
         first.set(exp.receiptId, exp.id);
       }
     }
     return first;
-  }, [expenses]);
+  }, [categoryFilteredExpenses]);
 
   const currentEditorTotal = useMemo(() => {
     if (!editorReceipt) return 0;
@@ -1132,7 +1132,7 @@ export default function DashboardTab({
                   </tr>
                 </thead>
                 <tbody>
-                  {expenses.map((exp) => {
+                  {categoryFilteredExpenses.map((exp) => {
                     const isFirstInReceipt = receiptFirstExpenseId.get(exp.receiptId) === exp.id;
 
                     return (
