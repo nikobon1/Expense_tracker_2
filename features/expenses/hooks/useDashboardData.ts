@@ -4,12 +4,17 @@ import { useCallback, useState } from "react";
 import type { Expense } from "@/features/expenses/types";
 import { getExpenses } from "@/lib/api";
 
+function getLocalIsoDate(date: Date): string {
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return localDate.toISOString().slice(0, 10);
+}
+
 function getInitialDateRange() {
   const today = new Date();
   const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
   return {
-    start: firstDay.toISOString().split("T")[0],
-    end: today.toISOString().split("T")[0],
+    start: getLocalIsoDate(firstDay),
+    end: getLocalIsoDate(today),
   };
 }
 
