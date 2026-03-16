@@ -43,6 +43,11 @@ export function useDashboardData() {
   }>({ totalUsd: 0, count: 0, items: [] });
   const [isLoading, setIsLoading] = useState(false);
 
+  const syncEndDateToToday = useCallback(() => {
+    const today = getLocalIsoDate(new Date());
+    setEndDate((current) => (current === today ? current : today));
+  }, []);
+
   const loadExpenses = useCallback(async () => {
     if (!startDate || !endDate) return;
 
@@ -74,6 +79,7 @@ export function useDashboardData() {
     setStartDate,
     setEndDate,
     setSelectedStore,
+    syncEndDateToToday,
     loadExpenses,
   };
 }

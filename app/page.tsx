@@ -22,6 +22,7 @@ export default function Home() {
     setStartDate,
     setEndDate,
     setSelectedStore,
+    syncEndDateToToday,
     loadExpenses,
   } = dashboardData;
 
@@ -63,7 +64,10 @@ export default function Home() {
           </button>
           <button
             className={`tab ${activeTab === 'dashboard' ? 'active' : ''}`}
-            onClick={() => setActiveTab('dashboard')}
+            onClick={() => {
+              syncEndDateToToday();
+              setActiveTab('dashboard');
+            }}
           >
             📊 Дашборд
           </button>
