@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { ReceiptItem } from "@/features/expenses/types";
-import { saveReceiptToDb } from "@/lib/server/receipts";
+import {
+  getDatabaseSchemaMissingMessage,
+  isDatabaseSchemaMissingError,
+  saveReceiptToDb,
+} from "@/lib/server/receipts";
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,6 +24,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, receiptId: result.receiptId });
   } catch (error) {
     console.error("Save receipt error:", error);
+    if (isDatabaseSchemaMissingError(error)) {
+      return NextResponse.json(
+        { error: getDatabaseSchemaMissingMessage() },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to save receipt" },
       { status: 500 }

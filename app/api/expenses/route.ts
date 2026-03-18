@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { neon } from '@neondatabase/serverless';
 import { normalizeCategory } from '@/lib/category-normalization';
 import { normalizeStoreName } from '@/lib/store-normalization';
+import {
+    getDatabaseSchemaMissingMessage,
+    getDb,
+    isDatabaseSchemaMissingError,
+} from '@/lib/server/receipts';
 
 function shiftDateByMonths(dateString: string, monthOffset: number) {
     const [yearPart, monthPart, dayPart] = dateString.split('-').map(Number);
@@ -18,14 +22,6 @@ function shiftDateByMonths(dateString: string, monthOffset: number) {
     return new Date(Date.UTC(targetYear, normalizedMonthIndex, normalizedDay))
         .toISOString()
         .split('T')[0];
-}
-
-function getDb() {
-    const databaseUrl = process.env.DATABASE_URL;
-    if (!databaseUrl) {
-        throw new Error('DATABASE_URL is not set');
-    }
-    return neon(databaseUrl);
 }
 
 function aggregateCategoryTotals(rows: Array<{ category?: unknown; total?: unknown }>) {
@@ -60,7 +56,7 @@ export async function GET(request: NextRequest) {
         const normalizedStoreFilter = hasStoreFilter ? normalizeStoreName(store) : '';
 
         // Get expenses for the period.
-        const expensesRows = await sql`
+        const expensesRows = (await sql`
       SELECT 
         i.id,
         r.id as receipt_id,
@@ -73,51 +69,52 @@ export async function GET(request: NextRequest) {
       JOIN items i ON r.id = i.receipt_id
       WHERE r.purchase_date BETWEEN ${startDate} AND ${endDate}
       ORDER BY r.purchase_date DESC
-    `;
+    `) as Array<{
+            id: number | string;
+            receipt_id: number | string;
+            date: string;
+            store: string | null;
+            item: string | null;
+            price: number | string | null;
+            category: string | null;
+        }>;
 
         // Compare against the same date range shifted one calendar month back.
         const prevPeriodStart = shiftDateByMonths(startDate, -1);
         const prevPeriodEnd = shiftDateByMonths(endDate, -1);
 
-        const prevMonthRows = await sql`
+        const prevMonthRows = (await sql`
       SELECT store_name, COALESCE(SUM(total_amount), 0) as total
       FROM receipts
       WHERE purchase_date BETWEEN ${prevPeriodStart} AND ${prevPeriodEnd}
       GROUP BY store_name
-    `;
+    `) as Array<{
+            store_name: string | null;
+            total: number | string | null;
+        }>;
 
-        const prevPeriodCategoryRows = await sql`
+        const prevPeriodCategoryRows = (await sql`
       SELECT r.store_name, i.category, COALESCE(SUM(i.price), 0) as total
       FROM receipts r
       JOIN items i ON r.id = i.receipt_id
       WHERE r.purchase_date BETWEEN ${prevPeriodStart} AND ${prevPeriodEnd}
       GROUP BY r.store_name, i.category
-    `;
+    `) as Array<{
+            store_name: string | null;
+            category: string | null;
+            total: number | string | null;
+        }>;
 
-        const stores = await sql`
+        const stores = (await sql`
       SELECT DISTINCT TRIM(store_name) as store
       FROM receipts
       WHERE purchase_date BETWEEN ${startDate} AND ${endDate}
         AND store_name IS NOT NULL
         AND TRIM(store_name) <> ''
       ORDER BY store
-    `;
+    `) as Array<{ store: string | null }>;
 
-        await sql`
-      CREATE TABLE IF NOT EXISTS receipt_analyze_logs (
-        id BIGSERIAL PRIMARY KEY,
-        provider TEXT NOT NULL,
-        model TEXT NOT NULL,
-        input_tokens INTEGER NOT NULL DEFAULT 0,
-        output_tokens INTEGER NOT NULL DEFAULT 0,
-        total_tokens INTEGER NOT NULL DEFAULT 0,
-        estimated_cost_usd NUMERIC(12, 8),
-        store_name TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `;
-
-        const analyzeCostRows = await sql`
+        const analyzeCostRows = (await sql`
       SELECT
         id,
         provider,
@@ -132,7 +129,17 @@ export async function GET(request: NextRequest) {
       WHERE created_at::date BETWEEN ${startDate} AND ${endDate}
       ORDER BY created_at DESC
       LIMIT 20
-    `;
+    `) as Array<{
+            id: number | string | null;
+            provider: string | null;
+            model: string | null;
+            input_tokens: number | string | null;
+            output_tokens: number | string | null;
+            total_tokens: number | string | null;
+            estimated_cost_usd: number | string | null;
+            store_name: string | null;
+            created_at: string;
+        }>;
 
         const matchesStoreFilter = (rawStore: unknown) => {
             if (!hasStoreFilter) return true;
@@ -213,6 +220,13 @@ export async function GET(request: NextRequest) {
                 },
                 stores: []
             });
+        }
+
+        if (isDatabaseSchemaMissingError(error)) {
+            return NextResponse.json(
+                { error: getDatabaseSchemaMissingMessage() },
+                { status: 503 }
+            );
         }
 
         return NextResponse.json(

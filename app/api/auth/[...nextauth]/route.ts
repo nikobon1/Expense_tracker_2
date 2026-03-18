@@ -4,6 +4,8 @@ import CredentialsProvider from "next-auth/providers/credentials";
 
 const providers: NextAuthOptions["providers"] = [];
 const isDevLoginEnabled = process.env.DEV_LOGIN_ENABLED?.trim().toLowerCase() === "true";
+const devLoginPassword = process.env.DEV_LOGIN_PASSWORD?.trim() || "";
+const isDevLoginConfigured = isDevLoginEnabled && devLoginPassword.length > 0;
 
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     providers.push(
@@ -14,7 +16,11 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
     );
 }
 
-if (isDevLoginEnabled) {
+if (isDevLoginEnabled && !isDevLoginConfigured) {
+    console.warn("DEV_LOGIN_ENABLED is true but DEV_LOGIN_PASSWORD is empty. Dev Login has been disabled.");
+}
+
+if (isDevLoginConfigured) {
     providers.push(
         CredentialsProvider({
             name: "Dev Login",
@@ -22,14 +28,13 @@ if (isDevLoginEnabled) {
                 password: { label: "Password", type: "password" },
             },
             async authorize(credentials) {
-                if (!isDevLoginEnabled) {
+                if (!isDevLoginConfigured) {
                     return null;
                 }
 
-                const requiredPassword = process.env.DEV_LOGIN_PASSWORD?.trim();
                 const providedPassword = credentials?.password?.trim();
 
-                if (requiredPassword && providedPassword !== requiredPassword) {
+                if (!providedPassword || providedPassword !== devLoginPassword) {
                     return null;
                 }
 

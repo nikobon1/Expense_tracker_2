@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { ReceiptItem } from "@/features/expenses/types";
-import { getReceiptById, updateReceiptInDb } from "@/lib/server/receipts";
+import {
+  getDatabaseSchemaMissingMessage,
+  getReceiptById,
+  isDatabaseSchemaMissingError,
+  updateReceiptInDb,
+} from "@/lib/server/receipts";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -27,8 +32,16 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     return NextResponse.json(receipt);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to load receipt";
-    const status = /invalid receipt id/i.test(message) ? 400 : 500;
-    return NextResponse.json({ error: message }, { status });
+    const status = /invalid receipt id/i.test(message)
+      ? 400
+      : isDatabaseSchemaMissingError(error)
+        ? 503
+        : 500;
+
+    const responseMessage = isDatabaseSchemaMissingError(error)
+      ? getDatabaseSchemaMissingMessage()
+      : message;
+    return NextResponse.json({ error: responseMessage }, { status });
   }
 }
 
@@ -53,7 +66,18 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to update receipt";
     const status =
-      /invalid receipt id/i.test(message) ? 400 : /receipt not found/i.test(message) ? 404 : 500;
-    return NextResponse.json({ error: message }, { status });
+      /invalid receipt id/i.test(message)
+        ? 400
+        : /receipt not found/i.test(message)
+          ? 404
+          : isDatabaseSchemaMissingError(error)
+            ? 503
+            : 500;
+
+    const responseMessage = isDatabaseSchemaMissingError(error)
+      ? getDatabaseSchemaMissingMessage()
+      : message;
+
+    return NextResponse.json({ error: responseMessage }, { status });
   }
 }

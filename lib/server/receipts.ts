@@ -14,6 +14,31 @@ export function getDb(): DbClient {
   return neon(databaseUrl);
 }
 
+export function getDatabaseSchemaMissingMessage(): string {
+  return "Database schema is not initialized. Run `npm run db:migrate` before using the app.";
+}
+
+export function isDatabaseSchemaMissingError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+
+  const dbError = error as Error & {
+    code?: string;
+    sourceError?: { code?: string; message?: string };
+  };
+
+  const errorCodes = [dbError.code, dbError.sourceError?.code];
+  if (errorCodes.includes("42P01") || errorCodes.includes("42703")) {
+    return true;
+  }
+
+  const message = `${dbError.message} ${dbError.sourceError?.message ?? ""}`.toLowerCase();
+  return message.includes("does not exist") && (
+    message.includes("relation") ||
+    message.includes("table") ||
+    message.includes("column")
+  );
+}
+
 function padDatePart(value: number): string {
   return String(value).padStart(2, "0");
 }
@@ -39,92 +64,16 @@ function normalizePurchaseDate(value: string | Date | null): string {
   return `${parsed.getUTCFullYear()}-${padDatePart(parsed.getUTCMonth() + 1)}-${padDatePart(parsed.getUTCDate())}`;
 }
 
-let initPromise: Promise<void> | null = null;
-
-export async function initDb(): Promise<void> {
-  if (initPromise) return initPromise;
-
-  initPromise = (async () => {
-    const sql = getDb();
-
-    await sql`
-      CREATE TABLE IF NOT EXISTS receipts (
-        id SERIAL PRIMARY KEY,
-        store_name TEXT,
-        purchase_date DATE,
-        total_amount DECIMAL(10, 2),
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `;
-
-    await sql`
-      ALTER TABLE receipts
-      ADD COLUMN IF NOT EXISTS source TEXT
-    `;
-
-    await sql`
-      ALTER TABLE receipts
-      ADD COLUMN IF NOT EXISTS telegram_file_id TEXT
-    `;
-
-    await sql`
-      CREATE TABLE IF NOT EXISTS items (
-        id SERIAL PRIMARY KEY,
-        receipt_id INTEGER REFERENCES receipts(id),
-        name TEXT,
-        price DECIMAL(10, 2),
-        category TEXT
-      )
-    `;
-
-    await sql`
-      CREATE TABLE IF NOT EXISTS telegram_processed_updates (
-        update_id BIGINT PRIMARY KEY,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `;
-
-    await sql`
-      CREATE TABLE IF NOT EXISTS telegram_receipt_drafts (
-        chat_id BIGINT PRIMARY KEY,
-        user_id BIGINT,
-        payload_text TEXT NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `;
-
-    await sql`
-      CREATE TABLE IF NOT EXISTS receipt_analyze_logs (
-        id BIGSERIAL PRIMARY KEY,
-        provider TEXT NOT NULL,
-        model TEXT NOT NULL,
-        input_tokens INTEGER NOT NULL DEFAULT 0,
-        output_tokens INTEGER NOT NULL DEFAULT 0,
-        total_tokens INTEGER NOT NULL DEFAULT 0,
-        estimated_cost_usd NUMERIC(12, 8),
-        store_name TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `;
-
-    await sql`
-      CREATE INDEX IF NOT EXISTS receipt_analyze_logs_created_at_idx
-      ON receipt_analyze_logs (created_at DESC)
-    `;
-
-    await sql`
-      CREATE INDEX IF NOT EXISTS receipt_analyze_logs_store_name_idx
-      ON receipt_analyze_logs (store_name)
-    `;
-  })();
-
-  try {
-    await initPromise;
-  } catch (error) {
-    initPromise = null;
-    throw error;
-  }
+function normalizeReceiptItems(items: ReceiptItem[]): Array<{
+  name: string;
+  price: number;
+  category: string;
+}> {
+  return items.map((item) => ({
+    name: String(item.name ?? "").trim(),
+    price: Number(item.price || 0),
+    category: normalizeCategory(item.category),
+  }));
 }
 
 export async function saveReceiptToDb(payload: {
@@ -136,35 +85,41 @@ export async function saveReceiptToDb(payload: {
 }): Promise<{ receiptId: number; totalAmount: number }> {
   const { store_name, purchase_date, items, source, telegram_file_id } = payload;
   const normalizedStoreName = normalizeStoreName(store_name);
+  const normalizedItems = normalizeReceiptItems(items);
 
-  if (!normalizedStoreName || !purchase_date || !items || items.length === 0) {
+  if (!normalizedStoreName || !purchase_date || !normalizedItems.length) {
     throw new Error("Missing required fields");
   }
 
-  await initDb();
   const sql = getDb();
 
-  const totalAmount = items.reduce((sum, item) => sum + Number(item.price || 0), 0);
+  const totalAmount = normalizedItems.reduce((sum, item) => sum + item.price, 0);
+  const itemsJson = JSON.stringify(normalizedItems);
 
-  const receiptResult = (await sql`
-    INSERT INTO receipts (store_name, purchase_date, total_amount, source, telegram_file_id)
-    VALUES (${normalizedStoreName}, ${purchase_date}, ${totalAmount}, ${source ?? null}, ${telegram_file_id ?? null})
-    RETURNING id
-  `) as Array<{ id: number | string }>;
+  const [receiptResult] = (await sql.transaction((tx) => [
+    tx`
+      WITH inserted_receipt AS (
+        INSERT INTO receipts (store_name, purchase_date, total_amount, source, telegram_file_id)
+        VALUES (${normalizedStoreName}, ${purchase_date}, ${totalAmount}, ${source ?? null}, ${telegram_file_id ?? null})
+        RETURNING id
+      ),
+      inserted_items AS (
+        INSERT INTO items (receipt_id, name, price, category)
+        SELECT
+          inserted_receipt.id,
+          item.name,
+          item.price,
+          item.category
+        FROM inserted_receipt
+        CROSS JOIN jsonb_to_recordset(${itemsJson}::jsonb) AS item(name TEXT, price NUMERIC(10, 2), category TEXT)
+        RETURNING receipt_id
+      )
+      SELECT id
+      FROM inserted_receipt
+    `,
+  ])) as [Array<{ id: number | string }>];
 
   const receiptId = Number(receiptResult[0]?.id);
-
-  for (const item of items) {
-    await sql`
-      INSERT INTO items (receipt_id, name, price, category)
-      VALUES (
-        ${receiptId},
-        ${item.name},
-        ${Number(item.price || 0)},
-        ${normalizeCategory(item.category)}
-      )
-    `;
-  }
 
   return { receiptId, totalAmount };
 }
@@ -172,7 +127,6 @@ export async function saveReceiptToDb(payload: {
 export async function getReceiptById(
   receiptId: number
 ): Promise<(ReceiptData & { id: number; total_amount: number; source: string | null; telegram_file_id: string | null }) | null> {
-  await initDb();
   const sql = getDb();
 
   const receiptRows = (await sql`
@@ -226,57 +180,55 @@ export async function updateReceiptInDb(
 ): Promise<{ receiptId: number; totalAmount: number }> {
   const { store_name, purchase_date, items } = payload;
   const normalizedStoreName = normalizeStoreName(store_name);
+  const normalizedItems = normalizeReceiptItems(items);
 
-  if (!normalizedStoreName || !purchase_date || !items || items.length === 0) {
+  if (!normalizedStoreName || !purchase_date || !normalizedItems.length) {
     throw new Error("Missing required fields");
   }
 
-  await initDb();
   const sql = getDb();
 
-  const exists = (await sql`
-    SELECT id
-    FROM receipts
-    WHERE id = ${receiptId}
-    LIMIT 1
-  `) as Array<{ id: number | string }>;
+  const totalAmount = normalizedItems.reduce((sum, item) => sum + item.price, 0);
+  const itemsJson = JSON.stringify(normalizedItems);
 
-  if (!exists[0]?.id) {
-    throw new Error("Receipt not found");
-  }
-
-  const totalAmount = items.reduce((sum, item) => sum + Number(item.price || 0), 0);
-
-  await sql`
-    UPDATE receipts
-    SET store_name = ${normalizedStoreName},
-        purchase_date = ${purchase_date},
-        total_amount = ${totalAmount}
-    WHERE id = ${receiptId}
-  `;
-
-  await sql`
-    DELETE FROM items
-    WHERE receipt_id = ${receiptId}
-  `;
-
-  for (const item of items) {
-    await sql`
-      INSERT INTO items (receipt_id, name, price, category)
-      VALUES (
-        ${receiptId},
-        ${item.name},
-        ${Number(item.price || 0)},
-        ${normalizeCategory(item.category)}
+  const [updateResult] = (await sql.transaction((tx) => [
+    tx`
+      WITH updated_receipt AS (
+        UPDATE receipts
+        SET store_name = ${normalizedStoreName},
+            purchase_date = ${purchase_date},
+            total_amount = ${totalAmount}
+        WHERE id = ${receiptId}
+        RETURNING id
+      ),
+      deleted_items AS (
+        DELETE FROM items
+        WHERE receipt_id IN (SELECT id FROM updated_receipt)
+      ),
+      inserted_items AS (
+        INSERT INTO items (receipt_id, name, price, category)
+        SELECT
+          updated_receipt.id,
+          item.name,
+          item.price,
+          item.category
+        FROM updated_receipt
+        CROSS JOIN jsonb_to_recordset(${itemsJson}::jsonb) AS item(name TEXT, price NUMERIC(10, 2), category TEXT)
+        RETURNING receipt_id
       )
-    `;
+      SELECT id
+      FROM updated_receipt
+    `,
+  ])) as [Array<{ id: number | string }>];
+
+  if (!updateResult[0]?.id) {
+    throw new Error("Receipt not found");
   }
 
   return { receiptId, totalAmount };
 }
 
 export async function claimTelegramUpdate(updateId: number): Promise<boolean> {
-  await initDb();
   const sql = getDb();
 
   const result = (await sql`
@@ -295,7 +247,6 @@ export async function saveTelegramDraft(
   receipt: ReceiptData,
   options?: { telegram_file_id?: string | null }
 ): Promise<void> {
-  await initDb();
   const sql = getDb();
   const receiptWithMeta = receipt as ReceiptData & { _telegram_file_id?: string | null };
   if (options?.telegram_file_id !== undefined) {
@@ -314,7 +265,6 @@ export async function saveTelegramDraft(
 }
 
 export async function getTelegramDraft(chatId: number): Promise<ReceiptData | null> {
-  await initDb();
   const sql = getDb();
 
   const rows = (await sql`
@@ -334,7 +284,6 @@ export async function getTelegramDraft(chatId: number): Promise<ReceiptData | nu
 }
 
 export async function deleteTelegramDraft(chatId: number): Promise<void> {
-  await initDb();
   const sql = getDb();
 
   await sql`
@@ -352,7 +301,6 @@ export async function saveReceiptAnalyzeLog(payload: {
   estimatedCostUsd: number | null;
   storeName?: string | null;
 }): Promise<void> {
-  await initDb();
   const sql = getDb();
 
   await sql`
