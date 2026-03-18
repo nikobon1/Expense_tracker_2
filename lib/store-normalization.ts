@@ -16,11 +16,11 @@ export function normalizeStoreName(value: string): string {
   const simplified = simplify(trimmed).replace(/[.,]/g, "");
 
   // Continente variants:
-  // "COntinente Hipermercados", "Continente Hipermercados Sa", etc.
-  if (simplified.startsWith("continente")) {
+  // "COntinente Hipermercados", "Continente Hipermercados Sa",
+  // "Modelo Continente Hipermercados Sa", etc.
+  if (/\bcontinente\b/.test(simplified)) {
     return "Continente";
   }
 
   return trimmed;
 }
-

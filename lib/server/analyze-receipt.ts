@@ -40,6 +40,7 @@ Additional receipt rules:
 - If the receipt contains "Total", "TOTAL A PAGAR", or "Total a pagar", treat that line as the final amount actually paid/spent.
 - Prefer the final paid total over subtotal/intermediate totals.
 - Use the final paid total to validate extracted items.
+- Use the category "Кофе" for coffee beans, ground coffee, capsules, instant coffee, and similar coffee products.
 `;
 
 const EFFECTIVE_SYSTEM_PROMPT = `${SYSTEM_PROMPT}\n\n${TOTAL_AMOUNT_HINTS}`;
