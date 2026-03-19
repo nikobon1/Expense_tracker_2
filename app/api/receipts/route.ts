@@ -1,29 +1,47 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { ReceiptItem } from "@/features/expenses/types";
 import {
   getDatabaseSchemaMissingMessage,
   isDatabaseSchemaMissingError,
   saveReceiptToDb,
 } from "@/lib/server/receipts";
+import {
+  getReceiptValidationErrorMessage,
+  isReceiptValidationError,
+  parseReceiptPayload,
+} from "@/lib/server/receipt-validation";
+
+function isInvalidJsonError(error: unknown): boolean {
+  return error instanceof SyntaxError;
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const body = (await request.json()) as {
-      store_name?: string;
-      purchase_date?: string;
-      items?: ReceiptItem[];
-    };
+    const body = parseReceiptPayload(await request.json());
 
     const result = await saveReceiptToDb({
-      store_name: body.store_name ?? "",
-      purchase_date: body.purchase_date ?? "",
-      items: body.items ?? [],
+      store_name: body.store_name,
+      purchase_date: body.purchase_date,
+      items: body.items,
       source: "web",
     });
 
     return NextResponse.json({ success: true, receiptId: result.receiptId });
   } catch (error) {
     console.error("Save receipt error:", error);
+    if (isInvalidJsonError(error)) {
+      return NextResponse.json(
+        { error: "Request body must be valid JSON" },
+        { status: 400 }
+      );
+    }
+
+    if (isReceiptValidationError(error)) {
+      return NextResponse.json(
+        { error: getReceiptValidationErrorMessage(error) },
+        { status: 400 }
+      );
+    }
+
     if (isDatabaseSchemaMissingError(error)) {
       return NextResponse.json(
         { error: getDatabaseSchemaMissingMessage() },

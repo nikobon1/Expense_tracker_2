@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { ReceiptItem } from "@/features/expenses/types";
 import {
   getDatabaseSchemaMissingMessage,
   getReceiptById,
   isDatabaseSchemaMissingError,
   updateReceiptInDb,
 } from "@/lib/server/receipts";
+import {
+  getReceiptValidationErrorMessage,
+  isReceiptValidationError,
+  parseReceiptPayload,
+} from "@/lib/server/receipt-validation";
 
 type RouteContext = {
   params: Promise<{ id: string }>;
@@ -17,6 +21,10 @@ function parseReceiptId(rawId: string): number {
     throw new Error("Invalid receipt id");
   }
   return parsed;
+}
+
+function isInvalidJsonError(error: unknown): boolean {
+  return error instanceof SyntaxError;
 }
 
 export async function GET(_request: NextRequest, context: RouteContext) {
@@ -50,16 +58,12 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const { id } = await context.params;
     const receiptId = parseReceiptId(id);
 
-    const body = (await request.json()) as {
-      store_name?: string;
-      purchase_date?: string;
-      items?: ReceiptItem[];
-    };
+    const body = parseReceiptPayload(await request.json());
 
     const updated = await updateReceiptInDb(receiptId, {
-      store_name: body.store_name ?? "",
-      purchase_date: body.purchase_date ?? "",
-      items: body.items ?? [],
+      store_name: body.store_name,
+      purchase_date: body.purchase_date,
+      items: body.items,
     });
 
     return NextResponse.json({ success: true, receiptId: updated.receiptId, totalAmount: updated.totalAmount });
@@ -68,15 +72,23 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
     const status =
       /invalid receipt id/i.test(message)
         ? 400
+        : isInvalidJsonError(error)
+          ? 400
+          : isReceiptValidationError(error)
+            ? 400
         : /receipt not found/i.test(message)
           ? 404
           : isDatabaseSchemaMissingError(error)
             ? 503
             : 500;
 
-    const responseMessage = isDatabaseSchemaMissingError(error)
-      ? getDatabaseSchemaMissingMessage()
-      : message;
+    const responseMessage = isInvalidJsonError(error)
+      ? "Request body must be valid JSON"
+      : isReceiptValidationError(error)
+        ? getReceiptValidationErrorMessage(error)
+        : isDatabaseSchemaMissingError(error)
+          ? getDatabaseSchemaMissingMessage()
+          : message;
 
     return NextResponse.json({ error: responseMessage }, { status });
   }
