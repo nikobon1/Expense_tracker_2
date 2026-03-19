@@ -31,6 +31,7 @@ interface ScanTabProps {
   onManualStoreNameChange: (value: string) => void;
   onManualPurchaseDateChange: (value: string) => void;
   onManualTotalChange: (value: string) => void;
+  onManualTotalBlur: () => void;
   onItemUpdate: (index: number, field: keyof ReceiptItem, value: string | number) => void;
   onItemDelete: (index: number) => void;
   currentTotal: number;
@@ -68,6 +69,7 @@ export default function ScanTab({
   onManualStoreNameChange,
   onManualPurchaseDateChange,
   onManualTotalChange,
+  onManualTotalBlur,
   onItemUpdate,
   onItemDelete,
   currentTotal,
@@ -134,14 +136,15 @@ export default function ScanTab({
             <div>
               <label className="scan-field-label">Общая сумма (EUR)</label>
               <input
-                type="number"
-                step="0.01"
+                type="text"
                 inputMode="decimal"
                 value={manualTotal}
                 onChange={(e) => onManualTotalChange(e.target.value)}
+                onBlur={onManualTotalBlur}
                 className="scan-field-input"
-                placeholder="0.00"
+                placeholder="12,49 или 1 234,56"
               />
+              <p className="scan-field-hint">Можно вводить с точкой, запятой, пробелами и символом валюты.</p>
             </div>
           </div>
 

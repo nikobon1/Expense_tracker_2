@@ -100,6 +100,7 @@ export default function Home() {
             onManualStoreNameChange={receiptFlow.setManualStoreName}
             onManualPurchaseDateChange={receiptFlow.setManualPurchaseDate}
             onManualTotalChange={receiptFlow.setManualTotal}
+            onManualTotalBlur={receiptFlow.normalizeManualTotal}
             onItemUpdate={receiptFlow.updateItem}
             onItemDelete={receiptFlow.deleteItem}
             currentTotal={receiptFlow.currentTotal}

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CATEGORIES } from "@/features/expenses/constants";
 import { analyzeReceipt, saveReceipt } from "@/lib/api";
+import { formatAmountForInput, parseFlexibleAmount } from "@/lib/amount";
 import { getReceiptDateWarning } from "@/lib/receipt-date-warning";
 import type { AlertState, ReceiptData, ReceiptItem } from "@/features/expenses/types";
 
@@ -256,20 +257,23 @@ export function useReceiptFlow() {
 
   const handleManualSave = useCallback(async () => {
     const normalizedStoreName = manualStoreName.trim();
-    const totalAmount = Number(manualTotal);
+    const totalAmount = parseFlexibleAmount(manualTotal);
 
     if (!normalizedStoreName) {
-      setAlert({ type: "error", message: "Enter a store name before saving." });
+      setAlert({ type: "error", message: "Укажите магазин перед сохранением." });
       return;
     }
 
     if (!manualPurchaseDate) {
-      setAlert({ type: "error", message: "Select a purchase date." });
+      setAlert({ type: "error", message: "Выберите дату покупки." });
       return;
     }
 
-    if (!Number.isFinite(totalAmount) || totalAmount <= 0) {
-      setAlert({ type: "error", message: "Enter a total amount greater than zero." });
+    if (totalAmount === null || totalAmount <= 0) {
+      setAlert({
+        type: "error",
+        message: "Введите сумму больше нуля. Поддерживаются форматы: 12.49, 12,49, 1 234,56, €12.49.",
+      });
       return;
     }
 
@@ -280,23 +284,29 @@ export function useReceiptFlow() {
         purchase_date: manualPurchaseDate,
         items: [
           {
-            name: "Purchase without receipt",
+            name: "Покупка без чека",
             price: totalAmount,
             category: CATEGORIES[CATEGORIES.length - 1],
           },
         ],
       });
 
-      setAlert({ type: "success", message: "Purchase saved without receipt photo." });
+      setAlert({ type: "success", message: "Покупка без чека сохранена." });
       setManualStoreName("");
       setManualPurchaseDate(getLocalTodayIso());
       setManualTotal("");
     } catch {
-      setAlert({ type: "error", message: "Failed to save the purchase." });
+      setAlert({ type: "error", message: "Не удалось сохранить покупку." });
     } finally {
       setIsSaving(false);
     }
   }, [manualPurchaseDate, manualStoreName, manualTotal]);
+
+  const normalizeManualTotal = useCallback(() => {
+    const parsed = parseFlexibleAmount(manualTotal);
+    if (parsed === null) return;
+    setManualTotal(formatAmountForInput(parsed));
+  }, [manualTotal]);
 
   const updateItem = useCallback((index: number, field: keyof ReceiptItem, value: string | number) => {
     setEditedItems((prevItems) => {
@@ -350,6 +360,7 @@ export function useReceiptFlow() {
     setManualStoreName,
     setManualPurchaseDate,
     setManualTotal,
+    normalizeManualTotal,
     updateItem,
     deleteItem,
     resetScanner,
