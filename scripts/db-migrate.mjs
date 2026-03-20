@@ -72,6 +72,17 @@ const statements = [
     CREATE INDEX IF NOT EXISTS receipt_analyze_logs_store_name_idx
     ON receipt_analyze_logs (store_name)
   `,
+  `
+    CREATE TABLE IF NOT EXISTS custom_categories (
+      id BIGSERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `,
+  `
+    CREATE UNIQUE INDEX IF NOT EXISTS custom_categories_name_lower_idx
+    ON custom_categories (LOWER(name))
+  `,
 ];
 
 try {

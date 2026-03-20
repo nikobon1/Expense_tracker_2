@@ -3,12 +3,14 @@
 import { useEffect, useState } from 'react';
 import DashboardTab from '@/features/expenses/components/DashboardTab';
 import ScanTab from '@/features/expenses/components/ScanTab';
+import { useCategoryOptions } from '@/features/expenses/hooks/useCategoryOptions';
 import { useDashboardData } from '@/features/expenses/hooks/useDashboardData';
 import { useReceiptFlow } from '@/features/expenses/hooks/useReceiptFlow';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'scan' | 'dashboard'>('scan');
   const receiptFlow = useReceiptFlow();
+  const categoryOptions = useCategoryOptions();
   const dashboardData = useDashboardData();
   const {
     startDate,
@@ -85,8 +87,10 @@ export default function Home() {
             manualStoreName={receiptFlow.manualStoreName}
             manualPurchaseDate={receiptFlow.manualPurchaseDate}
             manualTotal={receiptFlow.manualTotal}
+            categoryOptions={categoryOptions.categoryOptions}
             isAnalyzing={receiptFlow.isAnalyzing}
             isSaving={receiptFlow.isSaving}
+            onAddCategory={categoryOptions.addCategory}
             fileInputRef={receiptFlow.fileInputRef}
             onDrop={receiptFlow.handleDrop}
             onFileSelect={receiptFlow.handleFile}
@@ -112,10 +116,12 @@ export default function Home() {
             selectedStore={selectedStore}
             stores={stores}
             expenses={expenses}
+            categoryOptions={categoryOptions.categoryOptions}
             prevMonthTotal={prevMonthTotal}
             prevPeriodCategoryTotals={prevPeriodCategoryTotals}
             analyzeCost={analyzeCost}
             isLoading={dashboardData.isLoading}
+            onAddCategory={categoryOptions.addCategory}
             onStartDateChange={setStartDate}
             onEndDateChange={setEndDate}
             onStoreChange={setSelectedStore}

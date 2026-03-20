@@ -22,6 +22,11 @@ interface ExpensesResponse {
   stores: string[];
 }
 
+interface CategoriesResponse {
+  categories: string[];
+  customCategories: string[];
+}
+
 function normalizeIsoDate(value: string): string {
   const normalized = value.trim();
   if (!normalized) return "";
@@ -180,4 +185,38 @@ export async function getExpenses(startDate: string, endDate: string, store: str
     throw new Error("Failed to load expenses");
   }
   return response.json();
+}
+
+export async function getCategories(): Promise<CategoriesResponse> {
+  const response = await fetch("/api/categories");
+  const payload = await readJsonOrText(response);
+
+  if (!response.ok) {
+    throw new Error(getErrorMessage(response, payload, "Не удалось загрузить категории"));
+  }
+
+  if (!payload || typeof payload !== "object") {
+    throw new Error("Сервер вернул некорректный ответ по категориям");
+  }
+
+  return payload as CategoriesResponse;
+}
+
+export async function createCategory(name: string): Promise<CategoriesResponse & { category: string; existed?: boolean }> {
+  const response = await fetch("/api/categories", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  const payload = await readJsonOrText(response);
+
+  if (!response.ok) {
+    throw new Error(getErrorMessage(response, payload, "Не удалось сохранить категорию"));
+  }
+
+  if (!payload || typeof payload !== "object") {
+    throw new Error("Сервер вернул некорректный ответ по сохранению категории");
+  }
+
+  return payload as CategoriesResponse & { category: string; existed?: boolean };
 }

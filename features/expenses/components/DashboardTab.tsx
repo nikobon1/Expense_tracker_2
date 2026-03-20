@@ -13,7 +13,9 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { CATEGORIES, CHART_COLORS } from "@/features/expenses/constants";
+import CategoryManager from "@/features/expenses/components/CategoryManager";
+import { CHART_COLORS } from "@/features/expenses/constants";
+import type { AddCategoryResult } from "@/features/expenses/hooks/useCategoryOptions";
 import { analyzeReceipt, getReceipt, getReceiptImageFromTelegram, updateReceipt } from "@/lib/api";
 import { buildCategoryData, buildDailyData } from "@/features/expenses/utils";
 import type { DailyPoint, DailyReceiptSegment } from "@/features/expenses/utils";
@@ -25,6 +27,7 @@ interface DashboardTabProps {
   selectedStore: string;
   stores: string[];
   expenses: Expense[];
+  categoryOptions: string[];
   prevMonthTotal: number;
   prevPeriodCategoryTotals: Array<{ category: string; total: number }>;
   analyzeCost: {
@@ -43,6 +46,7 @@ interface DashboardTabProps {
     }>;
   };
   isLoading?: boolean;
+  onAddCategory: (value: string) => Promise<AddCategoryResult>;
   onStartDateChange: (value: string) => void;
   onEndDateChange: (value: string) => void;
   onStoreChange: (value: string) => void;
@@ -291,10 +295,12 @@ export default function DashboardTab({
   selectedStore,
   stores,
   expenses,
+  categoryOptions,
   prevMonthTotal,
   prevPeriodCategoryTotals,
   analyzeCost,
   isLoading = false,
+  onAddCategory,
   onStartDateChange,
   onEndDateChange,
   onStoreChange,
@@ -1348,9 +1354,12 @@ export default function DashboardTab({
 
                 <div className="receipt-editor-items-head">
                   <h4>🧾 Позиции</h4>
-                  <button type="button" className="btn btn-secondary" onClick={addEditorItem}>
+                  <div className="receipt-editor-head-actions">
+                    <CategoryManager onAddCategory={onAddCategory} />
+                    <button type="button" className="btn btn-secondary" onClick={addEditorItem}>
                     + Добавить позицию
-                  </button>
+                    </button>
+                  </div>
                 </div>
 
                 <div className="table-container">
@@ -1389,7 +1398,7 @@ export default function DashboardTab({
                               value={item.category}
                               onChange={(e) => updateEditorItem(index, "category", e.target.value)}
                             >
-                              {CATEGORIES.map((cat) => (
+                              {categoryOptions.map((cat) => (
                                 <option key={cat} value={cat}>
                                   {cat}
                                 </option>

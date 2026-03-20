@@ -1253,6 +1253,58 @@ td select:focus {
   margin: 0;
 }
 
+.receipt-editor-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.category-manager-panel {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+  display: grid;
+  gap: 0.65rem;
+}
+
+.category-manager-panel h4 {
+  margin: 0;
+}
+
+.category-manager {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.category-manager-form {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.category-manager-input {
+  min-width: min(320px, 100%);
+}
+
+.category-manager-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.category-manager-feedback {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
+.category-manager-feedback.success {
+  color: var(--success);
+}
+
+.category-manager-feedback.error {
+  color: var(--error);
+}
+
 .receipt-editor-actions {
   display: flex;
   justify-content: flex-end;

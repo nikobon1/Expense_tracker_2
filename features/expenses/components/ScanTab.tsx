@@ -2,7 +2,8 @@
 
 import type { DragEvent, RefObject } from "react";
 import Image from "next/image";
-import { CATEGORIES } from "@/features/expenses/constants";
+import CategoryManager from "@/features/expenses/components/CategoryManager";
+import type { AddCategoryResult } from "@/features/expenses/hooks/useCategoryOptions";
 import type { ReceiptData, ReceiptItem } from "@/features/expenses/types";
 
 interface ScanTabProps {
@@ -16,6 +17,7 @@ interface ScanTabProps {
   manualStoreName: string;
   manualPurchaseDate: string;
   manualTotal: string;
+  categoryOptions: string[];
   isAnalyzing: boolean;
   isSaving: boolean;
   fileInputRef: RefObject<HTMLInputElement | null>;
@@ -25,6 +27,7 @@ interface ScanTabProps {
   onReset: () => void;
   onSave: () => void;
   onManualSave: () => void;
+  onAddCategory: (value: string) => Promise<AddCategoryResult>;
   onStoreNameChange: (value: string) => void;
   onPurchaseDateChange: (value: string) => void;
   onPurchaseDateManualChange: (value: string) => void;
@@ -54,6 +57,7 @@ export default function ScanTab({
   manualStoreName,
   manualPurchaseDate,
   manualTotal,
+  categoryOptions,
   isAnalyzing,
   isSaving,
   fileInputRef,
@@ -63,6 +67,7 @@ export default function ScanTab({
   onReset,
   onSave,
   onManualSave,
+  onAddCategory,
   onStoreNameChange,
   onPurchaseDateChange,
   onPurchaseDateManualChange,
@@ -158,6 +163,10 @@ export default function ScanTab({
               <>Сохранить без чека</>
             )}
           </button>
+          <div className="category-manager-panel">
+            <h4>Категории</h4>
+            <CategoryManager onAddCategory={onAddCategory} />
+          </div>
         </div>
       </div>
     );
@@ -249,6 +258,11 @@ export default function ScanTab({
               </div>
             </div>
 
+            <div className="receipt-editor-items-head">
+              <h4>Категории и позиции</h4>
+              <CategoryManager onAddCategory={onAddCategory} />
+            </div>
+
             <div className="table-container">
               <table>
                 <thead>
@@ -282,7 +296,7 @@ export default function ScanTab({
                       </td>
                       <td>
                         <select value={item.category} onChange={(e) => onItemUpdate(index, "category", e.target.value)}>
-                          {CATEGORIES.map((cat) => (
+                          {categoryOptions.map((cat) => (
                             <option key={cat} value={cat}>
                               {cat}
                             </option>
