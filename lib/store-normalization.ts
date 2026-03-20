@@ -31,6 +31,15 @@ const STORE_ALIAS_RULES: StoreAliasRule[] = [
     matches: (lookupKey) => /\bneka\b/.test(lookupKey),
   },
   {
+    canonical: "So Coffee Roasters",
+    matches: (lookupKey) => {
+      const compact = lookupKey.replace(/\s+/g, "");
+      if (compact.includes("socoffee")) return true;
+      if (!/\bcoffee\b/.test(lookupKey)) return false;
+      return /\bso\b/.test(lookupKey) || /\broasters?\b/.test(lookupKey);
+    },
+  },
+  {
     canonical: "Гастроном Славянский",
     matches: (lookupKey) => {
       if (!/\bgastronom\b|\bgastonom\b/.test(lookupKey)) return false;
