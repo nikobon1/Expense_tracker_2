@@ -1,12 +1,11 @@
-import { CATEGORIES } from "@/features/expenses/constants";
+import { CATEGORIES, DEFAULT_CATEGORY } from "@/features/expenses/constants";
 
-const DEFAULT_CATEGORY = CATEGORIES.includes("Другое") ? "Другое" : "Other";
 const LEGACY_CATEGORY_MAP: Record<string, string> = {
   "????": "Кофе",
 };
 
 function countMojibakeMarkers(value: string): number {
-  return Array.from(value).reduce((count, ch) => count + (ch === "Р" || ch === "С" ? 1 : 0), 0);
+  return Array.from(value).reduce((count, ch) => count + (ch === "Р " || ch === "РЎ" ? 1 : 0), 0);
 }
 
 export function normalizeCategory(value: string | null | undefined): string {
@@ -24,7 +23,7 @@ export function normalizeCategory(value: string | null | undefined): string {
   if (caseInsensitive) return caseInsensitive;
 
   const likelyMojibake =
-    raw.includes("вЂ") || raw.includes("рџ") || raw.includes("Ð") || raw.includes("Ñ") || countMojibakeMarkers(raw) >= 2;
+    raw.includes("РІР‚") || raw.includes("СЂСџ") || raw.includes("Гђ") || raw.includes("Г‘") || countMojibakeMarkers(raw) >= 2;
 
   if (likelyMojibake) {
     return DEFAULT_CATEGORY;

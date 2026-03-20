@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CATEGORIES } from "@/features/expenses/constants";
+import { CATEGORIES, DEFAULT_CATEGORY } from "@/features/expenses/constants";
 import { analyzeReceipt, saveReceipt } from "@/lib/api";
 import { formatAmountForInput, parseFlexibleAmount } from "@/lib/amount";
 import { getReceiptDateWarning } from "@/lib/receipt-date-warning";
@@ -286,7 +286,7 @@ export function useReceiptFlow() {
           {
             name: "Покупка без чека",
             price: totalAmount,
-            category: CATEGORIES[CATEGORIES.length - 1],
+            category: DEFAULT_CATEGORY,
           },
         ],
       });
