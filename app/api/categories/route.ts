@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { CATEGORIES } from "@/features/expenses/constants";
 import {
   createCategoryInDb,
+  deleteCategoryFromDb,
   getCustomCategoriesFromDb,
   getDatabaseSchemaMissingMessage,
   isDatabaseSchemaMissingError,
@@ -65,11 +66,13 @@ export async function POST(request: NextRequest) {
       (category) => category.toLocaleLowerCase("ru") === normalizedName.toLocaleLowerCase("ru")
     );
     if (existingBaseCategory) {
+      const customCategories = await getCustomCategoriesFromDb();
       return NextResponse.json({
         success: true,
         category: existingBaseCategory,
         existed: true,
-        categories: CATEGORIES,
+        categories: mergeCategoryOptions(customCategories),
+        customCategories,
       });
     }
 
@@ -89,6 +92,44 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { error: error instanceof Error ? error.message : "Failed to save category" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const payload = (await request.json()) as { name?: unknown };
+    const normalizedName = normalizeCategoryInput(payload?.name);
+
+    if (!normalizedName) {
+      return NextResponse.json({ error: "Введите название категории." }, { status: 400 });
+    }
+
+    const isBaseCategory = CATEGORIES.some(
+      (category) => category.toLocaleLowerCase("ru") === normalizedName.toLocaleLowerCase("ru")
+    );
+    if (isBaseCategory) {
+      return NextResponse.json({ error: "Встроенные категории удалять нельзя." }, { status: 400 });
+    }
+
+    const result = await deleteCategoryFromDb(normalizedName);
+    const customCategories = await getCustomCategoriesFromDb();
+
+    return NextResponse.json({
+      success: true,
+      category: result.name,
+      deleted: result.deleted,
+      categories: mergeCategoryOptions(customCategories),
+      customCategories,
+    });
+  } catch (error) {
+    if (isDatabaseSchemaMissingError(error)) {
+      return NextResponse.json({ error: getDatabaseSchemaMissingMessage() }, { status: 503 });
+    }
+
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed to delete category" },
       { status: 500 }
     );
   }

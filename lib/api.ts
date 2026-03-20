@@ -220,3 +220,33 @@ export async function createCategory(name: string): Promise<CategoriesResponse &
 
   return payload as CategoriesResponse & { category: string; existed?: boolean };
 }
+
+export async function deleteCategory(name: string): Promise<CategoriesResponse & { category: string; deleted?: boolean }> {
+  const response = await fetch("/api/categories", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  const payload = await readJsonOrText(response);
+
+  if (!response.ok) {
+    throw new Error(getErrorMessage(response, payload, "Не удалось удалить категорию"));
+  }
+
+  if (!payload || typeof payload !== "object") {
+    throw new Error("Сервер вернул некорректный ответ при удалении категории");
+  }
+
+  return payload as CategoriesResponse & { category: string; deleted?: boolean };
+}
+
+export async function deleteReceipt(receiptId: number): Promise<void> {
+  const response = await fetch(`/api/receipts/${receiptId}`, {
+    method: "DELETE",
+  });
+  const payload = await readJsonOrText(response);
+
+  if (!response.ok) {
+    throw new Error(getErrorMessage(response, payload, "Не удалось удалить чек"));
+  }
+}

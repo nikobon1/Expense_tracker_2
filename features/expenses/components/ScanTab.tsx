@@ -3,7 +3,7 @@
 import type { DragEvent, RefObject } from "react";
 import Image from "next/image";
 import CategoryManager from "@/features/expenses/components/CategoryManager";
-import type { AddCategoryResult } from "@/features/expenses/hooks/useCategoryOptions";
+import type { AddCategoryResult, DeleteCategoryResult } from "@/features/expenses/hooks/useCategoryOptions";
 import type { ReceiptData, ReceiptItem } from "@/features/expenses/types";
 
 interface ScanTabProps {
@@ -18,6 +18,7 @@ interface ScanTabProps {
   manualPurchaseDate: string;
   manualTotal: string;
   categoryOptions: string[];
+  customCategories: string[];
   isAnalyzing: boolean;
   isSaving: boolean;
   fileInputRef: RefObject<HTMLInputElement | null>;
@@ -28,6 +29,7 @@ interface ScanTabProps {
   onSave: () => void;
   onManualSave: () => void;
   onAddCategory: (value: string) => Promise<AddCategoryResult>;
+  onDeleteCategory: (value: string) => Promise<DeleteCategoryResult>;
   onStoreNameChange: (value: string) => void;
   onPurchaseDateChange: (value: string) => void;
   onPurchaseDateManualChange: (value: string) => void;
@@ -58,6 +60,7 @@ export default function ScanTab({
   manualPurchaseDate,
   manualTotal,
   categoryOptions,
+  customCategories,
   isAnalyzing,
   isSaving,
   fileInputRef,
@@ -68,6 +71,7 @@ export default function ScanTab({
   onSave,
   onManualSave,
   onAddCategory,
+  onDeleteCategory,
   onStoreNameChange,
   onPurchaseDateChange,
   onPurchaseDateManualChange,
@@ -165,7 +169,11 @@ export default function ScanTab({
           </button>
           <div className="category-manager-panel">
             <h4>Категории</h4>
-            <CategoryManager onAddCategory={onAddCategory} />
+            <CategoryManager
+              customCategories={customCategories}
+              onAddCategory={onAddCategory}
+              onDeleteCategory={onDeleteCategory}
+            />
           </div>
         </div>
       </div>
@@ -260,7 +268,11 @@ export default function ScanTab({
 
             <div className="receipt-editor-items-head">
               <h4>Категории и позиции</h4>
-              <CategoryManager onAddCategory={onAddCategory} />
+              <CategoryManager
+                customCategories={customCategories}
+                onAddCategory={onAddCategory}
+                onDeleteCategory={onDeleteCategory}
+              />
             </div>
 
             <div className="table-container">
@@ -296,7 +308,7 @@ export default function ScanTab({
                       </td>
                       <td>
                         <select value={item.category} onChange={(e) => onItemUpdate(index, "category", e.target.value)}>
-                          {categoryOptions.map((cat) => (
+                          {Array.from(new Set([...categoryOptions, item.category].filter(Boolean))).map((cat) => (
                             <option key={cat} value={cat}>
                               {cat}
                             </option>

@@ -52,4 +52,28 @@ export async function createCategoryInDb(name: string): Promise<{ name: string; 
   return { name: normalizeCategoryName(insertedRows[0]?.name ?? normalizedName), existed: false };
 }
 
+export async function deleteCategoryFromDb(name: string): Promise<{ name: string; deleted: boolean }> {
+  const normalizedName = normalizeCategoryName(name);
+  if (!normalizedName) {
+    throw new Error("Category name is required");
+  }
+
+  if (CATEGORIES.some((baseCategory) => baseCategory.toLocaleLowerCase("ru") === normalizedName.toLocaleLowerCase("ru"))) {
+    throw new Error("Base categories cannot be deleted");
+  }
+
+  const sql = getDb();
+
+  const deletedRows = (await sql`
+    DELETE FROM custom_categories
+    WHERE LOWER(name) = LOWER(${normalizedName})
+    RETURNING name
+  `) as Array<{ name: string | null }>;
+
+  return {
+    name: normalizeCategoryName(deletedRows[0]?.name ?? normalizedName),
+    deleted: deletedRows.length > 0,
+  };
+}
+
 export { getDatabaseSchemaMissingMessage, isDatabaseSchemaMissingError };

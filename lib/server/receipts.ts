@@ -228,6 +228,36 @@ export async function updateReceiptInDb(
   return { receiptId, totalAmount };
 }
 
+export async function deleteReceiptFromDb(receiptId: number): Promise<void> {
+  const sql = getDb();
+
+  const existingRows = (await sql`
+    SELECT id
+    FROM receipts
+    WHERE id = ${receiptId}
+    LIMIT 1
+  `) as Array<{ id: number | string }>;
+
+  if (!existingRows[0]?.id) {
+    throw new Error("Receipt not found");
+  }
+
+  await sql`
+    DELETE FROM items
+    WHERE receipt_id = ${receiptId}
+  `;
+
+  const deletedReceiptRows = (await sql`
+    DELETE FROM receipts
+    WHERE id = ${receiptId}
+    RETURNING id
+  `) as Array<{ id: number | string }>;
+
+  if (!deletedReceiptRows[0]?.id) {
+    throw new Error("Receipt not found");
+  }
+}
+
 export async function claimTelegramUpdate(updateId: number): Promise<boolean> {
   const sql = getDb();
 

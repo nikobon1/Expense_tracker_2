@@ -88,9 +88,11 @@ export default function Home() {
             manualPurchaseDate={receiptFlow.manualPurchaseDate}
             manualTotal={receiptFlow.manualTotal}
             categoryOptions={categoryOptions.categoryOptions}
+            customCategories={categoryOptions.customCategories}
             isAnalyzing={receiptFlow.isAnalyzing}
             isSaving={receiptFlow.isSaving}
             onAddCategory={categoryOptions.addCategory}
+            onDeleteCategory={categoryOptions.removeCategory}
             fileInputRef={receiptFlow.fileInputRef}
             onDrop={receiptFlow.handleDrop}
             onFileSelect={receiptFlow.handleFile}
@@ -117,11 +119,13 @@ export default function Home() {
             stores={stores}
             expenses={expenses}
             categoryOptions={categoryOptions.categoryOptions}
+            customCategories={categoryOptions.customCategories}
             prevMonthTotal={prevMonthTotal}
             prevPeriodCategoryTotals={prevPeriodCategoryTotals}
             analyzeCost={analyzeCost}
             isLoading={dashboardData.isLoading}
             onAddCategory={categoryOptions.addCategory}
+            onDeleteCategory={categoryOptions.removeCategory}
             onStartDateChange={setStartDate}
             onEndDateChange={setEndDate}
             onStoreChange={setSelectedStore}

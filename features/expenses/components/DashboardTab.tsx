@@ -15,8 +15,8 @@ import {
 } from "recharts";
 import CategoryManager from "@/features/expenses/components/CategoryManager";
 import { CHART_COLORS } from "@/features/expenses/constants";
-import type { AddCategoryResult } from "@/features/expenses/hooks/useCategoryOptions";
-import { analyzeReceipt, getReceipt, getReceiptImageFromTelegram, updateReceipt } from "@/lib/api";
+import type { AddCategoryResult, DeleteCategoryResult } from "@/features/expenses/hooks/useCategoryOptions";
+import { analyzeReceipt, deleteReceipt, getReceipt, getReceiptImageFromTelegram, updateReceipt } from "@/lib/api";
 import { buildCategoryData, buildDailyData } from "@/features/expenses/utils";
 import type { DailyPoint, DailyReceiptSegment } from "@/features/expenses/utils";
 import type { Expense, ReceiptData, ReceiptItem } from "@/features/expenses/types";
@@ -28,6 +28,7 @@ interface DashboardTabProps {
   stores: string[];
   expenses: Expense[];
   categoryOptions: string[];
+  customCategories: string[];
   prevMonthTotal: number;
   prevPeriodCategoryTotals: Array<{ category: string; total: number }>;
   analyzeCost: {
@@ -47,6 +48,7 @@ interface DashboardTabProps {
   };
   isLoading?: boolean;
   onAddCategory: (value: string) => Promise<AddCategoryResult>;
+  onDeleteCategory: (value: string) => Promise<DeleteCategoryResult>;
   onStartDateChange: (value: string) => void;
   onEndDateChange: (value: string) => void;
   onStoreChange: (value: string) => void;
@@ -296,11 +298,13 @@ export default function DashboardTab({
   stores,
   expenses,
   categoryOptions,
+  customCategories,
   prevMonthTotal,
   prevPeriodCategoryTotals,
   analyzeCost,
   isLoading = false,
   onAddCategory,
+  onDeleteCategory,
   onStartDateChange,
   onEndDateChange,
   onStoreChange,
@@ -313,6 +317,7 @@ export default function DashboardTab({
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isEditorLoading, setIsEditorLoading] = useState(false);
   const [isEditorSaving, setIsEditorSaving] = useState(false);
+  const [isEditorDeleting, setIsEditorDeleting] = useState(false);
   const [isComparing, setIsComparing] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [editorError, setEditorError] = useState<string | null>(null);
@@ -506,13 +511,51 @@ export default function DashboardTab({
   };
 
   const closeEditor = () => {
-    if (isEditorSaving || isComparing) return;
+    if (isEditorSaving || isEditorDeleting || isComparing) return;
     setIsEditorOpen(false);
     setIsEditorLoading(false);
+    setIsEditorDeleting(false);
     setEditorError(null);
     setEditorReceipt(null);
     setComparisonImage(null);
     setComparisonData(null);
+  };
+
+  const handleDeleteReceipt = async (receiptId: number, options?: { fromEditor?: boolean }) => {
+    const fromEditor = options?.fromEditor ?? false;
+    if (!window.confirm(`Удалить чек #${receiptId}? Это действие нельзя отменить.`)) {
+      return;
+    }
+
+    if (fromEditor) {
+      setEditorError(null);
+      setIsEditorDeleting(true);
+    }
+
+    try {
+      await deleteReceipt(receiptId);
+
+      if (fromEditor) {
+        setIsEditorOpen(false);
+        setIsEditorLoading(false);
+        setEditorReceipt(null);
+        setComparisonImage(null);
+        setComparisonData(null);
+      }
+
+      await onRefresh?.();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Не удалось удалить чек";
+      if (fromEditor) {
+        setEditorError(message);
+      } else {
+        window.alert(message);
+      }
+    } finally {
+      if (fromEditor) {
+        setIsEditorDeleting(false);
+      }
+    }
   };
 
   const updateEditorItem = (index: number, field: keyof ReceiptItem, value: string | number) => {
@@ -1213,7 +1256,7 @@ export default function DashboardTab({
                 type="button"
                 className="btn btn-secondary"
                 onClick={closeEditor}
-                disabled={isEditorSaving || isComparing}
+                disabled={isEditorSaving || isEditorDeleting || isComparing}
               >
                 Закрыть
               </button>
@@ -1355,7 +1398,11 @@ export default function DashboardTab({
                 <div className="receipt-editor-items-head">
                   <h4>🧾 Позиции</h4>
                   <div className="receipt-editor-head-actions">
-                    <CategoryManager onAddCategory={onAddCategory} />
+                    <CategoryManager
+                      customCategories={customCategories}
+                      onAddCategory={onAddCategory}
+                      onDeleteCategory={onDeleteCategory}
+                    />
                     <button type="button" className="btn btn-secondary" onClick={addEditorItem}>
                     + Добавить позицию
                     </button>
@@ -1398,7 +1445,7 @@ export default function DashboardTab({
                               value={item.category}
                               onChange={(e) => updateEditorItem(index, "category", e.target.value)}
                             >
-                              {categoryOptions.map((cat) => (
+                              {Array.from(new Set([...categoryOptions, item.category].filter(Boolean))).map((cat) => (
                                 <option key={cat} value={cat}>
                                   {cat}
                                 </option>
@@ -1425,8 +1472,17 @@ export default function DashboardTab({
                   <button
                     type="button"
                     className="btn btn-secondary"
+                    onClick={() => void handleDeleteReceipt(editorReceipt.id, { fromEditor: true })}
+                    disabled={isEditorSaving || isEditorDeleting || isComparing}
+                    style={{ color: "var(--error)" }}
+                  >
+                    {isEditorDeleting ? "Удаляем..." : "Удалить чек"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
                     onClick={closeEditor}
-                    disabled={isEditorSaving || isComparing}
+                    disabled={isEditorSaving || isEditorDeleting || isComparing}
                   >
                     Отмена
                   </button>
@@ -1434,7 +1490,7 @@ export default function DashboardTab({
                     type="button"
                     className="btn btn-primary"
                     onClick={() => void handleSaveEditor()}
-                    disabled={isEditorSaving || isComparing}
+                    disabled={isEditorSaving || isEditorDeleting || isComparing}
                   >
                     {isEditorSaving ? "Сохраняем..." : "Сохранить изменения"}
                   </button>

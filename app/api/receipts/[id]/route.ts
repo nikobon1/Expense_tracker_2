@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  deleteReceiptFromDb,
   getDatabaseSchemaMissingMessage,
   getReceiptById,
   isDatabaseSchemaMissingError,
@@ -89,6 +90,32 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
         : isDatabaseSchemaMissingError(error)
           ? getDatabaseSchemaMissingMessage()
           : message;
+
+    return NextResponse.json({ error: responseMessage }, { status });
+  }
+}
+
+export async function DELETE(_request: NextRequest, context: RouteContext) {
+  try {
+    const { id } = await context.params;
+    const receiptId = parseReceiptId(id);
+
+    await deleteReceiptFromDb(receiptId);
+
+    return NextResponse.json({ success: true, receiptId });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Failed to delete receipt";
+    const status = /invalid receipt id/i.test(message)
+      ? 400
+      : /receipt not found/i.test(message)
+        ? 404
+        : isDatabaseSchemaMissingError(error)
+          ? 503
+          : 500;
+
+    const responseMessage = isDatabaseSchemaMissingError(error)
+      ? getDatabaseSchemaMissingMessage()
+      : message;
 
     return NextResponse.json({ error: responseMessage }, { status });
   }

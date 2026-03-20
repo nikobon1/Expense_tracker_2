@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { CATEGORIES } from "@/features/expenses/constants";
-import { createCategory, getCategories } from "@/lib/api";
+import { createCategory, deleteCategory, getCategories } from "@/lib/api";
 
 function normalizeCategoryLabel(value: string): string {
   return String(value ?? "").replace(/\s+/g, " ").trim();
@@ -13,8 +13,14 @@ export type AddCategoryResult =
   | { status: "exists"; category: string; message: string }
   | { status: "invalid"; message: string };
 
+export type DeleteCategoryResult =
+  | { status: "deleted"; category: string; message: string }
+  | { status: "missing"; category: string; message: string }
+  | { status: "invalid"; message: string };
+
 export function useCategoryOptions() {
   const [categoryOptions, setCategoryOptions] = useState<string[]>(CATEGORIES);
+  const [customCategories, setCustomCategories] = useState<string[]>([]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -22,8 +28,13 @@ export function useCategoryOptions() {
     const loadCategories = async () => {
       try {
         const data = await getCategories();
-        if (!isCancelled && Array.isArray(data.categories) && data.categories.length > 0) {
+        if (isCancelled) return;
+
+        if (Array.isArray(data.categories) && data.categories.length > 0) {
           setCategoryOptions(data.categories);
+        }
+        if (Array.isArray(data.customCategories)) {
+          setCustomCategories(data.customCategories);
         }
       } catch (error) {
         console.error("Failed to load categories:", error);
@@ -52,6 +63,9 @@ export function useCategoryOptions() {
       if (Array.isArray(result.categories) && result.categories.length > 0) {
         setCategoryOptions(result.categories);
       }
+      if (Array.isArray(result.customCategories)) {
+        setCustomCategories(result.customCategories);
+      }
 
       const category = result.category || normalized;
       if (result.existed) {
@@ -75,8 +89,49 @@ export function useCategoryOptions() {
     }
   }, []);
 
+  const removeCategory = useCallback(async (value: string): Promise<DeleteCategoryResult> => {
+    const normalized = normalizeCategoryLabel(value);
+    if (!normalized) {
+      return { status: "invalid", message: "Введите название категории." };
+    }
+
+    try {
+      const result = await deleteCategory(normalized);
+      if (Array.isArray(result.categories) && result.categories.length > 0) {
+        setCategoryOptions(result.categories);
+      } else {
+        setCategoryOptions(CATEGORIES);
+      }
+      if (Array.isArray(result.customCategories)) {
+        setCustomCategories(result.customCategories);
+      }
+
+      const category = result.category || normalized;
+      if (result.deleted) {
+        return {
+          status: "deleted",
+          category,
+          message: `Категория «${category}» удалена.`,
+        };
+      }
+
+      return {
+        status: "missing",
+        category,
+        message: `Категория «${category}» уже отсутствует.`,
+      };
+    } catch (error) {
+      return {
+        status: "invalid",
+        message: error instanceof Error ? error.message : "Не удалось удалить категорию.",
+      };
+    }
+  }, []);
+
   return {
     categoryOptions,
+    customCategories,
     addCategory,
+    removeCategory,
   };
 }

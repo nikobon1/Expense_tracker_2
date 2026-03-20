@@ -1,16 +1,28 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { AddCategoryResult } from "@/features/expenses/hooks/useCategoryOptions";
+import type { AddCategoryResult, DeleteCategoryResult } from "@/features/expenses/hooks/useCategoryOptions";
 
 interface CategoryManagerProps {
+  customCategories: string[];
   onAddCategory: (value: string) => Promise<AddCategoryResult>;
+  onDeleteCategory: (value: string) => Promise<DeleteCategoryResult>;
 }
 
-export default function CategoryManager({ onAddCategory }: CategoryManagerProps) {
+type FeedbackState = {
+  tone: "success" | "error";
+  message: string;
+} | null;
+
+export default function CategoryManager({
+  customCategories,
+  onAddCategory,
+  onDeleteCategory,
+}: CategoryManagerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [draft, setDraft] = useState("");
-  const [feedback, setFeedback] = useState<AddCategoryResult | null>(null);
+  const [feedback, setFeedback] = useState<FeedbackState>(null);
+  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
 
   useEffect(() => {
     if (!feedback) return;
@@ -20,7 +32,10 @@ export default function CategoryManager({ onAddCategory }: CategoryManagerProps)
 
   const handleSubmit = async () => {
     const result = await onAddCategory(draft);
-    setFeedback(result);
+    setFeedback({
+      tone: result.status === "invalid" ? "error" : "success",
+      message: result.message,
+    });
 
     if (result.status === "added" || result.status === "exists") {
       setDraft("");
@@ -28,6 +43,19 @@ export default function CategoryManager({ onAddCategory }: CategoryManagerProps)
     if (result.status === "added") {
       setIsOpen(false);
     }
+  };
+
+  const handleDelete = async (category: string) => {
+    if (!window.confirm(`Удалить категорию «${category}»?`)) return;
+
+    setPendingDelete(category);
+    const result = await onDeleteCategory(category);
+    setPendingDelete(null);
+
+    setFeedback({
+      tone: result.status === "invalid" ? "error" : "success",
+      message: result.message,
+    });
   };
 
   return (
@@ -74,11 +102,34 @@ export default function CategoryManager({ onAddCategory }: CategoryManagerProps)
         </div>
       )}
 
-      {feedback && (
-        <p className={`category-manager-feedback ${feedback.status === "invalid" ? "error" : "success"}`}>
-          {feedback.message}
-        </p>
-      )}
+      <div className="category-manager-list">
+        <div className="category-manager-list-head">
+          <span>Пользовательские категории</span>
+          <span>{customCategories.length}</span>
+        </div>
+
+        {customCategories.length > 0 ? (
+          <div className="category-manager-chips">
+            {customCategories.map((category) => (
+              <div key={category} className="category-manager-chip">
+                <span>{category}</span>
+                <button
+                  type="button"
+                  className="category-manager-delete"
+                  onClick={() => void handleDelete(category)}
+                  disabled={pendingDelete === category}
+                >
+                  {pendingDelete === category ? "..." : "Удалить"}
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="category-manager-empty">Пока нет пользовательских категорий.</p>
+        )}
+      </div>
+
+      {feedback && <p className={`category-manager-feedback ${feedback.tone}`}>{feedback.message}</p>}
     </div>
   );
 }
