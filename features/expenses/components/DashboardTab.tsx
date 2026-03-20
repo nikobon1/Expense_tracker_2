@@ -359,6 +359,10 @@ export default function DashboardTab({
     if (categoryFilter === "all") return categoryData;
     return categoryData.filter((point) => point.name === categoryFilter);
   }, [categoryData, categoryFilter]);
+  const categoryChartData = useMemo(
+    () => [...filteredCategoryData].sort((a, b) => b.value - a.value || a.name.localeCompare(b.name, "ru")),
+    [filteredCategoryData]
+  );
   const categoryFilteredExpenses = useMemo(() => {
     if (categoryFilter === "all") return expenses;
     return expenses.filter((expense) => expense.category === categoryFilter);
@@ -367,8 +371,8 @@ export default function DashboardTab({
     setCategoryFilter((prev) => (prev === category ? "all" : category));
   };
   const filteredCategoryTotal = useMemo(
-    () => filteredCategoryData.reduce((sum, point) => sum + point.value, 0),
-    [filteredCategoryData]
+    () => categoryChartData.reduce((sum, point) => sum + point.value, 0),
+    [categoryChartData]
   );
   const prevCategoryTotalMap = useMemo(() => {
     const totals = new Map<string, number>();
@@ -964,7 +968,7 @@ export default function DashboardTab({
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                   <Pie
-                    data={filteredCategoryData}
+                    data={categoryChartData}
                     cx="50%"
                     cy="50%"
                     innerRadius={60}
@@ -974,7 +978,7 @@ export default function DashboardTab({
                     label={false}
                     labelLine={false}
                   >
-                    {filteredCategoryData.map((entry, index) => (
+                    {categoryChartData.map((entry, index) => (
                       <Cell
                         key={`cell-${entry.name}`}
                         fill={CHART_COLORS[index % CHART_COLORS.length]}
@@ -987,7 +991,7 @@ export default function DashboardTab({
                 </PieChart>
               </ResponsiveContainer>
               <div className="category-legend" aria-label="Легенда категорий">
-                {filteredCategoryData.map((entry, index) => {
+                {categoryChartData.map((entry, index) => {
                   const percent = filteredCategoryTotal > 0 ? (entry.value / filteredCategoryTotal) * 100 : 0;
                   const isActiveCategory = categoryFilter === entry.name;
                   return (
