@@ -960,6 +960,18 @@ td select:focus {
   justify-content: space-between;
   gap: 0.65rem;
   min-width: 0;
+  width: 100%;
+  border: 1px solid transparent;
+  border-radius: 0.7rem;
+  background: transparent;
+  padding: 0.35rem 0.45rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.category-legend-item.active {
+  background: rgba(99, 102, 241, 0.12);
+  border-color: rgba(99, 102, 241, 0.35);
 }
 
 .category-legend-left {

@@ -363,6 +363,9 @@ export default function DashboardTab({
     if (categoryFilter === "all") return expenses;
     return expenses.filter((expense) => expense.category === categoryFilter);
   }, [categoryFilter, expenses]);
+  const toggleCategoryFilter = (category: string) => {
+    setCategoryFilter((prev) => (prev === category ? "all" : category));
+  };
   const filteredCategoryTotal = useMemo(
     () => filteredCategoryData.reduce((sum, point) => sum + point.value, 0),
     [filteredCategoryData]
@@ -971,8 +974,13 @@ export default function DashboardTab({
                     label={false}
                     labelLine={false}
                   >
-                    {filteredCategoryData.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                    {filteredCategoryData.map((entry, index) => (
+                      <Cell
+                        key={`cell-${entry.name}`}
+                        fill={CHART_COLORS[index % CHART_COLORS.length]}
+                        onClick={() => toggleCategoryFilter(entry.name)}
+                        style={{ cursor: "pointer" }}
+                      />
                     ))}
                   </Pie>
                   <Tooltip formatter={(value) => `${Number(value).toFixed(2)} €`} />
@@ -981,8 +989,15 @@ export default function DashboardTab({
               <div className="category-legend" aria-label="Легенда категорий">
                 {filteredCategoryData.map((entry, index) => {
                   const percent = filteredCategoryTotal > 0 ? (entry.value / filteredCategoryTotal) * 100 : 0;
+                  const isActiveCategory = categoryFilter === entry.name;
                   return (
-                    <div key={`legend-${entry.name}`} className="category-legend-item">
+                    <button
+                      key={`legend-${entry.name}`}
+                      type="button"
+                      className={`category-legend-item ${isActiveCategory ? "active" : ""}`}
+                      onClick={() => toggleCategoryFilter(entry.name)}
+                      aria-pressed={isActiveCategory}
+                    >
                       <div className="category-legend-left">
                         <span
                           className="category-legend-dot"
@@ -993,7 +1008,7 @@ export default function DashboardTab({
                       <span className="category-legend-value">
                         {entry.value.toFixed(2)} € ({percent.toFixed(0)}%)
                       </span>
-                    </div>
+                    </button>
                   );
                 })}
               </div>
