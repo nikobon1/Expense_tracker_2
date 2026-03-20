@@ -351,7 +351,10 @@ export default function DashboardTab({
     () => buildCategoryData(expenses).sort((a, b) => b.value - a.value),
     [expenses]
   );
-  const categoryFilterOptions = useMemo(() => categoryData.map((point) => point.name), [categoryData]);
+  const categoryFilterOptions = useMemo(
+    () => [...categoryData.map((point) => point.name)].sort((a, b) => a.localeCompare(b, "ru")),
+    [categoryData]
+  );
   const filteredCategoryData = useMemo(() => {
     if (categoryFilter === "all") return categoryData;
     return categoryData.filter((point) => point.name === categoryFilter);
