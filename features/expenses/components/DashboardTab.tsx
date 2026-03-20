@@ -1421,7 +1421,7 @@ export default function DashboardTab({
                     </thead>
                     <tbody>
                       {editorReceipt.items.map((item, index) => (
-                        <tr key={`${index}-${item.name}`}>
+                        <tr key={index}>
                           <td>
                             <input
                               type="text"
