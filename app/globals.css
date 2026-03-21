@@ -948,9 +948,8 @@ td select:focus {
 }
 
 .category-legend {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.45rem 0.9rem;
+  columns: 2;
+  column-gap: 0.9rem;
   margin-top: 0.5rem;
 }
 
@@ -967,6 +966,8 @@ td select:focus {
   padding: 0.35rem 0.45rem;
   text-align: left;
   cursor: pointer;
+  break-inside: avoid;
+  margin-bottom: 0.45rem;
 }
 
 .category-legend-item.active {
@@ -1424,7 +1425,7 @@ td select:focus {
   }
 
   .category-legend {
-    grid-template-columns: 1fr;
+    columns: 1;
   }
 
   .scan-date-today-btn {
