@@ -398,13 +398,17 @@ export default function DashboardTab({
   const categoryComparisonRows = useMemo(() => {
     const currentTotals = new Map<string, number>();
     for (const point of categoryData) {
+      if (categoryFilter !== "all" && point.name !== categoryFilter) continue;
       currentTotals.set(point.name, point.value);
     }
 
-    const allCategories = new Set<string>([
-      ...currentTotals.keys(),
-      ...prevCategoryTotalMap.keys(),
-    ]);
+    const allCategories =
+      categoryFilter === "all"
+        ? new Set<string>([
+            ...currentTotals.keys(),
+            ...prevCategoryTotalMap.keys(),
+          ])
+        : new Set<string>([categoryFilter]);
 
     return Array.from(allCategories)
       .map((category) => {
@@ -424,7 +428,20 @@ export default function DashboardTab({
       })
       .filter((row) => row.currentTotal > 0 || row.previousTotal > 0)
       .sort((a, b) => b.sortValue - a.sortValue);
-  }, [categoryData, prevCategoryTotalMap]);
+  }, [categoryData, categoryFilter, prevCategoryTotalMap]);
+  const comparisonScopeLabel = useMemo(() => {
+    const scope: string[] = [];
+
+    if (selectedStore !== "all") {
+      scope.push(`Магазин: ${selectedStore}`);
+    }
+
+    if (categoryFilter !== "all") {
+      scope.push(`Категория: ${categoryFilter}`);
+    }
+
+    return scope.join(" • ");
+  }, [categoryFilter, selectedStore]);
   useEffect(() => {
     if (categoryFilter !== "all" && !categoryFilterOptions.includes(categoryFilter)) {
       setCategoryFilter("all");
@@ -1141,7 +1158,9 @@ export default function DashboardTab({
                 {isCategoryComparisonOpen ? "Свернуть" : "Показать"}
               </button>
             </div>
-            <p className="card-subtitle">{`${currentPeriodLabel} vs ${previousPeriodLabel}`}</p>
+            <p className="card-subtitle">
+              {`${currentPeriodLabel} vs ${previousPeriodLabel}${comparisonScopeLabel ? ` • ${comparisonScopeLabel}` : ""}`}
+            </p>
             {isCategoryComparisonOpen && (
               <div id="category-comparison-content">
                 {categoryComparisonRows.length > 0 ? (
