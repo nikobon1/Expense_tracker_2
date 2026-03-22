@@ -1,99 +1,58 @@
-# 🧾 Трекер Расходов - Vercel Edition
+# Expense Tracker
 
-Веб-приложение для автоматического отслеживания расходов по продуктовым чекам из магазинов Португалии.
+AI-powered expense tracking for grocery receipts.
 
-## Текущее состояние продукта
+Expense Tracker helps users turn receipt photos into structured spending data, review purchases, add expenses manually, and analyze their spending through a mobile-first dashboard and Telegram bot workflow.
 
-Сейчас продукт уже покрывает полный базовый сценарий учёта расходов:
+## Why it exists
 
-- web-вход через Google и защищённый dev/staging login
-- загрузка фото чека и AI-разбор покупок
-- быстрое ручное добавление покупки без фото
-- редактирование и удаление чеков
-- dashboard с фильтрами, аналитикой, сравнением периодов и экспортом
-- Telegram-бот для фото-чеков и ручного внесения расходов
-- общий контур данных для web и Telegram
-- новый мобильный dashboard в русском интерфейсе
+Tracking grocery spending is usually fragmented: receipts get lost, manual logs are slow, and analytics are too coarse. Expense Tracker makes this lightweight by combining receipt parsing, fast manual entry, and simple day-to-day reporting in one place.
 
-Подробный перечень реализованного функционала: [`PRODUCT_FUNCTIONALITY_2026-03-22.md`](./PRODUCT_FUNCTIONALITY_2026-03-22.md)  
-Текущий roadmap: [`PRODUCT_ROADMAP_2026-03-22.md`](./PRODUCT_ROADMAP_2026-03-22.md)
+## Core Capabilities
 
-## 🚀 Возможности
+- Parse receipt images into structured purchases
+- Add expenses manually without a receipt
+- Review, edit, and clean parsed data before saving
+- Sync web and Telegram expense capture into one shared database
+- Filter spending by category, store, and date range
+- Compare the selected period against a matching previous period
+- Export expense history for further analysis
 
-- **📷 Сканирование чеков** — загрузите фото, ИИ распознает товары, суммы и категории
-- **✏️ Редактирование** — проверьте, исправьте или удалите чек после распознавания
-- **➕ Quick Add** — добавляйте покупки вручную без фотографии чека
-- **📊 Dashboard** — фильтры по периоду, магазину и категориям, графики и детализация расходов
-- **📈 Сравнение** — сравнение с аналогичным предыдущим периодом, а не только с прошлым месяцем
-- **🤖 Telegram Bot** — отправляйте чеки и расходы через Telegram в ту же базу данных
-- **📤 Экспорт** — выгружайте расходы в Excel
+## Product Surface
 
-## 🛠️ Технологии
+- Web app for receipt upload, manual entry, and analytics
+- Telegram bot for receipt capture and quick manual logging
+- Mobile-first dashboard for recurring expense review
 
-- **Frontend**: Next.js 14, React, TypeScript
-- **Графики**: Recharts
-- **База данных**: Neon Postgres
-- **AI**: OpenAI GPT-4o / Google Gemini
-- **Деплой**: Vercel
+## Tech Stack
 
-## 📦 Установка
+- Next.js
+- React
+- TypeScript
+- Postgres
+- Recharts
+- OpenAI / Gemini
+- Telegram Bot API
 
-```bash
-npm install
-```
+## Getting Started
 
-## 🏃 Локальный запуск
+1. Clone the repository
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Create `.env.local` with the required environment variables
+4. Start the app:
+   ```bash
+   npm run dev
+   ```
+5. Open `http://localhost:3000`
 
-1. Скопируйте `.env.example` в `.env.local`
-2. Добавьте `DATABASE_URL` от Neon (опционально для локальной разработки)
-3. Запустите:
+## Status
 
-```bash
-npm run dev
-```
+The product already supports receipt parsing, manual expense entry, analytics, Telegram capture, and a localized mobile dashboard. Ongoing work is focused on dashboard polish, validation hardening, and internal cleanup.
 
-Откройте http://localhost:3000
+## Product Docs
 
-## ☁️ Деплой на Vercel
-
-### 1. Подготовка Neon Database
-
-1. Зайдите на [neon.tech](https://neon.tech) и создайте аккаунт
-2. Создайте новый проект
-3. Скопируйте `DATABASE_URL` из настроек
-
-### 2. Деплой
-
-1. Установите Vercel CLI: `npm i -g vercel`
-2. Выполните `vercel` в папке проекта
-3. Добавьте переменные окружения в Vercel Dashboard:
-   - `DATABASE_URL` - строка подключения к Neon
-
-### 3. Использование
-
-- API ключи (OpenAI/Google) вводятся в интерфейсе приложения
-- Они не сохраняются на сервере — только в браузере
-
-## 📁 Структура
-
-```
-vercel-app/
-├── app/
-│   ├── api/
-│   │   ├── analyze/route.ts    # OCR через LLM
-│   │   ├── receipts/route.ts   # Сохранение чеков
-│   │   └── expenses/route.ts   # Получение данных
-│   ├── globals.css             # Стили
-│   ├── layout.tsx              # Layout
-│   └── page.tsx                # Главная страница
-├── .env.example                # Пример env
-└── package.json
-```
-
-## 🏪 Поддерживаемые магазины
-
-Continente, Pingo Doce, Lidl, Auchan, Intermarché и другие.
-
-## 📝 Категории
-
-Алкоголь, Овощи, Фрукты, Мясо, Рыба, Молочка, Хлеб, Снэки, Кофе, Бытовая химия, Кафе/Ресторан, Другое.
+- [Functionality Inventory](./PRODUCT_FUNCTIONALITY_2026-03-22.md)
+- [Roadmap](./PRODUCT_ROADMAP_2026-03-22.md)
