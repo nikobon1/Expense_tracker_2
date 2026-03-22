@@ -15,8 +15,8 @@
 - общий контур данных для web и Telegram
 - новый мобильный dashboard в русском интерфейсе
 
-Подробный перечень реализованного функционала: [`../PRODUCT_FUNCTIONALITY_2026-03-22.md`](../PRODUCT_FUNCTIONALITY_2026-03-22.md)  
-Текущий roadmap: [`../PRODUCT_ROADMAP_2026-03-22.md`](../PRODUCT_ROADMAP_2026-03-22.md)
+Подробный перечень реализованного функционала: [`PRODUCT_FUNCTIONALITY_2026-03-22.md`](./PRODUCT_FUNCTIONALITY_2026-03-22.md)  
+Текущий roadmap: [`PRODUCT_ROADMAP_2026-03-22.md`](./PRODUCT_ROADMAP_2026-03-22.md)
 
 ## 🚀 Возможности
 
