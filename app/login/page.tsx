@@ -44,7 +44,7 @@ export default function LoginPage() {
     setIsDevLoading(false);
 
     if (result?.error) {
-      setDevError("Не удалось выполнить dev-login. Проверьте пароль.");
+      setDevError("Не удалось выполнить тестовый вход. Проверьте пароль.");
       return;
     }
 
@@ -58,7 +58,7 @@ export default function LoginPage() {
     <div className="login-container">
       <div className="login-card">
         <div className="login-icon">🧾</div>
-        <h1>Трекер Расходов</h1>
+        <h1>Трекер расходов</h1>
         <p>Войдите, чтобы продолжить</p>
 
         {!providers && (
@@ -105,7 +105,7 @@ export default function LoginPage() {
               type="password"
               value={devPassword}
               onChange={(event) => setDevPassword(event.target.value)}
-              placeholder="Пароль dev-login (если включен)"
+              placeholder="Пароль для тестового входа"
               className="dev-login-input"
               autoComplete="off"
             />
@@ -114,7 +114,7 @@ export default function LoginPage() {
               disabled={isDevLoading || isGoogleLoading}
               className="google-btn dev-btn"
             >
-              {isDevLoading ? "Входим..." : "Dev Login (staging)"}
+              {isDevLoading ? "Входим..." : "Тестовый вход"}
             </button>
             {devError && <p className="login-helper login-error">{devError}</p>}
           </form>

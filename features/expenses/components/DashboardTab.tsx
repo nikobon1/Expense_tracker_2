@@ -53,6 +53,7 @@ interface DashboardTabProps {
   onEndDateChange: (value: string) => void;
   onStoreChange: (value: string) => void;
   onRefresh?: () => void;
+  onOpenScan?: () => void;
 }
 
 type DailyBarShapeProps = {
@@ -70,6 +71,7 @@ type DailyTooltipContentProps = {
 };
 
 type TooltipReceiptLimit = 5 | 10 | "all";
+type LedgerSort = "priceDesc" | "priceAsc";
 
 type EditableReceipt = {
   id: number;
@@ -176,6 +178,13 @@ async function optimizeImageForUpload(file: File): Promise<string> {
 
 function normalizeItemName(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function truncateLabel(value: string, maxLength: number): string {
+  const normalized = String(value ?? "").trim();
+  if (normalized.length <= maxLength) return normalized;
+
+  return `${normalized.slice(0, Math.max(0, maxLength - 2)).trimEnd()}..`;
 }
 
 function sanitizeItems(items: ReceiptItem[]): ReceiptItem[] {
@@ -309,6 +318,7 @@ export default function DashboardTab({
   onEndDateChange,
   onStoreChange,
   onRefresh,
+  onOpenScan,
 }: DashboardTabProps) {
   const [activeBarDate, setActiveBarDate] = useState<string | null>(null);
   const [tooltipReceiptLimit, setTooltipReceiptLimit] = useState<TooltipReceiptLimit>(5);
@@ -320,6 +330,9 @@ export default function DashboardTab({
   const [isEditorDeleting, setIsEditorDeleting] = useState(false);
   const [isComparing, setIsComparing] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [showAllCategories, setShowAllCategories] = useState(false);
+  const [showAllLedger, setShowAllLedger] = useState(false);
+  const [ledgerSort, setLedgerSort] = useState<LedgerSort>("priceDesc");
   const [editorError, setEditorError] = useState<string | null>(null);
   const [editorReceipt, setEditorReceipt] = useState<EditableReceipt | null>(null);
   const [comparisonImage, setComparisonImage] = useState<string | null>(null);
@@ -447,6 +460,9 @@ export default function DashboardTab({
       setCategoryFilter("all");
     }
   }, [categoryFilter, categoryFilterOptions]);
+  useEffect(() => {
+    setShowAllCategories(false);
+  }, [categoryFilter, selectedStore, startDate, endDate]);
   const dailyData = useMemo(
     () => buildDailyData(categoryFilteredExpenses, startDate, endDate),
     [categoryFilteredExpenses, endDate, startDate]
@@ -470,6 +486,73 @@ export default function DashboardTab({
   const averageTransactionValue = transactionCount > 0
     ? expensesTotal / transactionCount
     : 0;
+  const activeDays = useMemo(
+    () => dailyData.filter((point) => point.amount > 0).length,
+    [dailyData]
+  );
+  const strongestDay = useMemo(
+    () =>
+      dailyData.reduce<DailyPoint | null>(
+        (best, point) => (point.amount > (best?.amount ?? 0) ? point : best),
+        null
+      ),
+    [dailyData]
+  );
+  const topCategory = categoryData[0] ?? null;
+  const topCategories = useMemo(() => {
+    if (expensesTotal <= 0) {
+      return categoryData.slice(0, 4).map((entry) => ({ ...entry, share: 0 }));
+    }
+
+    return categoryData
+      .slice(0, 4)
+      .map((entry) => ({ ...entry, share: (entry.value / expensesTotal) * 100 }));
+  }, [categoryData, expensesTotal]);
+  const categoryListItems = useMemo(() => {
+    if (filteredCategoryTotal <= 0) {
+      return categoryChartData.map((entry) => ({ ...entry, share: 0 }));
+    }
+
+    return categoryChartData.map((entry) => ({
+      ...entry,
+      share: (entry.value / filteredCategoryTotal) * 100,
+    }));
+  }, [categoryChartData, filteredCategoryTotal]);
+  const sortedLedgerExpenses = useMemo(() => {
+    return [...categoryFilteredExpenses].sort((a, b) => {
+      if (ledgerSort === "priceAsc") {
+        return a.price - b.price || b.date.localeCompare(a.date) || b.id - a.id;
+      }
+
+      return b.price - a.price || b.date.localeCompare(a.date) || b.id - a.id;
+    });
+  }, [categoryFilteredExpenses, ledgerSort]);
+  const recentExpenses = useMemo(() => sortedLedgerExpenses.slice(0, 5), [sortedLedgerExpenses]);
+  const formatCurrency = (value: number) => `${value.toFixed(2)} EUR`;
+  const deltaLabel =
+    prevMonthTotal > 0
+      ? `${amountChange >= 0 ? "+" : "-"}${Math.abs(amountChange).toFixed(2)} EUR`
+      : "Нет данных за прошлый период";
+
+  const dashboardMonthLabel = useMemo(() => {
+    const parsed = new Date(`${endDate}T00:00:00`);
+    if (Number.isNaN(parsed.getTime())) return currentPeriodLabel;
+
+    const formatted = new Intl.DateTimeFormat("ru-RU", {
+      month: "long",
+      year: "numeric",
+    }).format(parsed);
+
+    return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+  }, [currentPeriodLabel, endDate]);
+  const activityChartData = useMemo(() => {
+    if (tooltipReceiptLimit === "all") return dailyData;
+    return dailyData.slice(-tooltipReceiptLimit);
+  }, [dailyData, tooltipReceiptLimit]);
+  const activeStoreLabel = activeStore === "all" ? "Все магазины" : activeStore;
+  const activeCategoryLabel = categoryFilter === "all" ? "Все категории" : categoryFilter;
+  const visibleCategoryItems = showAllCategories ? categoryListItems : categoryListItems.slice(0, 4);
+  const visibleLedgerItems = sortedLedgerExpenses;
 
   const receiptFirstExpenseId = useMemo(() => {
     const first = new Map<number, number>();
@@ -865,7 +948,455 @@ export default function DashboardTab({
   };
 
   return (
-    <div>
+    <div className="dashboard-surface dashboard-mobile-shell">
+      <div className="dashboard-mobile-frame">
+        <header className="dashboard-mobile-topbar">
+          <div>
+            <div className="dashboard-mobile-kicker">{dashboardMonthLabel}</div>
+            <h2>Трекер Расходов</h2>
+          </div>
+          <div className="dashboard-mobile-avatar" aria-hidden="true">
+            ТР
+          </div>
+        </header>
+
+        <section className="dashboard-mobile-date-row">
+          <div className="dashboard-mobile-date-card">
+            <label htmlFor="dashboard-start-date">Начало периода</label>
+            <input
+              id="dashboard-start-date"
+              type="date"
+              aria-label="Начало периода"
+              name="dashboardStartDate"
+              value={startDate}
+              onChange={(e) => onStartDateChange(e.target.value)}
+            />
+          </div>
+          <div className="dashboard-mobile-date-card">
+            <label htmlFor="dashboard-end-date">Конец периода</label>
+            <input
+              id="dashboard-end-date"
+              type="date"
+              aria-label="Конец периода"
+              name="dashboardEndDate"
+              value={endDate}
+              onChange={(e) => onEndDateChange(e.target.value)}
+            />
+          </div>
+        </section>
+
+        <div className="dashboard-mobile-filter-card">
+          <label htmlFor="dashboard-store-select">Магазин</label>
+          <select
+            id="dashboard-store-select"
+            className="dashboard-mobile-select"
+            aria-label="Магазин"
+            name="dashboardStore"
+            value={activeStore}
+            onChange={(e) => onStoreChange(e.target.value)}
+          >
+            <option value="all">Все магазины</option>
+            {storeOptions.map((store) => (
+              <option key={store} value={store}>
+                {store}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <section className="dashboard-mobile-summary">
+          <div className="dashboard-mobile-summary-head">
+            <span>Общие расходы</span>
+            <strong>{expensesTotal.toFixed(2)} €</strong>
+            <p>
+              {currentPeriodLabel} • {activeStoreLabel}
+            </p>
+          </div>
+
+          <div className="dashboard-mobile-summary-pills">
+            <div className="dashboard-mobile-summary-pill">
+              <span>Чеки</span>
+              <strong>{transactionCount}</strong>
+            </div>
+            <div className="dashboard-mobile-summary-pill">
+              <span>Средний чек</span>
+              <strong>{averageTransactionValue.toFixed(2)} €</strong>
+            </div>
+            <div className="dashboard-mobile-summary-pill">
+              <span>Активных дней</span>
+              <strong>{activeDays}</strong>
+            </div>
+          </div>
+
+          <div className="dashboard-mobile-summary-compare" aria-hidden="true">
+            <div className="dashboard-mobile-summary-row">
+              <span>Текущий</span>
+              <div className="dashboard-mobile-summary-track">
+                <div className="dashboard-mobile-summary-fill current" style={{ width: `${currentPeriodLineWidth}%` }} />
+              </div>
+              <strong>{expensesTotal.toFixed(2)} €</strong>
+            </div>
+            <div className="dashboard-mobile-summary-row">
+              <span>Прошлый</span>
+              <div className="dashboard-mobile-summary-track">
+                <div className="dashboard-mobile-summary-fill previous" style={{ width: `${previousPeriodLineWidth}%` }} />
+              </div>
+              <strong>{prevMonthTotal.toFixed(2)} €</strong>
+            </div>
+          </div>
+
+          <div className="dashboard-mobile-summary-foot">
+            <span>{deltaLabel}</span>
+            <span>{strongestDay ? `Пиковый день: ${formatDashboardDate(strongestDay.date)}` : "Пиковый день еще не определен"}</span>
+          </div>
+
+          <div className="dashboard-mobile-summary-actions">
+            <button type="button" className="dashboard-mobile-action-btn" onClick={onRefresh} disabled={isLoading}>
+              {isLoading ? "Обновляем..." : "Обновить"}
+            </button>
+            <button
+              type="button"
+              className="dashboard-mobile-action-btn ghost"
+              onClick={handleExportExcel}
+              disabled={isLoading || expenses.length === 0}
+            >
+              Экспорт
+            </button>
+          </div>
+        </section>
+
+        {expenses.length > 0 ? (
+          <>
+            <section className="dashboard-mobile-panels">
+              <article className="dashboard-mobile-panel">
+                <div className="dashboard-mobile-panel-head">
+                  <div className="dashboard-mobile-panel-head-main">
+                    <span className="dashboard-mobile-panel-kicker">Категории</span>
+                    <h3>Структура трат</h3>
+                  </div>
+                  <div className="dashboard-mobile-panel-actions">
+                    {categoryListItems.length > 4 && (
+                      <button
+                        type="button"
+                        className="dashboard-mobile-link-btn"
+                        onClick={() => setShowAllCategories((prev) => !prev)}
+                      >
+                        {showAllCategories ? "Свернуть" : "Показать все"}
+                      </button>
+                    )}
+                  <select
+                    className="dashboard-mobile-inline-select"
+                    aria-label="Фильтр категории"
+                    name="dashboardCategory"
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                  >
+                    <option value="all">Все</option>
+                    {categoryFilterOptions.map((category) => (
+                      <option key={`mobile-category-filter-${category}`} value={category}>
+                        {category}
+                      </option>
+                    ))}
+                  </select>
+                  </div>
+                </div>
+
+                {categoryChartData.length > 0 ? (
+                  <>
+                    <div className="dashboard-mobile-donut-wrap">
+                      <ResponsiveContainer width="100%" height={220}>
+                        <PieChart>
+                          <Pie
+                            data={categoryChartData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={54}
+                            outerRadius={84}
+                            paddingAngle={3}
+                            dataKey="value"
+                            label={false}
+                            labelLine={false}
+                          >
+                            {categoryChartData.map((entry, index) => (
+                              <Cell
+                                key={`mobile-cell-${entry.name}`}
+                                fill={CHART_COLORS[index % CHART_COLORS.length]}
+                                onClick={() => toggleCategoryFilter(entry.name)}
+                                style={{ cursor: "pointer" }}
+                              />
+                            ))}
+                          </Pie>
+                          <Tooltip formatter={(value) => `${Number(value).toFixed(2)} €`} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="dashboard-mobile-donut-center">
+                        <span>{activeCategoryLabel}</span>
+                        <strong>{filteredCategoryTotal.toFixed(0)} €</strong>
+                      </div>
+                    </div>
+
+                    <div className="dashboard-mobile-category-list">
+                      {visibleCategoryItems.map((entry, index) => {
+                        const isActiveCategory = categoryFilter === entry.name;
+
+                        return (
+                          <button
+                            key={`mobile-top-${entry.name}`}
+                            type="button"
+                            className={`dashboard-mobile-category-btn ${isActiveCategory ? "active" : ""}`}
+                            onClick={() => toggleCategoryFilter(entry.name)}
+                          >
+                            <span
+                              className="dashboard-mobile-category-dot"
+                              style={{ background: CHART_COLORS[index % CHART_COLORS.length] }}
+                            />
+                            <div>
+                              <strong>{entry.name}</strong>
+                              <span>{entry.share.toFixed(0)}%</span>
+                            </div>
+                            <b>{entry.value.toFixed(2)} €</b>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : (
+                  <div className="dashboard-mobile-empty-card">Нет расходов по выбранной категории.</div>
+                )}
+              </article>
+
+              <article className="dashboard-mobile-panel">
+                <div className="dashboard-mobile-panel-head">
+                  <div>
+                    <span className="dashboard-mobile-panel-kicker">Активность</span>
+                    <h3>Динамика по дням</h3>
+                  </div>
+                  <div className="dashboard-mobile-segmented">
+                    {([
+                      { value: 5, label: "5" },
+                      { value: 10, label: "10" },
+                      { value: "all", label: "Все" },
+                    ] as const).map((option) => {
+                      const isActive = tooltipReceiptLimit === option.value;
+
+                      return (
+                        <button
+                          key={String(option.value)}
+                          type="button"
+                          className={`dashboard-mobile-segmented-btn ${isActive ? "active" : ""}`}
+                          onClick={() => setTooltipReceiptLimit(option.value)}
+                          aria-pressed={isActive}
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {activityChartData.some((point) => point.amount > 0) ? (
+                  <>
+                    <ResponsiveContainer width="100%" height={210}>
+                      <BarChart
+                        data={activityChartData}
+                        onMouseMove={(state) => {
+                          const nextLabel = state && typeof state.activeLabel === "string" ? state.activeLabel : null;
+                          setActiveBarDate(nextLabel);
+                        }}
+                        onMouseLeave={() => setActiveBarDate(null)}
+                      >
+                        <XAxis
+                          dataKey="date"
+                          tickFormatter={(value) => formatDashboardDate(String(value)).slice(0, 5)}
+                          tick={{ fill: "#94a3b8", fontSize: 10 }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
+                        <YAxis hide />
+                        <Tooltip content={(props) => renderDailyTooltip(props as DailyTooltipContentProps)} />
+                        <Bar dataKey="amount" fill="#7c3aed" radius={[8, 8, 0, 0]} shape={renderDailyBar} />
+                      </BarChart>
+                    </ResponsiveContainer>
+
+                    <div className="dashboard-mobile-activity-meta">
+                      <div>
+                        <span>Пиковый день</span>
+                        <strong>{strongestDay ? formatDashboardDate(strongestDay.date) : "Нет данных"}</strong>
+                      </div>
+                      <div>
+                        <span>Лидер</span>
+                        <strong>{topCategory?.name ?? "Без данных"}</strong>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="dashboard-mobile-empty-card">За выбранный период активность пока не появилась.</div>
+                )}
+              </article>
+            </section>
+
+            <section className="dashboard-mobile-ledger">
+              <div className="dashboard-mobile-panel-head">
+                <div className="dashboard-mobile-panel-head-main">
+                  <span className="dashboard-mobile-panel-kicker">Детализация расходов</span>
+                  <h3>Последние покупки</h3>
+                </div>
+                <span className="dashboard-mobile-panel-note">{categoryFilteredExpenses.length} позиций</span>
+              </div>
+
+              {false && (
+                <div className="dashboard-mobile-ledger-actions">
+                  <button
+                    type="button"
+                    className="dashboard-mobile-link-btn"
+                    onClick={() => setShowAllLedger((prev) => !prev)}
+                  >
+                    {showAllLedger ? "Свернуть" : "Показать все"}
+                  </button>
+                </div>
+              )}
+
+              <div className="dashboard-mobile-ledger-actions">
+                <button
+                  type="button"
+                  className="dashboard-mobile-sort-btn"
+                  aria-label={
+                    ledgerSort === "priceDesc"
+                      ? "Сейчас сначала дорогие. Нажмите, чтобы показать сначала дешёвые"
+                      : "Сейчас сначала дешёвые. Нажмите, чтобы показать сначала дорогие"
+                  }
+                  title={ledgerSort === "priceDesc" ? "Сначала дорогие" : "Сначала дешёвые"}
+                  onClick={() =>
+                    setLedgerSort((prev) => (prev === "priceDesc" ? "priceAsc" : "priceDesc"))
+                  }
+                >
+                  <span
+                    className={`dashboard-mobile-sort-arrow ${
+                      ledgerSort === "priceDesc" ? "active" : ""
+                    }`}
+                    aria-hidden="true"
+                  >
+                    ↓
+                  </span>
+                  <span
+                    className={`dashboard-mobile-sort-arrow ${
+                      ledgerSort === "priceAsc" ? "active" : ""
+                    }`}
+                    aria-hidden="true"
+                  >
+                    ↑
+                  </span>
+                </button>
+              </div>
+
+              <div className="dashboard-mobile-ledger-list">
+                {visibleLedgerItems.map((exp) => {
+                  const isFirstInReceipt = receiptFirstExpenseId.get(exp.receiptId) === exp.id;
+
+                  return (
+                    <article key={`mobile-ledger-${exp.id}`} className="dashboard-mobile-ledger-item">
+                      <div className="dashboard-mobile-ledger-main">
+                        <strong className="dashboard-mobile-ledger-title" title={exp.item}>
+                          {truncateLabel(exp.item, 28)}
+                        </strong>
+                        <span>
+                          {exp.store} • {formatDashboardDate(exp.date)}
+                        </span>
+                      </div>
+                      <div className="dashboard-mobile-ledger-meta">
+                        <strong>{exp.price.toFixed(2)} €</strong>
+                        <span>{exp.category}</span>
+                        {isFirstInReceipt ? (
+                          <button
+                            type="button"
+                            className="dashboard-mobile-receipt-link"
+                            onClick={() => void openEditor(exp.receiptId)}
+                          >
+                            Чек #{exp.receiptId}
+                          </button>
+                        ) : null}
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </section>
+          </>
+        ) : (
+          <section className="dashboard-mobile-empty">
+            <div className="dashboard-mobile-empty-icon">0</div>
+            <h3>Пока нет расходов</h3>
+            <p>Добавьте первый чек через сканирование, и этот экран начнет заполняться автоматически.</p>
+          </section>
+        )}
+      </div>
+
+      <button type="button" className="dashboard-mobile-scan-fab" onClick={onOpenScan} disabled={!onOpenScan}>
+        Сканировать
+      </button>
+
+      <nav className="dashboard-mobile-nav" aria-label="Навигация dashboard">
+        <button type="button" className="active">
+          Дашборд
+        </button>
+        <button type="button" onClick={onOpenScan} disabled={!onOpenScan}>
+          Скан
+        </button>
+        <button type="button" onClick={onRefresh} disabled={isLoading}>
+          Обновить
+        </button>
+      </nav>
+
+      {false && (
+        <>
+      <section className="dashboard-desktop-hero">
+        <div className="dashboard-desktop-hero-main">
+          <div className="dashboard-desktop-eyebrow">Финансовый дашборд</div>
+          <div className="dashboard-desktop-headline-row">
+            <div>
+              <h2>Центр контроля расходов</h2>
+              <p>{currentPeriodLabel} | {activeStore === "all" ? "Все магазины" : activeStore} | {categoryFilter === "all" ? "Все категории" : categoryFilter}</p>
+            </div>
+
+            <div className="dashboard-desktop-total">
+              <span>Расходы за период</span>
+              <strong>{formatCurrency(expensesTotal)}</strong>
+              <small>{deltaLabel}</small>
+            </div>
+          </div>
+
+          <div className="dashboard-desktop-period-rails" aria-hidden="true">
+            <div className="dashboard-desktop-period-row">
+              <span>Текущий период</span>
+              <div className="dashboard-desktop-period-track">
+                <div className="dashboard-desktop-period-fill current" style={{ width: `${currentPeriodLineWidth}%` }} />
+              </div>
+              <strong>{formatCurrency(expensesTotal)}</strong>
+            </div>
+            <div className="dashboard-desktop-period-row">
+              <span>Прошлый период</span>
+              <div className="dashboard-desktop-period-track">
+                <div className="dashboard-desktop-period-fill previous" style={{ width: `${previousPeriodLineWidth}%` }} />
+              </div>
+              <strong>{formatCurrency(prevMonthTotal)}</strong>
+            </div>
+          </div>
+        </div>
+
+        <div className="dashboard-desktop-hero-side">
+          <div className="dashboard-desktop-mini-card">
+            <span className="dashboard-desktop-mini-label">Охват</span>
+            <strong>{transactionCount} чеков</strong>
+            <p>{expenses.length} позиций | {activeDays} активных дней</p>
+          </div>
+          <div className="dashboard-desktop-mini-card">
+            <span className="dashboard-desktop-mini-label">Пиковый день</span>
+            <strong>{strongestDay ? formatDashboardDate(strongestDay.date) : "Нет данных"}</strong>
+            <p>{strongestDay ? formatCurrency(strongestDay.amount) : "Ждем данные"}</p>
+          </div>
+        </div>
+      </section>
+
       <div className="date-filter">
         <div>
           <label>📅 Начало периода</label>
@@ -882,15 +1413,15 @@ export default function DashboardTab({
           <div className="metric-label">💰 Общие расходы</div>
           <div className="metric-value">{expensesTotal.toFixed(2)} €</div>
           <div className="metric-secondary">Тот же период: {prevMonthTotal.toFixed(2)} €</div>
-          <div className="metric-period-compare" aria-hidden="true">
-            <div className="metric-period-row">
-              <span className="metric-period-name">This period</span>
+            <div className="metric-period-compare" aria-hidden="true">
+              <div className="metric-period-row">
+              <span className="metric-period-name">Текущий</span>
               <div className="metric-period-track">
                 <div className="metric-period-line current" style={{ width: `${currentPeriodLineWidth}%` }} />
               </div>
             </div>
             <div className="metric-period-row">
-              <span className="metric-period-name">Prev period</span>
+              <span className="metric-period-name">Прошлый</span>
               <div className="metric-period-track">
                 <div className="metric-period-line previous" style={{ width: `${previousPeriodLineWidth}%` }} />
               </div>
@@ -957,6 +1488,82 @@ export default function DashboardTab({
           </div>
         </div>
       </div>
+
+      {expenses.length > 0 && (
+        <section className="dashboard-desktop-insights">
+          <article className="dashboard-desktop-panel">
+            <div className="dashboard-desktop-panel-head">
+              <div>
+                <span className="dashboard-desktop-panel-kicker">Фокус</span>
+                <h3>Топ категорий</h3>
+              </div>
+              <span className="dashboard-desktop-panel-note">
+                {topCategory ? `Лидер: ${topCategory.name}` : "Нет данных по категориям"}
+              </span>
+            </div>
+
+            <div className="dashboard-desktop-rank-list">
+              {topCategories.map((entry, index) => (
+                <button
+                  key={`desktop-top-${entry.name}`}
+                  type="button"
+                  className={`dashboard-desktop-rank-item ${categoryFilter === entry.name ? "active" : ""}`}
+                  onClick={() => toggleCategoryFilter(entry.name)}
+                >
+                  <div>
+                    <span className="dashboard-desktop-rank-index">0{index + 1}</span>
+                    <strong>{entry.name}</strong>
+                  </div>
+                  <div>
+                    <strong>{formatCurrency(entry.value)}</strong>
+                    <span>{entry.share.toFixed(0)}%</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </article>
+
+          <article className="dashboard-desktop-panel">
+            <div className="dashboard-desktop-panel-head">
+              <div>
+                <span className="dashboard-desktop-panel-kicker">Последние операции</span>
+                <h3>Свежие позиции</h3>
+              </div>
+              <span className="dashboard-desktop-panel-note">Показано: {recentExpenses.length}</span>
+            </div>
+
+            <div className="dashboard-desktop-activity-list">
+              {recentExpenses.map((exp) => {
+                const isFirstInReceipt = receiptFirstExpenseId.get(exp.receiptId) === exp.id;
+
+                return (
+                  <div key={`hero-expense-${exp.id}`} className="dashboard-desktop-activity-item">
+                    <div>
+                      <strong>{exp.item}</strong>
+                      <span>
+                        {exp.store} | {formatDashboardDate(exp.date)}
+                      </span>
+                    </div>
+                    <div>
+                      <strong>{formatCurrency(exp.price)}</strong>
+                      <span>{exp.category}</span>
+                      {isFirstInReceipt ? (
+                        <button
+                          type="button"
+                          className="dashboard-desktop-link"
+                          onClick={() => void openEditor(exp.receiptId)}
+                        >
+                          Чек #{exp.receiptId}
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </article>
+        </section>
+      )}
 
       <div className="cost-dropdown-card">
         <button
@@ -1159,7 +1766,7 @@ export default function DashboardTab({
               </button>
             </div>
             <p className="card-subtitle">
-              {`${currentPeriodLabel} vs ${previousPeriodLabel}${comparisonScopeLabel ? ` • ${comparisonScopeLabel}` : ""}`}
+              {`${currentPeriodLabel} по сравнению с ${previousPeriodLabel}${comparisonScopeLabel ? ` • ${comparisonScopeLabel}` : ""}`}
             </p>
             {isCategoryComparisonOpen && (
               <div id="category-comparison-content">
@@ -1264,6 +1871,9 @@ export default function DashboardTab({
             </p>
           </div>
         </div>
+      )}
+
+        </>
       )}
 
       {isEditorOpen && (
@@ -1522,4 +2132,5 @@ export default function DashboardTab({
     </div>
   );
 }
+
 

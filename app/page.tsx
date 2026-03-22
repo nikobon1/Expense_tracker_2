@@ -55,6 +55,8 @@ export default function Home() {
           </div>
         )}
 
+        {activeTab === 'scan' && (
+          <>
         <header className="header">
           <h1>🧾 Трекер Расходов</h1>
           <p>Автоматическое распознавание чеков с помощью ИИ</p>
@@ -74,6 +76,8 @@ export default function Home() {
             📊 Дашборд
           </button>
         </div>
+          </>
+        )}
 
         {activeTab === 'scan' ? (
           <ScanTab
@@ -130,6 +134,7 @@ export default function Home() {
             onEndDateChange={setEndDate}
             onStoreChange={setSelectedStore}
             onRefresh={() => void loadExpenses()}
+            onOpenScan={() => setActiveTab('scan')}
           />
         )}
       </main>

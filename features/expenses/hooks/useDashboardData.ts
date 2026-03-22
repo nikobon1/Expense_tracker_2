@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { buildLocalDashboardDemoData } from "@/features/expenses/demo-data";
 import type { Expense } from "@/features/expenses/types";
 import { getExpenses } from "@/lib/api";
 
@@ -19,6 +20,9 @@ function getInitialDateRange() {
 }
 
 export function useDashboardData() {
+  const isLocalDashboardDemoEnabled =
+    process.env.NODE_ENV !== "production" &&
+    process.env.NEXT_PUBLIC_LOCAL_DASHBOARD_DEMO?.trim().toLowerCase() === "true";
   const [startDate, setStartDate] = useState(() => getInitialDateRange().start);
   const [endDate, setEndDate] = useState(() => getInitialDateRange().end);
   const [selectedStore, setSelectedStore] = useState("all");
@@ -54,17 +58,22 @@ export function useDashboardData() {
     setIsLoading(true);
     try {
       const data = await getExpenses(startDate, endDate, selectedStore);
-      setExpenses(data.expenses);
-      setPrevMonthTotal(data.prevMonthTotal);
-      setPrevPeriodCategoryTotals(data.prevPeriodCategoryTotals);
-      setAnalyzeCost(data.analyzeCost);
-      setStores(data.stores);
+      const resolvedData =
+        isLocalDashboardDemoEnabled && data.expenses.length === 0
+          ? buildLocalDashboardDemoData({ startDate, endDate, selectedStore })
+          : data;
+
+      setExpenses(resolvedData.expenses);
+      setPrevMonthTotal(resolvedData.prevMonthTotal);
+      setPrevPeriodCategoryTotals(resolvedData.prevPeriodCategoryTotals);
+      setAnalyzeCost(resolvedData.analyzeCost);
+      setStores(resolvedData.stores);
     } catch (error) {
       console.error("Error loading expenses:", error);
     } finally {
       setIsLoading(false);
     }
-  }, [startDate, endDate, selectedStore]);
+  }, [endDate, isLocalDashboardDemoEnabled, selectedStore, startDate]);
 
   return {
     startDate,
