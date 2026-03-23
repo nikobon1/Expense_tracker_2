@@ -8,6 +8,9 @@ import {
   Cell,
   BarChart,
   Bar,
+  LineChart,
+  Line,
+  CartesianGrid,
   XAxis,
   YAxis,
   Tooltip,
@@ -71,7 +74,8 @@ type DailyTooltipContentProps = {
 };
 
 type TooltipReceiptLimit = 5 | 10 | "all";
-type LedgerSort = "priceDesc" | "priceAsc";
+type LedgerSortField = "price" | "date";
+type LedgerSortDirection = "desc" | "asc";
 
 type EditableReceipt = {
   id: number;
@@ -323,6 +327,7 @@ export default function DashboardTab({
   const [activeBarDate, setActiveBarDate] = useState<string | null>(null);
   const [tooltipReceiptLimit, setTooltipReceiptLimit] = useState<TooltipReceiptLimit>(5);
   const [isCategoryComparisonOpen, setIsCategoryComparisonOpen] = useState(false);
+  const [comparisonView, setComparisonView] = useState<"table" | "lines">("lines");
   const [isAnalyzeCostOpen, setIsAnalyzeCostOpen] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isEditorLoading, setIsEditorLoading] = useState(false);
@@ -332,7 +337,8 @@ export default function DashboardTab({
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [showAllCategories, setShowAllCategories] = useState(false);
   const [showAllLedger, setShowAllLedger] = useState(false);
-  const [ledgerSort, setLedgerSort] = useState<LedgerSort>("priceDesc");
+  const [ledgerSortField, setLedgerSortField] = useState<LedgerSortField>("price");
+  const [ledgerSortDirection, setLedgerSortDirection] = useState<LedgerSortDirection>("desc");
   const [editorError, setEditorError] = useState<string | null>(null);
   const [editorReceipt, setEditorReceipt] = useState<EditableReceipt | null>(null);
   const [comparisonImage, setComparisonImage] = useState<string | null>(null);
@@ -455,6 +461,15 @@ export default function DashboardTab({
 
     return scope.join(" • ");
   }, [categoryFilter, selectedStore]);
+  const categoryComparisonChartData = useMemo(
+    () =>
+      categoryComparisonRows.map((row) => ({
+        category: row.category,
+        current: Number(row.currentTotal.toFixed(2)),
+        previous: Number(row.previousTotal.toFixed(2)),
+      })),
+    [categoryComparisonRows]
+  );
   useEffect(() => {
     if (categoryFilter !== "all" && !categoryFilterOptions.includes(categoryFilter)) {
       setCategoryFilter("all");
@@ -520,15 +535,25 @@ export default function DashboardTab({
   }, [categoryChartData, filteredCategoryTotal]);
   const sortedLedgerExpenses = useMemo(() => {
     return [...categoryFilteredExpenses].sort((a, b) => {
-      if (ledgerSort === "priceAsc") {
+      if (ledgerSortField === "date") {
+        if (ledgerSortDirection === "asc") {
+          return a.date.localeCompare(b.date) || a.price - b.price || a.id - b.id;
+        }
+
+        return b.date.localeCompare(a.date) || b.price - a.price || b.id - a.id;
+      }
+
+      if (ledgerSortDirection === "asc") {
         return a.price - b.price || b.date.localeCompare(a.date) || b.id - a.id;
       }
 
       return b.price - a.price || b.date.localeCompare(a.date) || b.id - a.id;
     });
-  }, [categoryFilteredExpenses, ledgerSort]);
+  }, [categoryFilteredExpenses, ledgerSortDirection, ledgerSortField]);
   const recentExpenses = useMemo(() => sortedLedgerExpenses.slice(0, 5), [sortedLedgerExpenses]);
   const formatCurrency = (value: number) => `${value.toFixed(2)} EUR`;
+  const strongestDayDateLabel = strongestDay ? formatDashboardDate(strongestDay.date) : "Нет данных";
+  const strongestDayAmountLabel = strongestDay ? formatCurrency(strongestDay.amount) : "Ждем данные";
   const deltaLabel =
     prevMonthTotal > 0
       ? `${amountChange >= 0 ? "+" : "-"}${Math.abs(amountChange).toFixed(2)} EUR`
@@ -955,113 +980,126 @@ export default function DashboardTab({
             <div className="dashboard-mobile-kicker">{dashboardMonthLabel}</div>
             <h2>Трекер Расходов</h2>
           </div>
-          <div className="dashboard-mobile-avatar" aria-hidden="true">
-            ТР
+          <div className="dashboard-mobile-topbar-actions">
+            {onOpenScan ? (
+              <button type="button" className="dashboard-desktop-top-action" onClick={onOpenScan}>
+                Сканировать
+              </button>
+            ) : null}
+            <div className="dashboard-mobile-avatar" aria-hidden="true">
+              ТР
+            </div>
           </div>
         </header>
 
-        <section className="dashboard-mobile-date-row">
-          <div className="dashboard-mobile-date-card">
-            <label htmlFor="dashboard-start-date">Начало периода</label>
-            <input
-              id="dashboard-start-date"
-              type="date"
-              aria-label="Начало периода"
-              name="dashboardStartDate"
-              value={startDate}
-              onChange={(e) => onStartDateChange(e.target.value)}
-            />
+        <section className="dashboard-mobile-controls">
+          <div className="dashboard-mobile-date-row">
+            <div className="dashboard-mobile-date-card">
+              <label htmlFor="dashboard-start-date">Начало периода</label>
+              <input
+                id="dashboard-start-date"
+                type="date"
+                aria-label="Начало периода"
+                name="dashboardStartDate"
+                value={startDate}
+                onChange={(e) => onStartDateChange(e.target.value)}
+              />
+            </div>
+            <div className="dashboard-mobile-date-card">
+              <label htmlFor="dashboard-end-date">Конец периода</label>
+              <input
+                id="dashboard-end-date"
+                type="date"
+                aria-label="Конец периода"
+                name="dashboardEndDate"
+                value={endDate}
+                onChange={(e) => onEndDateChange(e.target.value)}
+              />
+            </div>
           </div>
-          <div className="dashboard-mobile-date-card">
-            <label htmlFor="dashboard-end-date">Конец периода</label>
-            <input
-              id="dashboard-end-date"
-              type="date"
-              aria-label="Конец периода"
-              name="dashboardEndDate"
-              value={endDate}
-              onChange={(e) => onEndDateChange(e.target.value)}
-            />
+
+          <div className="dashboard-mobile-filter-card">
+            <label htmlFor="dashboard-store-select">Магазин</label>
+            <select
+              id="dashboard-store-select"
+              className="dashboard-mobile-select"
+              aria-label="Магазин"
+              name="dashboardStore"
+              value={activeStore}
+              onChange={(e) => onStoreChange(e.target.value)}
+            >
+              <option value="all">Все магазины</option>
+              {storeOptions.map((store) => (
+                <option key={store} value={store}>
+                  {store}
+                </option>
+              ))}
+            </select>
           </div>
         </section>
 
-        <div className="dashboard-mobile-filter-card">
-          <label htmlFor="dashboard-store-select">Магазин</label>
-          <select
-            id="dashboard-store-select"
-            className="dashboard-mobile-select"
-            aria-label="Магазин"
-            name="dashboardStore"
-            value={activeStore}
-            onChange={(e) => onStoreChange(e.target.value)}
-          >
-            <option value="all">Все магазины</option>
-            {storeOptions.map((store) => (
-              <option key={store} value={store}>
-                {store}
-              </option>
-            ))}
-          </select>
-        </div>
-
         <section className="dashboard-mobile-summary">
-          <div className="dashboard-mobile-summary-head">
-            <span>Общие расходы</span>
-            <strong>{expensesTotal.toFixed(2)} €</strong>
-            <p>
-              {currentPeriodLabel} • {activeStoreLabel}
-            </p>
-          </div>
-
-          <div className="dashboard-mobile-summary-pills">
-            <div className="dashboard-mobile-summary-pill">
-              <span>Чеки</span>
-              <strong>{transactionCount}</strong>
-            </div>
-            <div className="dashboard-mobile-summary-pill">
-              <span>Средний чек</span>
-              <strong>{averageTransactionValue.toFixed(2)} €</strong>
-            </div>
-            <div className="dashboard-mobile-summary-pill">
-              <span>Активных дней</span>
-              <strong>{activeDays}</strong>
-            </div>
-          </div>
-
-          <div className="dashboard-mobile-summary-compare" aria-hidden="true">
-            <div className="dashboard-mobile-summary-row">
-              <span>Текущий</span>
-              <div className="dashboard-mobile-summary-track">
-                <div className="dashboard-mobile-summary-fill current" style={{ width: `${currentPeriodLineWidth}%` }} />
-              </div>
+          <div className="dashboard-mobile-summary-main">
+            <div className="dashboard-mobile-summary-head">
+              <span>Общие расходы</span>
               <strong>{expensesTotal.toFixed(2)} €</strong>
+              <p>
+                {currentPeriodLabel} • {activeStoreLabel}
+              </p>
             </div>
-            <div className="dashboard-mobile-summary-row">
-              <span>Прошлый</span>
-              <div className="dashboard-mobile-summary-track">
-                <div className="dashboard-mobile-summary-fill previous" style={{ width: `${previousPeriodLineWidth}%` }} />
+
+            <div className="dashboard-mobile-summary-pills">
+              <div className="dashboard-mobile-summary-pill">
+                <span>Чеки</span>
+                <strong>{transactionCount}</strong>
               </div>
-              <strong>{prevMonthTotal.toFixed(2)} €</strong>
+              <div className="dashboard-mobile-summary-pill">
+                <span>Средний чек</span>
+                <strong>{averageTransactionValue.toFixed(2)} €</strong>
+              </div>
+              <div className="dashboard-mobile-summary-pill">
+                <span>Активных дней</span>
+                <strong>{activeDays}</strong>
+              </div>
+            </div>
+
+            <div className="dashboard-mobile-summary-compare" aria-hidden="true">
+              <div className="dashboard-mobile-summary-row">
+                <span>Текущий</span>
+                <div className="dashboard-mobile-summary-track">
+                  <div className="dashboard-mobile-summary-fill current" style={{ width: `${currentPeriodLineWidth}%` }} />
+                </div>
+                <strong>{expensesTotal.toFixed(2)} €</strong>
+              </div>
+              <div className="dashboard-mobile-summary-row">
+                <span>Прошлый</span>
+                <div className="dashboard-mobile-summary-track">
+                  <div className="dashboard-mobile-summary-fill previous" style={{ width: `${previousPeriodLineWidth}%` }} />
+                </div>
+                <strong>{prevMonthTotal.toFixed(2)} €</strong>
+              </div>
             </div>
           </div>
 
-          <div className="dashboard-mobile-summary-foot">
-            <span>{deltaLabel}</span>
-            <span>{strongestDay ? `Пиковый день: ${formatDashboardDate(strongestDay.date)}` : "Пиковый день еще не определен"}</span>
-          </div>
+          <div className="dashboard-mobile-summary-side">
+            <div className="dashboard-mobile-summary-foot">
+              <span>{deltaLabel}</span>
+              <span>{strongestDay ? `Пиковый день: ${strongestDayDateLabel}` : "Пиковый день еще не определен"}</span>
+            </div>
 
-          <div className="dashboard-mobile-summary-actions">
-            <button type="button" className="dashboard-mobile-action-btn" onClick={onRefresh} disabled={isLoading}>
-              {isLoading ? "Обновляем..." : "Обновить"}
-            </button>
-            <button
-              type="button"
-              className="dashboard-mobile-action-btn ghost"
-              onClick={handleExportExcel}
-              disabled={isLoading || expenses.length === 0}
-            >
-              Экспорт
-            </button>
+            <div className="dashboard-mobile-summary-actions">
+              <button type="button" className="dashboard-mobile-action-btn" onClick={onRefresh} disabled={isLoading}>
+                {isLoading ? "Обновляем..." : "Обновить"}
+              </button>
+              <button
+                type="button"
+                className="dashboard-mobile-action-btn ghost"
+                onClick={handleExportExcel}
+                disabled={isLoading || expenses.length === 0}
+              >
+                Экспорт
+              </button>
+            </div>
           </div>
         </section>
 
@@ -1135,7 +1173,11 @@ export default function DashboardTab({
                       </div>
                     </div>
 
-                    <div className="dashboard-mobile-category-list">
+                    <div
+                      className={`dashboard-mobile-category-list ${
+                        showAllCategories ? "is-scrollable" : ""
+                      }`}
+                    >
                       {visibleCategoryItems.map((entry, index) => {
                         const isActiveCategory = categoryFilter === entry.name;
 
@@ -1221,7 +1263,7 @@ export default function DashboardTab({
                     <div className="dashboard-mobile-activity-meta">
                       <div>
                         <span>Пиковый день</span>
-                        <strong>{strongestDay ? formatDashboardDate(strongestDay.date) : "Нет данных"}</strong>
+                        <strong>{strongestDayDateLabel}</strong>
                       </div>
                       <div>
                         <span>Лидер</span>
@@ -1233,6 +1275,156 @@ export default function DashboardTab({
                   <div className="dashboard-mobile-empty-card">За выбранный период активность пока не появилась.</div>
                 )}
               </article>
+            </section>
+
+            <section className="dashboard-mobile-panel dashboard-mobile-compare">
+              <div className="dashboard-mobile-compare-head">
+                <div className="dashboard-mobile-panel-head-main">
+                  <span className="dashboard-mobile-panel-kicker">Сравнение категорий</span>
+                  <h3>Сравнение категорий по периодам</h3>
+                </div>
+                <button
+                  type="button"
+                  className="dashboard-mobile-link-btn dashboard-mobile-compare-toggle"
+                  onClick={() => setIsCategoryComparisonOpen((prev) => !prev)}
+                  aria-expanded={isCategoryComparisonOpen}
+                  aria-controls="dashboard-category-comparison-content"
+                >
+                  {isCategoryComparisonOpen ? "Свернуть" : "Показать"}
+                </button>
+              </div>
+
+              <p className="dashboard-mobile-compare-subtitle">
+                {`${currentPeriodLabel} по сравнению с ${previousPeriodLabel}${comparisonScopeLabel ? ` • ${comparisonScopeLabel}` : ""}`}
+              </p>
+
+              {isCategoryComparisonOpen ? (
+                <div id="dashboard-category-comparison-content">
+                  {categoryComparisonRows.length > 0 ? (
+                    <div className="dashboard-mobile-compare-content">
+                      <div className="dashboard-mobile-segmented" aria-label="Формат сравнения категорий">
+                        <button
+                          type="button"
+                          className={`dashboard-mobile-segmented-btn ${comparisonView === "lines" ? "active" : ""}`}
+                          onClick={() => setComparisonView("lines")}
+                          aria-pressed={comparisonView === "lines"}
+                        >
+                          Линии
+                        </button>
+                        <button
+                          type="button"
+                          className={`dashboard-mobile-segmented-btn ${comparisonView === "table" ? "active" : ""}`}
+                          onClick={() => setComparisonView("table")}
+                          aria-pressed={comparisonView === "table"}
+                        >
+                          Таблица
+                        </button>
+                      </div>
+
+                      {comparisonView === "lines" ? (
+                        <div className="dashboard-mobile-compare-chart">
+                          <div className="dashboard-mobile-compare-legend">
+                            <span>
+                              <i className="current" aria-hidden="true" />
+                              {currentPeriodLabel}
+                            </span>
+                            <span>
+                              <i className="previous" aria-hidden="true" />
+                              {previousPeriodLabel}
+                            </span>
+                          </div>
+                          <ResponsiveContainer width="100%" height={280}>
+                            <LineChart data={categoryComparisonChartData} margin={{ top: 12, right: 12, left: 0, bottom: 6 }}>
+                              <CartesianGrid stroke="rgba(148, 163, 184, 0.12)" vertical={false} />
+                              <XAxis
+                                dataKey="category"
+                                tickFormatter={(value) => truncateLabel(String(value), 12)}
+                                tick={{ fill: "#8f98aa", fontSize: 11 }}
+                                axisLine={false}
+                                tickLine={false}
+                              />
+                              <YAxis
+                                tick={{ fill: "#8f98aa", fontSize: 11 }}
+                                axisLine={false}
+                                tickLine={false}
+                                width={52}
+                                tickFormatter={(value) => `${Number(value).toFixed(0)}€`}
+                              />
+                              <Tooltip
+                                formatter={(value) => `${Number(value).toFixed(2)} €`}
+                                labelFormatter={(label) => `Категория: ${label}`}
+                                contentStyle={{
+                                  background: "#12151f",
+                                  border: "1px solid rgba(148, 163, 184, 0.16)",
+                                  borderRadius: 12,
+                                  color: "#f8fafc",
+                                }}
+                              />
+                              <Line
+                                type="monotone"
+                                dataKey="current"
+                                stroke="#a855f7"
+                                strokeWidth={3}
+                                dot={{ r: 4, fill: "#a855f7", strokeWidth: 0 }}
+                                activeDot={{ r: 5 }}
+                              />
+                              <Line
+                                type="monotone"
+                                dataKey="previous"
+                                stroke="#f8fafc"
+                                strokeOpacity={0.75}
+                                strokeWidth={2.4}
+                                dot={{ r: 3.5, fill: "#f8fafc", strokeWidth: 0 }}
+                                activeDot={{ r: 5 }}
+                              />
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ) : (
+                        <div className="dashboard-mobile-compare-table">
+                          <table>
+                            <thead>
+                              <tr>
+                                <th>Категория</th>
+                                <th style={{ textAlign: "right" }}>{currentPeriodLabel}</th>
+                                <th style={{ textAlign: "right" }}>{previousPeriodLabel}</th>
+                                <th style={{ textAlign: "right" }}>Δ</th>
+                                <th style={{ textAlign: "right" }}>Δ%</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {categoryComparisonRows.map((row) => (
+                                <tr key={`dashboard-mobile-compare-${row.category}`}>
+                                  <td>{row.category}</td>
+                                  <td style={{ textAlign: "right" }}>{row.currentTotal.toFixed(2)} €</td>
+                                  <td style={{ textAlign: "right" }}>{row.previousTotal.toFixed(2)} €</td>
+                                  <td
+                                    style={{ textAlign: "right" }}
+                                    className={row.delta > 0 ? "compare-negative" : row.delta < 0 ? "compare-positive" : "compare-neutral"}
+                                  >
+                                    {row.delta > 0 ? "↑ " : row.delta < 0 ? "↓ " : ""}
+                                    {Math.abs(row.delta).toFixed(2)} €
+                                  </td>
+                                  <td
+                                    style={{ textAlign: "right" }}
+                                    className={row.delta > 0 ? "compare-negative" : row.delta < 0 ? "compare-positive" : "compare-neutral"}
+                                  >
+                                    {row.percent === null ? "—" : `${row.percent > 0 ? "+" : ""}${row.percent.toFixed(1)}%`}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="dashboard-mobile-empty-card">
+                      Нет данных для сравнения категорий за выбранные периоды.
+                    </div>
+                  )}
+                </div>
+              ) : null}
             </section>
 
             <section className="dashboard-mobile-ledger">
@@ -1257,22 +1449,60 @@ export default function DashboardTab({
               )}
 
               <div className="dashboard-mobile-ledger-actions">
+                <div className="dashboard-mobile-sort-group" aria-label="Параметры сортировки покупок">
+                  <button
+                    type="button"
+                    className={`dashboard-mobile-sort-mode ${
+                      ledgerSortField === "price" ? "active" : ""
+                    }`}
+                    aria-label="Сортировать по сумме"
+                    title="Сортировать по сумме"
+                    aria-pressed={ledgerSortField === "price"}
+                    onClick={() => setLedgerSortField("price")}
+                  >
+                    €
+                  </button>
+                  <button
+                    type="button"
+                    className={`dashboard-mobile-sort-mode ${
+                      ledgerSortField === "date" ? "active" : ""
+                    }`}
+                    aria-label="Сортировать по дате"
+                    title="Сортировать по дате"
+                    aria-pressed={ledgerSortField === "date"}
+                    onClick={() => setLedgerSortField("date")}
+                  >
+                    📅
+                  </button>
+                </div>
                 <button
                   type="button"
                   className="dashboard-mobile-sort-btn"
                   aria-label={
-                    ledgerSort === "priceDesc"
-                      ? "Сейчас сначала дорогие. Нажмите, чтобы показать сначала дешёвые"
-                      : "Сейчас сначала дешёвые. Нажмите, чтобы показать сначала дорогие"
+                    ledgerSortField === "price"
+                      ? ledgerSortDirection === "desc"
+                        ? "Сейчас по сумме: сначала дорогие. Нажмите, чтобы показать сначала дешёвые"
+                        : "Сейчас по сумме: сначала дешёвые. Нажмите, чтобы показать сначала дорогие"
+                      : ledgerSortDirection === "desc"
+                        ? "Сейчас по дате: сначала новые. Нажмите, чтобы показать сначала старые"
+                        : "Сейчас по дате: сначала старые. Нажмите, чтобы показать сначала новые"
                   }
-                  title={ledgerSort === "priceDesc" ? "Сначала дорогие" : "Сначала дешёвые"}
+                  title={
+                    ledgerSortField === "price"
+                      ? ledgerSortDirection === "desc"
+                        ? "Сначала дорогие"
+                        : "Сначала дешёвые"
+                      : ledgerSortDirection === "desc"
+                        ? "Сначала новые"
+                        : "Сначала старые"
+                  }
                   onClick={() =>
-                    setLedgerSort((prev) => (prev === "priceDesc" ? "priceAsc" : "priceDesc"))
+                    setLedgerSortDirection((prev) => (prev === "desc" ? "asc" : "desc"))
                   }
                 >
                   <span
                     className={`dashboard-mobile-sort-arrow ${
-                      ledgerSort === "priceDesc" ? "active" : ""
+                      ledgerSortDirection === "desc" ? "active" : ""
                     }`}
                     aria-hidden="true"
                   >
@@ -1280,7 +1510,7 @@ export default function DashboardTab({
                   </span>
                   <span
                     className={`dashboard-mobile-sort-arrow ${
-                      ledgerSort === "priceAsc" ? "active" : ""
+                      ledgerSortDirection === "asc" ? "active" : ""
                     }`}
                     aria-hidden="true"
                   >
@@ -1289,36 +1519,45 @@ export default function DashboardTab({
                 </button>
               </div>
 
-              <div className="dashboard-mobile-ledger-list">
-                {visibleLedgerItems.map((exp) => {
-                  const isFirstInReceipt = receiptFirstExpenseId.get(exp.receiptId) === exp.id;
-
-                  return (
-                    <article key={`mobile-ledger-${exp.id}`} className="dashboard-mobile-ledger-item">
-                      <div className="dashboard-mobile-ledger-main">
-                        <strong className="dashboard-mobile-ledger-title" title={exp.item}>
-                          {truncateLabel(exp.item, 28)}
-                        </strong>
-                        <span>
-                          {exp.store} • {formatDashboardDate(exp.date)}
-                        </span>
-                      </div>
-                      <div className="dashboard-mobile-ledger-meta">
-                        <strong>{exp.price.toFixed(2)} €</strong>
-                        <span>{exp.category}</span>
-                        {isFirstInReceipt ? (
-                          <button
-                            type="button"
-                            className="dashboard-mobile-receipt-link"
-                            onClick={() => void openEditor(exp.receiptId)}
-                          >
-                            Чек #{exp.receiptId}
-                          </button>
-                        ) : null}
-                      </div>
-                    </article>
-                  );
-                })}
+              <div className="dashboard-mobile-ledger-table">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Дата</th>
+                      <th>Магазин</th>
+                      <th>Товар</th>
+                      <th>Категория</th>
+                      <th style={{ textAlign: "right" }}>Цена</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleLedgerItems.map((exp) => (
+                      <tr key={`mobile-ledger-${exp.id}`}>
+                        <td>{formatDashboardDate(exp.date)}</td>
+                        <td>
+                          <div className="dashboard-mobile-ledger-store">
+                            <span>{exp.store}</span>
+                            <button
+                              type="button"
+                              className="dashboard-mobile-receipt-link"
+                              aria-label={`Редактировать чек #${exp.receiptId}`}
+                              onClick={() => void openEditor(exp.receiptId)}
+                            >
+                              Редактировать чек #{exp.receiptId}
+                            </button>
+                          </div>
+                        </td>
+                        <td>
+                          <span className="dashboard-mobile-ledger-item-cell" title={exp.item}>
+                            {truncateLabel(exp.item, 28)}
+                          </span>
+                        </td>
+                        <td>{exp.category}</td>
+                        <td style={{ textAlign: "right" }}>{exp.price.toFixed(2)} €</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </section>
           </>
@@ -1391,8 +1630,8 @@ export default function DashboardTab({
           </div>
           <div className="dashboard-desktop-mini-card">
             <span className="dashboard-desktop-mini-label">Пиковый день</span>
-            <strong>{strongestDay ? formatDashboardDate(strongestDay.date) : "Нет данных"}</strong>
-            <p>{strongestDay ? formatCurrency(strongestDay.amount) : "Ждем данные"}</p>
+            <strong>{strongestDayDateLabel}</strong>
+            <p>{strongestDayAmountLabel}</p>
           </div>
         </div>
       </section>

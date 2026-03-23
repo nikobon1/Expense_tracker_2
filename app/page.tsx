@@ -67,7 +67,7 @@ export default function Home() {
             📷 Сканирование
           </button>
           <button
-            className={`tab ${activeTab === 'dashboard' ? 'active' : ''}`}
+            className="tab"
             onClick={() => {
               syncEndDateToToday();
               setActiveTab('dashboard');
