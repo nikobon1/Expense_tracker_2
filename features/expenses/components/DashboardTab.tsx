@@ -94,6 +94,7 @@ type ComparisonSummary = {
 
 const MAX_UPLOAD_DIMENSION = 1600;
 const MAX_ANALYZE_PAYLOAD_CHARS = 3_500_000;
+const DAILY_CHART_STEP_EUR = 20;
 
 function getLocalTodayIso() {
   const now = new Date();
@@ -189,6 +190,17 @@ function truncateLabel(value: string, maxLength: number): string {
   if (normalized.length <= maxLength) return normalized;
 
   return `${normalized.slice(0, Math.max(0, maxLength - 2)).trimEnd()}..`;
+}
+
+function buildAxisTicks(maxValue: number, step: number): number[] {
+  const upperBound = Math.max(step, Math.ceil(Math.max(0, maxValue) / step) * step);
+  const ticks: number[] = [];
+
+  for (let value = 0; value <= upperBound; value += step) {
+    ticks.push(value);
+  }
+
+  return ticks;
 }
 
 function sanitizeItems(items: ReceiptItem[]): ReceiptItem[] {
@@ -574,6 +586,22 @@ export default function DashboardTab({
     if (tooltipReceiptLimit === "all") return dailyData;
     return dailyData.slice(-tooltipReceiptLimit);
   }, [dailyData, tooltipReceiptLimit]);
+  const activityChartYAxisTicks = useMemo(
+    () => buildAxisTicks(Math.max(...activityChartData.map((point) => point.amount), 0), DAILY_CHART_STEP_EUR),
+    [activityChartData]
+  );
+  const activityChartYAxisDomain: [number, number] = [
+    0,
+    activityChartYAxisTicks[activityChartYAxisTicks.length - 1] ?? DAILY_CHART_STEP_EUR,
+  ];
+  const desktopDailyChartYAxisTicks = useMemo(
+    () => buildAxisTicks(Math.max(...dailyData.map((point) => point.amount), 0), DAILY_CHART_STEP_EUR),
+    [dailyData]
+  );
+  const desktopDailyChartYAxisDomain: [number, number] = [
+    0,
+    desktopDailyChartYAxisTicks[desktopDailyChartYAxisTicks.length - 1] ?? DAILY_CHART_STEP_EUR,
+  ];
   const activeStoreLabel = activeStore === "all" ? "Все магазины" : activeStore;
   const activeCategoryLabel = categoryFilter === "all" ? "Все категории" : categoryFilter;
   const visibleCategoryItems = showAllCategories ? categoryListItems : categoryListItems.slice(0, 4);
@@ -1254,7 +1282,15 @@ export default function DashboardTab({
                           axisLine={false}
                           tickLine={false}
                         />
-                        <YAxis hide />
+                        <YAxis
+                          width={44}
+                          domain={activityChartYAxisDomain}
+                          ticks={activityChartYAxisTicks}
+                          tickFormatter={(value) => `${Number(value).toFixed(0)}€`}
+                          tick={{ fill: "#94a3b8", fontSize: 10 }}
+                          axisLine={false}
+                          tickLine={false}
+                        />
                         <Tooltip content={(props) => renderDailyTooltip(props as DailyTooltipContentProps)} />
                         <Bar dataKey="amount" fill="#7c3aed" radius={[8, 8, 0, 0]} shape={renderDailyBar} />
                       </BarChart>
@@ -1983,7 +2019,15 @@ export default function DashboardTab({
                   onMouseLeave={() => setActiveBarDate(null)}
                 >
                   <XAxis dataKey="date" tickFormatter={formatDashboardDate} tick={{ fill: "#a1a1aa", fontSize: 12 }} />
-                  <YAxis tick={{ fill: "#a1a1aa", fontSize: 12 }} />
+                  <YAxis
+                    width={52}
+                    domain={desktopDailyChartYAxisDomain}
+                    ticks={desktopDailyChartYAxisTicks}
+                    tickFormatter={(value) => `${Number(value).toFixed(0)}€`}
+                    tick={{ fill: "#a1a1aa", fontSize: 12 }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
                   <Tooltip content={(props) => renderDailyTooltip(props as DailyTooltipContentProps)} />
                   <Bar dataKey="amount" fill="#6366f1" radius={[4, 4, 0, 0]} shape={renderDailyBar} />
                 </BarChart>
