@@ -2319,6 +2319,13 @@ td select:focus {
   gap: 0.75rem;
 }
 
+.dashboard-mobile-compare-note {
+  margin: 0;
+  color: #8f98aa;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
 .dashboard-mobile-compare-chart {
   display: grid;
   gap: 0.8rem;

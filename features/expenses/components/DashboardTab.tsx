@@ -535,6 +535,8 @@ export default function DashboardTab({
   const comparisonRightLabel = comparisonMode === "stores" ? comparisonStoreB || "Магазин B" : previousPeriodLabel;
   const comparisonTitle =
     comparisonMode === "stores" ? "Сравнение категорий по магазинам" : "Сравнение категорий по периодам";
+  const comparisonStoresHint =
+    "Чтобы сравнить два магазина, установите верхний фильтр магазина в «Все магазины», затем выберите Магазин A и Магазин B ниже.";
   const comparisonSubtitle = useMemo(() => {
     if (comparisonMode === "stores") {
       const parts = [`${comparisonLeftLabel} по сравнению с ${comparisonRightLabel}`, currentPeriodLabel];
@@ -1557,6 +1559,7 @@ export default function DashboardTab({
                             ))}
                           </select>
                         </div>
+                        <p className="dashboard-mobile-compare-note">{comparisonStoresHint}</p>
                       </div>
                     ) : null}
 
@@ -2345,6 +2348,7 @@ export default function DashboardTab({
                           ))}
                         </select>
                       </div>
+                      <p className="metric-filter-hint">{comparisonStoresHint}</p>
                     </div>
                   ) : null}
                 </div>
