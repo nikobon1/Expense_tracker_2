@@ -339,7 +339,10 @@ export default function DashboardTab({
   const [activeBarDate, setActiveBarDate] = useState<string | null>(null);
   const [tooltipReceiptLimit, setTooltipReceiptLimit] = useState<TooltipReceiptLimit>(5);
   const [isCategoryComparisonOpen, setIsCategoryComparisonOpen] = useState(false);
+  const [comparisonMode, setComparisonMode] = useState<"periods" | "stores">("periods");
   const [comparisonView, setComparisonView] = useState<"table" | "lines">("lines");
+  const [comparisonStoreA, setComparisonStoreA] = useState<string>("");
+  const [comparisonStoreB, setComparisonStoreB] = useState<string>("");
   const [isAnalyzeCostOpen, setIsAnalyzeCostOpen] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isEditorLoading, setIsEditorLoading] = useState(false);
@@ -347,6 +350,7 @@ export default function DashboardTab({
   const [isEditorDeleting, setIsEditorDeleting] = useState(false);
   const [isComparing, setIsComparing] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [ledgerStoreFilter, setLedgerStoreFilter] = useState<string>("all");
   const [showAllCategories, setShowAllCategories] = useState(false);
   const [showAllLedger, setShowAllLedger] = useState(false);
   const [ledgerSortField, setLedgerSortField] = useState<LedgerSortField>("price");
@@ -482,6 +486,117 @@ export default function DashboardTab({
       })),
     [categoryComparisonRows]
   );
+  const storeComparisonRows = useMemo(() => {
+    if (!comparisonStoreA || !comparisonStoreB || comparisonStoreA === comparisonStoreB) {
+      return [];
+    }
+
+    const currentTotals = new Map<string, number>();
+    const previousTotals = new Map<string, number>();
+
+    for (const expense of expenses) {
+      if (categoryFilter !== "all" && expense.category !== categoryFilter) continue;
+
+      if (expense.store === comparisonStoreA) {
+        currentTotals.set(expense.category, (currentTotals.get(expense.category) ?? 0) + expense.price);
+      }
+
+      if (expense.store === comparisonStoreB) {
+        previousTotals.set(expense.category, (previousTotals.get(expense.category) ?? 0) + expense.price);
+      }
+    }
+
+    const allCategories = new Set<string>([
+      ...currentTotals.keys(),
+      ...previousTotals.keys(),
+    ]);
+
+    return Array.from(allCategories)
+      .map((category) => {
+        const currentTotal = currentTotals.get(category) ?? 0;
+        const previousTotal = previousTotals.get(category) ?? 0;
+        const delta = currentTotal - previousTotal;
+        const percent = previousTotal > 0 ? (delta / previousTotal) * 100 : null;
+
+        return {
+          category,
+          currentTotal,
+          previousTotal,
+          delta,
+          percent,
+          sortValue: currentTotal + previousTotal,
+        };
+      })
+      .filter((row) => row.currentTotal > 0 || row.previousTotal > 0)
+      .sort((a, b) => b.sortValue - a.sortValue);
+  }, [categoryFilter, comparisonStoreA, comparisonStoreB, expenses]);
+  const activeComparisonRows = comparisonMode === "stores" ? storeComparisonRows : categoryComparisonRows;
+  const comparisonLeftLabel = comparisonMode === "stores" ? comparisonStoreA || "Магазин A" : currentPeriodLabel;
+  const comparisonRightLabel = comparisonMode === "stores" ? comparisonStoreB || "Магазин B" : previousPeriodLabel;
+  const comparisonTitle =
+    comparisonMode === "stores" ? "Сравнение категорий по магазинам" : "Сравнение категорий по периодам";
+  const comparisonSubtitle = useMemo(() => {
+    if (comparisonMode === "stores") {
+      const parts = [`${comparisonLeftLabel} по сравнению с ${comparisonRightLabel}`, currentPeriodLabel];
+
+      if (categoryFilter !== "all") {
+        parts.push(`Категория: ${categoryFilter}`);
+      }
+
+      if (selectedStore !== "all") {
+        parts.push("Для межмагазинного сравнения выберите сверху: Все магазины");
+      }
+
+      return parts.join(" • ");
+    }
+
+    return `${currentPeriodLabel} по сравнению с ${previousPeriodLabel}${comparisonScopeLabel ? ` • ${comparisonScopeLabel}` : ""}`;
+  }, [
+    categoryFilter,
+    comparisonLeftLabel,
+    comparisonMode,
+    comparisonRightLabel,
+    comparisonScopeLabel,
+    currentPeriodLabel,
+    previousPeriodLabel,
+    selectedStore,
+  ]);
+  const comparisonEmptyMessage = useMemo(() => {
+    if (comparisonMode !== "stores") {
+      return "Нет данных для сравнения категорий за выбранные периоды.";
+    }
+
+    const availableStoreCount = new Set(
+      expenses.map((expense) => String(expense.store ?? "").trim()).filter(Boolean)
+    ).size;
+
+    if (selectedStore !== "all") {
+      return "Для сравнения магазинов переключите верхний фильтр магазина на «Все магазины».";
+    }
+
+    if (availableStoreCount < 2) {
+      return "Недостаточно магазинов в выбранном периоде для сравнения.";
+    }
+
+    if (!comparisonStoreA || !comparisonStoreB) {
+      return "Выберите два магазина для сравнения.";
+    }
+
+    if (comparisonStoreA === comparisonStoreB) {
+      return "Выберите два разных магазина.";
+    }
+
+    return "Нет данных для сравнения выбранных магазинов за текущий период.";
+  }, [comparisonMode, comparisonStoreA, comparisonStoreB, expenses, selectedStore]);
+  const activeComparisonChartData = useMemo(
+    () =>
+      activeComparisonRows.map((row) => ({
+        category: row.category,
+        current: Number(row.currentTotal.toFixed(2)),
+        previous: Number(row.previousTotal.toFixed(2)),
+      })),
+    [activeComparisonRows]
+  );
   useEffect(() => {
     if (categoryFilter !== "all" && !categoryFilterOptions.includes(categoryFilter)) {
       setCategoryFilter("all");
@@ -505,6 +620,46 @@ export default function DashboardTab({
 
     return baseStores;
   }, [selectedStore, stores]);
+  const storeComparisonOptions = useMemo(
+    () =>
+      [...new Set(expenses.map((expense) => String(expense.store ?? "").trim()).filter(Boolean))].sort((a, b) =>
+        a.localeCompare(b, "ru")
+      ),
+    [expenses]
+  );
+  const ledgerStoreOptions = useMemo(
+    () =>
+      [...new Set(categoryFilteredExpenses.map((expense) => String(expense.store ?? "").trim()).filter(Boolean))].sort((a, b) =>
+        a.localeCompare(b, "ru")
+      ),
+    [categoryFilteredExpenses]
+  );
+  useEffect(() => {
+    if (storeComparisonOptions.length === 0) {
+      if (comparisonStoreA !== "") setComparisonStoreA("");
+      return;
+    }
+
+    if (!storeComparisonOptions.includes(comparisonStoreA)) {
+      setComparisonStoreA(storeComparisonOptions[0] ?? "");
+    }
+  }, [comparisonStoreA, storeComparisonOptions]);
+  useEffect(() => {
+    if (storeComparisonOptions.length < 2) {
+      if (comparisonStoreB !== "") setComparisonStoreB("");
+      return;
+    }
+
+    if (!storeComparisonOptions.includes(comparisonStoreB)) {
+      const fallback = storeComparisonOptions.find((store) => store !== comparisonStoreA) ?? "";
+      setComparisonStoreB(fallback);
+    }
+  }, [comparisonStoreA, comparisonStoreB, storeComparisonOptions]);
+  useEffect(() => {
+    if (ledgerStoreFilter !== "all" && !ledgerStoreOptions.includes(ledgerStoreFilter)) {
+      setLedgerStoreFilter("all");
+    }
+  }, [ledgerStoreFilter, ledgerStoreOptions]);
   const activeStore = selectedStore === "all" ? "all" : selectedStore;
   const transactionCount = useMemo(
     () => new Set(expenses.map((expense) => expense.receiptId)).size,
@@ -545,8 +700,12 @@ export default function DashboardTab({
       share: (entry.value / filteredCategoryTotal) * 100,
     }));
   }, [categoryChartData, filteredCategoryTotal]);
-  const sortedLedgerExpenses = useMemo(() => {
-    return [...categoryFilteredExpenses].sort((a, b) => {
+  const ledgerDetailExpenses = useMemo(() => {
+    if (ledgerStoreFilter === "all") return categoryFilteredExpenses;
+    return categoryFilteredExpenses.filter((expense) => expense.store === ledgerStoreFilter);
+  }, [categoryFilteredExpenses, ledgerStoreFilter]);
+  const sortLedgerExpenses = (items: Expense[]) => {
+    return [...items].sort((a, b) => {
       if (ledgerSortField === "date") {
         if (ledgerSortDirection === "asc") {
           return a.date.localeCompare(b.date) || a.price - b.price || a.id - b.id;
@@ -561,8 +720,15 @@ export default function DashboardTab({
 
       return b.price - a.price || b.date.localeCompare(a.date) || b.id - a.id;
     });
-  }, [categoryFilteredExpenses, ledgerSortDirection, ledgerSortField]);
-  const recentExpenses = useMemo(() => sortedLedgerExpenses.slice(0, 5), [sortedLedgerExpenses]);
+  };
+  const sortedLedgerExpenses = useMemo(
+    () => sortLedgerExpenses(ledgerDetailExpenses),
+    [ledgerDetailExpenses, ledgerSortDirection, ledgerSortField]
+  );
+  const recentExpenses = useMemo(
+    () => sortLedgerExpenses(categoryFilteredExpenses).slice(0, 5),
+    [categoryFilteredExpenses, ledgerSortDirection, ledgerSortField]
+  );
   const formatCurrency = (value: number) => `${value.toFixed(2)} EUR`;
   const strongestDayDateLabel = strongestDay ? formatDashboardDate(strongestDay.date) : "Нет данных";
   const strongestDayAmountLabel = strongestDay ? formatCurrency(strongestDay.amount) : "Ждем данные";
@@ -603,19 +769,20 @@ export default function DashboardTab({
     desktopDailyChartYAxisTicks[desktopDailyChartYAxisTicks.length - 1] ?? DAILY_CHART_STEP_EUR,
   ];
   const activeStoreLabel = activeStore === "all" ? "Все магазины" : activeStore;
+  const ledgerStoreFilterLabel = ledgerStoreFilter === "all" ? "Все магазины" : ledgerStoreFilter;
   const activeCategoryLabel = categoryFilter === "all" ? "Все категории" : categoryFilter;
   const visibleCategoryItems = showAllCategories ? categoryListItems : categoryListItems.slice(0, 4);
   const visibleLedgerItems = sortedLedgerExpenses;
 
   const receiptFirstExpenseId = useMemo(() => {
     const first = new Map<number, number>();
-    for (const exp of categoryFilteredExpenses) {
+    for (const exp of ledgerDetailExpenses) {
       if (!first.has(exp.receiptId)) {
         first.set(exp.receiptId, exp.id);
       }
     }
     return first;
-  }, [categoryFilteredExpenses]);
+  }, [ledgerDetailExpenses]);
 
   const currentEditorTotal = useMemo(() => {
     if (!editorReceipt) return 0;
@@ -1317,7 +1484,7 @@ export default function DashboardTab({
               <div className="dashboard-mobile-compare-head">
                 <div className="dashboard-mobile-panel-head-main">
                   <span className="dashboard-mobile-panel-kicker">Сравнение категорий</span>
-                  <h3>Сравнение категорий по периодам</h3>
+                  <h3>{comparisonTitle}</h3>
                 </div>
                 <button
                   type="button"
@@ -1331,13 +1498,70 @@ export default function DashboardTab({
               </div>
 
               <p className="dashboard-mobile-compare-subtitle">
-                {`${currentPeriodLabel} по сравнению с ${previousPeriodLabel}${comparisonScopeLabel ? ` • ${comparisonScopeLabel}` : ""}`}
+                {comparisonSubtitle}
               </p>
 
               {isCategoryComparisonOpen ? (
                 <div id="dashboard-category-comparison-content">
-                  {categoryComparisonRows.length > 0 ? (
-                    <div className="dashboard-mobile-compare-content">
+                  <div className="dashboard-mobile-compare-content">
+                    <div className="dashboard-mobile-segmented" aria-label="Режим сравнения категорий">
+                      <button
+                        type="button"
+                        className={`dashboard-mobile-segmented-btn ${comparisonMode === "periods" ? "active" : ""}`}
+                        onClick={() => setComparisonMode("periods")}
+                        aria-pressed={comparisonMode === "periods"}
+                      >
+                        Периоды
+                      </button>
+                      <button
+                        type="button"
+                        className={`dashboard-mobile-segmented-btn ${comparisonMode === "stores" ? "active" : ""}`}
+                        onClick={() => setComparisonMode("stores")}
+                        aria-pressed={comparisonMode === "stores"}
+                      >
+                        Магазины
+                      </button>
+                    </div>
+
+                    {comparisonMode === "stores" ? (
+                      <div className="dashboard-mobile-compare-filters">
+                        <div className="dashboard-mobile-filter-card">
+                          <label htmlFor="dashboard-compare-store-a">Магазин A</label>
+                          <select
+                            id="dashboard-compare-store-a"
+                            className="dashboard-mobile-select"
+                            aria-label="Магазин A"
+                            value={comparisonStoreA}
+                            onChange={(e) => setComparisonStoreA(e.target.value)}
+                          >
+                            {storeComparisonOptions.map((store) => (
+                              <option key={`compare-a-${store}`} value={store}>
+                                {store}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="dashboard-mobile-filter-card">
+                          <label htmlFor="dashboard-compare-store-b">Магазин B</label>
+                          <select
+                            id="dashboard-compare-store-b"
+                            className="dashboard-mobile-select"
+                            aria-label="Магазин B"
+                            value={comparisonStoreB}
+                            onChange={(e) => setComparisonStoreB(e.target.value)}
+                          >
+                            {storeComparisonOptions.map((store) => (
+                              <option key={`compare-b-${store}`} value={store}>
+                                {store}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {activeComparisonRows.length > 0 ? (
+                      <>
                       <div className="dashboard-mobile-segmented" aria-label="Формат сравнения категорий">
                         <button
                           type="button"
@@ -1362,15 +1586,15 @@ export default function DashboardTab({
                           <div className="dashboard-mobile-compare-legend">
                             <span>
                               <i className="current" aria-hidden="true" />
-                              {currentPeriodLabel}
+                              {comparisonLeftLabel}
                             </span>
                             <span>
                               <i className="previous" aria-hidden="true" />
-                              {previousPeriodLabel}
+                              {comparisonRightLabel}
                             </span>
                           </div>
                           <ResponsiveContainer width="100%" height={280}>
-                            <LineChart data={categoryComparisonChartData} margin={{ top: 12, right: 12, left: 0, bottom: 6 }}>
+                            <LineChart data={activeComparisonChartData} margin={{ top: 12, right: 12, left: 0, bottom: 6 }}>
                               <CartesianGrid stroke="rgba(148, 163, 184, 0.12)" vertical={false} />
                               <XAxis
                                 dataKey="category"
@@ -1422,14 +1646,14 @@ export default function DashboardTab({
                             <thead>
                               <tr>
                                 <th>Категория</th>
-                                <th style={{ textAlign: "right" }}>{currentPeriodLabel}</th>
-                                <th style={{ textAlign: "right" }}>{previousPeriodLabel}</th>
+                                <th style={{ textAlign: "right" }}>{comparisonLeftLabel}</th>
+                                <th style={{ textAlign: "right" }}>{comparisonRightLabel}</th>
                                 <th style={{ textAlign: "right" }}>Δ</th>
                                 <th style={{ textAlign: "right" }}>Δ%</th>
                               </tr>
                             </thead>
                             <tbody>
-                              {categoryComparisonRows.map((row) => (
+                              {activeComparisonRows.map((row) => (
                                 <tr key={`dashboard-mobile-compare-${row.category}`}>
                                   <td>{row.category}</td>
                                   <td style={{ textAlign: "right" }}>{row.currentTotal.toFixed(2)} €</td>
@@ -1453,12 +1677,11 @@ export default function DashboardTab({
                           </table>
                         </div>
                       )}
-                    </div>
-                  ) : (
-                    <div className="dashboard-mobile-empty-card">
-                      Нет данных для сравнения категорий за выбранные периоды.
-                    </div>
-                  )}
+                      </>
+                    ) : (
+                      <div className="dashboard-mobile-empty-card">{comparisonEmptyMessage}</div>
+                    )}
+                  </div>
                 </div>
               ) : null}
             </section>
@@ -1469,7 +1692,7 @@ export default function DashboardTab({
                   <span className="dashboard-mobile-panel-kicker">Детализация расходов</span>
                   <h3>Последние покупки</h3>
                 </div>
-                <span className="dashboard-mobile-panel-note">{categoryFilteredExpenses.length} позиций</span>
+                <span className="dashboard-mobile-panel-note">{visibleLedgerItems.length} позиций</span>
               </div>
 
               {false && (
@@ -1485,6 +1708,21 @@ export default function DashboardTab({
               )}
 
               <div className="dashboard-mobile-ledger-actions">
+                <div className="dashboard-mobile-ledger-filter">
+                  <select
+                    className="dashboard-mobile-select"
+                    aria-label="Фильтр детализации по магазину"
+                    value={ledgerStoreFilter}
+                    onChange={(e) => setLedgerStoreFilter(e.target.value)}
+                  >
+                    <option value="all">Все магазины</option>
+                    {ledgerStoreOptions.map((store) => (
+                      <option key={`ledger-store-${store}`} value={store}>
+                        {store}
+                      </option>
+                    ))}
+                  </select>
+                </div>
                 <div className="dashboard-mobile-sort-group" aria-label="Параметры сортировки покупок">
                   <button
                     type="button"
@@ -2037,7 +2275,7 @@ export default function DashboardTab({
 
           <div className="card">
             <div className="compare-card-header">
-              <h3>🔎 Сравнение категорий по периодам</h3>
+              <h3>🔎 {comparisonTitle}</h3>
               <button
                 type="button"
                 className="btn btn-secondary compare-toggle-btn"
@@ -2048,25 +2286,83 @@ export default function DashboardTab({
                 {isCategoryComparisonOpen ? "Свернуть" : "Показать"}
               </button>
             </div>
-            <p className="card-subtitle">
-              {`${currentPeriodLabel} по сравнению с ${previousPeriodLabel}${comparisonScopeLabel ? ` • ${comparisonScopeLabel}` : ""}`}
-            </p>
+            <p className="card-subtitle">{comparisonSubtitle}</p>
             {isCategoryComparisonOpen && (
               <div id="category-comparison-content">
-                {categoryComparisonRows.length > 0 ? (
+                <div className="compare-card-controls">
+                  <div className="dashboard-mobile-segmented" aria-label="Режим сравнения категорий">
+                    <button
+                      type="button"
+                      className={`dashboard-mobile-segmented-btn ${comparisonMode === "periods" ? "active" : ""}`}
+                      onClick={() => setComparisonMode("periods")}
+                      aria-pressed={comparisonMode === "periods"}
+                    >
+                      Периоды
+                    </button>
+                    <button
+                      type="button"
+                      className={`dashboard-mobile-segmented-btn ${comparisonMode === "stores" ? "active" : ""}`}
+                      onClick={() => setComparisonMode("stores")}
+                      aria-pressed={comparisonMode === "stores"}
+                    >
+                      Магазины
+                    </button>
+                  </div>
+
+                  {comparisonMode === "stores" ? (
+                    <div className="compare-store-filters">
+                      <div className="metric-card-filter">
+                        <label htmlFor="desktop-compare-store-a" className="metric-filter-label">
+                          Магазин A
+                        </label>
+                        <select
+                          id="desktop-compare-store-a"
+                          className="metric-filter-select"
+                          value={comparisonStoreA}
+                          onChange={(e) => setComparisonStoreA(e.target.value)}
+                        >
+                          {storeComparisonOptions.map((store) => (
+                            <option key={`desktop-compare-a-${store}`} value={store}>
+                              {store}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="metric-card-filter">
+                        <label htmlFor="desktop-compare-store-b" className="metric-filter-label">
+                          Магазин B
+                        </label>
+                        <select
+                          id="desktop-compare-store-b"
+                          className="metric-filter-select"
+                          value={comparisonStoreB}
+                          onChange={(e) => setComparisonStoreB(e.target.value)}
+                        >
+                          {storeComparisonOptions.map((store) => (
+                            <option key={`desktop-compare-b-${store}`} value={store}>
+                              {store}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+
+                {activeComparisonRows.length > 0 ? (
                   <div className="table-container">
                     <table>
                       <thead>
                         <tr>
                           <th>Категория</th>
-                          <th style={{ textAlign: "right" }}>{currentPeriodLabel}</th>
-                          <th style={{ textAlign: "right" }}>{previousPeriodLabel}</th>
+                          <th style={{ textAlign: "right" }}>{comparisonLeftLabel}</th>
+                          <th style={{ textAlign: "right" }}>{comparisonRightLabel}</th>
                           <th style={{ textAlign: "right" }}>Δ</th>
                           <th style={{ textAlign: "right" }}>Δ%</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {categoryComparisonRows.map((row) => (
+                        {activeComparisonRows.map((row) => (
                           <tr key={`compare-${row.category}`}>
                             <td>{row.category}</td>
                             <td style={{ textAlign: "right" }}>{row.currentTotal.toFixed(2)} €</td>
@@ -2091,7 +2387,7 @@ export default function DashboardTab({
                   </div>
                 ) : (
                   <div className="empty-state">
-                    <p>Нет данных для сравнения категорий за выбранные периоды</p>
+                    <p>{comparisonEmptyMessage}</p>
                   </div>
                 )}
               </div>
@@ -2099,7 +2395,31 @@ export default function DashboardTab({
           </div>
 
           <div className="card">
-            <h3>📋 Детализация расходов</h3>
+            <div className="dashboard-desktop-panel-head dashboard-desktop-ledger-head">
+              <div>
+                <h3>📋 Детализация расходов</h3>
+                <span className="dashboard-desktop-panel-note">
+                  {sortedLedgerExpenses.length} позиций • {ledgerStoreFilterLabel}
+                </span>
+              </div>
+              <div className="dashboard-desktop-ledger-controls">
+                <div className="dashboard-desktop-ledger-filter">
+                  <select
+                    className="dashboard-mobile-select"
+                    aria-label="Фильтр детализации по магазину"
+                    value={ledgerStoreFilter}
+                    onChange={(e) => setLedgerStoreFilter(e.target.value)}
+                  >
+                    <option value="all">Все магазины</option>
+                    {ledgerStoreOptions.map((store) => (
+                      <option key={`desktop-ledger-store-${store}`} value={store}>
+                        {store}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
             <div className="table-container">
               <table>
                 <thead>
@@ -2112,7 +2432,7 @@ export default function DashboardTab({
                   </tr>
                 </thead>
                 <tbody>
-                  {categoryFilteredExpenses.map((exp) => {
+                  {sortedLedgerExpenses.map((exp) => {
                     const isFirstInReceipt = receiptFirstExpenseId.get(exp.receiptId) === exp.id;
 
                     return (

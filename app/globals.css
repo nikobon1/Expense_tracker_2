@@ -884,6 +884,12 @@ td select:focus {
   flex-wrap: wrap;
 }
 
+.compare-card-controls,
+.compare-store-filters {
+  display: grid;
+  gap: 0.85rem;
+}
+
 .compare-toggle-btn {
   padding: 0.35rem 0.7rem;
   font-size: 0.78rem;
@@ -1340,6 +1346,17 @@ td select:focus {
   justify-content: space-between;
   gap: 0.75rem;
   margin-bottom: 1rem;
+}
+
+.dashboard-desktop-ledger-head {
+  align-items: center;
+}
+
+.dashboard-desktop-ledger-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .dashboard-desktop-panel-head h3 {
@@ -2220,8 +2237,22 @@ td select:focus {
   display: flex;
   justify-content: flex-start;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.55rem;
   margin-bottom: 0.75rem;
+}
+
+.dashboard-mobile-ledger-filter,
+.dashboard-desktop-ledger-filter {
+  min-width: 11.5rem;
+  padding: 0.52rem 0.8rem;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.dashboard-mobile-ledger-filter {
+  flex: 1 1 12rem;
 }
 
 .dashboard-mobile-sort-group {
@@ -2281,6 +2312,11 @@ td select:focus {
 .dashboard-mobile-compare-content {
   display: grid;
   gap: 0.85rem;
+}
+
+.dashboard-mobile-compare-filters {
+  display: grid;
+  gap: 0.75rem;
 }
 
 .dashboard-mobile-compare-chart {
@@ -2798,6 +2834,11 @@ td select:focus {
 
   .dashboard-mobile-compare {
     gap: 1rem;
+  }
+
+  .dashboard-mobile-compare-filters,
+  .compare-store-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .dashboard-mobile-compare-subtitle {
