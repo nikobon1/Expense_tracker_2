@@ -2758,9 +2758,13 @@ td select:focus {
 }
 
 .dashboard-mobile-ledger-store {
-  display: grid;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
   gap: 0.18rem;
   min-width: 0;
+  min-height: 100%;
 }
 
 .dashboard-mobile-ledger-item-cell {
@@ -2891,11 +2895,12 @@ td select:focus {
 }
 
 .dashboard-mobile-receipt-link {
-  justify-self: end;
+  align-self: flex-start;
   border: none;
   background: transparent;
   color: var(--dashboard-mobile-link);
   font-size: 0.78rem;
+  line-height: 1.35;
   cursor: pointer;
 }
 
@@ -3253,7 +3258,7 @@ td select:focus {
   }
 
   .dashboard-mobile-receipt-link {
-    margin-top: 0.12rem;
+    margin-top: 0;
   }
 
   .dashboard-mobile-scan-fab,
