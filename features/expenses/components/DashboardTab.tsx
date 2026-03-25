@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
   PieChart,
   Pie,
@@ -92,6 +92,15 @@ type ComparisonSummary = {
   changes: string[];
   currentTotal: number;
   analyzedTotal: number;
+};
+
+type LedgerReceiptGroup = {
+  receiptId: number;
+  date: string;
+  store: string;
+  items: Expense[];
+  total: number;
+  categories: string[];
 };
 
 const MAX_UPLOAD_DIMENSION = 1600;
@@ -192,6 +201,16 @@ function truncateLabel(value: string, maxLength: number): string {
   if (normalized.length <= maxLength) return normalized;
 
   return `${normalized.slice(0, Math.max(0, maxLength - 2)).trimEnd()}..`;
+}
+
+function formatCountNoun(count: number, singular: string, paucal: string, plural: string): string {
+  const abs = Math.abs(count) % 100;
+  const lastDigit = abs % 10;
+
+  if (abs >= 11 && abs <= 19) return plural;
+  if (lastDigit === 1) return singular;
+  if (lastDigit >= 2 && lastDigit <= 4) return paucal;
+  return plural;
 }
 
 function buildAxisTicks(maxValue: number, step: number): number[] {
@@ -359,6 +378,7 @@ export default function DashboardTab({
   const [showAllLedger, setShowAllLedger] = useState(false);
   const [ledgerSortField, setLedgerSortField] = useState<LedgerSortField>("price");
   const [ledgerSortDirection, setLedgerSortDirection] = useState<LedgerSortDirection>("desc");
+  const [expandedLedgerReceipts, setExpandedLedgerReceipts] = useState<number[]>([]);
   const [editorError, setEditorError] = useState<string | null>(null);
   const [editorReceipt, setEditorReceipt] = useState<EditableReceipt | null>(null);
   const [comparisonImage, setComparisonImage] = useState<string | null>(null);
@@ -666,6 +686,9 @@ export default function DashboardTab({
       setLedgerStoreFilter("all");
     }
   }, [ledgerStoreFilter, ledgerStoreOptions]);
+  useEffect(() => {
+    setExpandedLedgerReceipts([]);
+  }, [categoryFilter, endDate, ledgerSortDirection, ledgerSortField, ledgerStoreFilter, selectedStore, startDate]);
   const activeStore = selectedStore === "all" ? "all" : selectedStore;
   const transactionCount = useMemo(
     () => new Set(expenses.map((expense) => expense.receiptId)).size,
@@ -731,6 +754,57 @@ export default function DashboardTab({
     () => sortLedgerExpenses(ledgerDetailExpenses),
     [ledgerDetailExpenses, ledgerSortDirection, ledgerSortField]
   );
+  const ledgerReceiptGroups = useMemo(() => {
+    const groups = new Map<number, LedgerReceiptGroup>();
+
+    for (const expense of ledgerDetailExpenses) {
+      const existing = groups.get(expense.receiptId);
+      if (existing) {
+        existing.items.push(expense);
+        existing.total += expense.price;
+        continue;
+      }
+
+      groups.set(expense.receiptId, {
+        receiptId: expense.receiptId,
+        date: expense.date,
+        store: expense.store,
+        items: [expense],
+        total: expense.price,
+        categories: [],
+      });
+    }
+
+    return Array.from(groups.values()).map((group) => ({
+      ...group,
+      items: [...group.items].sort((a, b) => b.price - a.price || a.item.localeCompare(b.item, "ru") || a.id - b.id),
+      categories: [...new Set(group.items.map((item) => String(item.category ?? "").trim()).filter(Boolean))].sort((a, b) =>
+        a.localeCompare(b, "ru")
+      ),
+      total: Number(group.total.toFixed(2)),
+    }));
+  }, [ledgerDetailExpenses]);
+  const sortLedgerReceipts = (items: LedgerReceiptGroup[]) => {
+    return [...items].sort((a, b) => {
+      if (ledgerSortField === "date") {
+        if (ledgerSortDirection === "asc") {
+          return a.date.localeCompare(b.date) || a.total - b.total || a.receiptId - b.receiptId;
+        }
+
+        return b.date.localeCompare(a.date) || b.total - a.total || b.receiptId - a.receiptId;
+      }
+
+      if (ledgerSortDirection === "asc") {
+        return a.total - b.total || b.date.localeCompare(a.date) || b.receiptId - a.receiptId;
+      }
+
+      return b.total - a.total || b.date.localeCompare(a.date) || b.receiptId - a.receiptId;
+    });
+  };
+  const sortedLedgerReceipts = useMemo(
+    () => sortLedgerReceipts(ledgerReceiptGroups),
+    [ledgerReceiptGroups, ledgerSortDirection, ledgerSortField]
+  );
   const recentExpenses = useMemo(
     () => sortLedgerExpenses(categoryFilteredExpenses).slice(0, 5),
     [categoryFilteredExpenses, ledgerSortDirection, ledgerSortField]
@@ -778,8 +852,7 @@ export default function DashboardTab({
   const ledgerStoreFilterLabel = ledgerStoreFilter === "all" ? "Все магазины" : ledgerStoreFilter;
   const activeCategoryLabel = categoryFilter === "all" ? "Все категории" : categoryFilter;
   const visibleCategoryItems = showAllCategories ? categoryListItems : categoryListItems.slice(0, 4);
-  const visibleLedgerItems = sortedLedgerExpenses;
-
+  const visibleLedgerReceipts = sortedLedgerReceipts;
   const receiptFirstExpenseId = useMemo(() => {
     const first = new Map<number, number>();
     for (const exp of ledgerDetailExpenses) {
@@ -789,6 +862,11 @@ export default function DashboardTab({
     }
     return first;
   }, [ledgerDetailExpenses]);
+  const toggleLedgerReceipt = (receiptId: number) => {
+    setExpandedLedgerReceipts((prev) =>
+      prev.includes(receiptId) ? prev.filter((id) => id !== receiptId) : [...prev, receiptId]
+    );
+  };
 
   const currentEditorTotal = useMemo(() => {
     if (!editorReceipt) return 0;
@@ -1712,7 +1790,9 @@ export default function DashboardTab({
                   <span className="dashboard-mobile-panel-kicker">Детализация расходов</span>
                   <h3>Последние покупки</h3>
                 </div>
-                <span className="dashboard-mobile-panel-note">{visibleLedgerItems.length} позиций</span>
+                <span className="dashboard-mobile-panel-note">
+                  {visibleLedgerReceipts.length} {formatCountNoun(visibleLedgerReceipts.length, "чек", "чека", "чеков")}
+                </span>
               </div>
 
               {false && (
@@ -1825,33 +1905,81 @@ export default function DashboardTab({
                     </tr>
                   </thead>
                   <tbody>
-                    {visibleLedgerItems.map((exp) => (
-                      <tr key={`mobile-ledger-${exp.id}`}>
-                        <td>{formatDashboardDate(exp.date)}</td>
-                        <td>
-                          <div className="dashboard-mobile-ledger-store">
-                            <span>{exp.store}</span>
-                            {!isReadOnly ? (
-                              <button
-                                type="button"
-                                className="dashboard-mobile-receipt-link"
-                                aria-label={`Редактировать чек #${exp.receiptId}`}
-                                onClick={() => void openEditor(exp.receiptId)}
-                              >
-                                Редактировать чек #{exp.receiptId}
-                              </button>
-                            ) : null}
-                          </div>
-                        </td>
-                        <td>
-                          <span className="dashboard-mobile-ledger-item-cell" title={exp.item}>
-                            {truncateLabel(exp.item, 28)}
-                          </span>
-                        </td>
-                        <td>{exp.category}</td>
-                        <td style={{ textAlign: "right" }}>{exp.price.toFixed(2)} €</td>
-                      </tr>
-                    ))}
+                    {visibleLedgerReceipts.map((receipt) => {
+                      const isExpanded = expandedLedgerReceipts.includes(receipt.receiptId);
+                      const itemCount = receipt.items.length;
+                      const categoryCount = receipt.categories.length;
+                      const leadItem = receipt.items[0]?.item ?? "Без товаров";
+                      const itemSummary =
+                        itemCount <= 1
+                          ? truncateLabel(leadItem, 28)
+                          : `${truncateLabel(leadItem, 18)} +${itemCount - 1}`;
+                      const categorySummary =
+                        categoryCount <= 1
+                          ? receipt.categories[0] ?? "Без категории"
+                          : `${categoryCount} ${formatCountNoun(categoryCount, "категория", "категории", "категорий")}`;
+
+                      return (
+                        <Fragment key={`mobile-ledger-receipt-${receipt.receiptId}`}>
+                          <tr
+                            className={`dashboard-mobile-ledger-row ${isExpanded ? "is-expanded" : ""}`}
+                            onClick={() => toggleLedgerReceipt(receipt.receiptId)}
+                          >
+                            <td>{formatDashboardDate(receipt.date)}</td>
+                            <td>
+                              <div className="dashboard-mobile-ledger-store">
+                                <span>{receipt.store}</span>
+                                {!isReadOnly ? (
+                                  <button
+                                    type="button"
+                                    className="dashboard-mobile-receipt-link"
+                                    aria-label={`Редактировать чек #${receipt.receiptId}`}
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      void openEditor(receipt.receiptId);
+                                    }}
+                                  >
+                                    Редактировать чек #{receipt.receiptId}
+                                  </button>
+                                ) : null}
+                              </div>
+                            </td>
+                            <td>
+                              <div className="dashboard-mobile-ledger-summary">
+                                <strong className="dashboard-mobile-ledger-item-cell" title={leadItem}>
+                                  {itemSummary}
+                                </strong>
+                                <span>
+                                  {itemCount} {formatCountNoun(itemCount, "товар", "товара", "товаров")}
+                                </span>
+                              </div>
+                            </td>
+                            <td>{categorySummary}</td>
+                            <td style={{ textAlign: "right" }}>{receipt.total.toFixed(2)} €</td>
+                          </tr>
+                          {isExpanded ? (
+                            <tr className="dashboard-mobile-ledger-expanded-row">
+                              <td colSpan={5}>
+                                <div className="dashboard-mobile-ledger-expanded">
+                                  {receipt.items.map((item) => (
+                                    <div
+                                      key={`mobile-ledger-item-${receipt.receiptId}-${item.id}`}
+                                      className="dashboard-mobile-ledger-expanded-item"
+                                    >
+                                      <div>
+                                        <strong>{item.item}</strong>
+                                        <span>{item.category}</span>
+                                      </div>
+                                      <strong>{item.price.toFixed(2)} €</strong>
+                                    </div>
+                                  ))}
+                                </div>
+                              </td>
+                            </tr>
+                          ) : null}
+                        </Fragment>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
