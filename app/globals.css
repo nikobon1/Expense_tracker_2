@@ -1673,6 +1673,18 @@ td select:focus {
   flex-wrap: wrap;
 }
 
+.dashboard-desktop-ledger-card th,
+.dashboard-desktop-ledger-card td {
+  vertical-align: middle;
+}
+
+.dashboard-desktop-ledger-store-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
 .dashboard-desktop-panel-head h3 {
   margin: 0.25rem 0 0;
   color: var(--dashboard-title);

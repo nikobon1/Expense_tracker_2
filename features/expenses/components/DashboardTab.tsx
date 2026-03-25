@@ -2299,7 +2299,7 @@ export default function DashboardTab({
             </div>
           </div>
 
-          <div className="card">
+          <div className="card dashboard-desktop-ledger-card">
             <div className="compare-card-header">
               <h3>🔎 {comparisonTitle}</h3>
               <button
@@ -2466,7 +2466,7 @@ export default function DashboardTab({
                       <tr key={exp.id}>
                         <td>{formatDashboardDate(exp.date)}</td>
                         <td>
-                          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+                          <div className="dashboard-desktop-ledger-store-cell">
                             <span>{exp.store}</span>
                             {!isReadOnly && isFirstInReceipt && (
                               <button
