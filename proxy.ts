@@ -10,12 +10,13 @@ export async function proxy(request: NextRequest) {
     });
 
     const isLoginPage = pathname === "/login";
+    const isDemoPage = pathname === "/demo";
     const isAuthRoute = pathname.startsWith("/api/auth");
     const isPublicHealthRoute = pathname.startsWith("/api/health");
     const isTelegramWebhookRoute = pathname.startsWith("/api/telegram/webhook");
 
     // Allow auth and bot/health routes without session
-    if (isAuthRoute || isPublicHealthRoute || isTelegramWebhookRoute) {
+    if (isAuthRoute || isPublicHealthRoute || isTelegramWebhookRoute || isDemoPage) {
         return NextResponse.next();
     }
 

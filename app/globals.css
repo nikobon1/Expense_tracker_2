@@ -147,6 +147,10 @@ body {
   transform: none;
 }
 
+.demo-login-link {
+  text-decoration: none;
+}
+
 .login-footer {
   font-size: 0.75rem;
   color: #7a8594;
@@ -450,6 +454,108 @@ body {
 
 .main-full {
   width: 100%;
+}
+
+.demo-page {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.demo-hero {
+  display: grid;
+  gap: 1rem;
+  padding: 1.2rem;
+  border: 1px solid var(--border-color);
+  border-radius: 1.5rem;
+  background:
+    radial-gradient(circle at top right, rgba(99, 102, 241, 0.18), transparent 30%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(247, 249, 252, 0.96));
+}
+
+.demo-hero-alert {
+  margin-bottom: 0;
+}
+
+.demo-hero-copy {
+  display: grid;
+  gap: 1rem;
+}
+
+.demo-hero-kicker {
+  display: inline-block;
+  margin-bottom: 0.65rem;
+  color: var(--accent-primary);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.demo-hero-copy h1 {
+  margin: 0 0 0.6rem;
+  font-size: clamp(2rem, 5vw, 3.4rem);
+  line-height: 1.02;
+}
+
+.demo-hero-copy p {
+  margin: 0;
+  max-width: 56rem;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  line-height: 1.6;
+}
+
+.demo-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.demo-scenario-block {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem 1.05rem;
+  border: 1px solid var(--border-color);
+  border-radius: 1.2rem;
+  background: rgba(255, 255, 255, 0.66);
+}
+
+.demo-scenario-block h2 {
+  margin: 0 0 0.3rem;
+  font-size: 1.05rem;
+}
+
+.demo-scenario-block p {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.demo-scenario-tabs {
+  flex-wrap: wrap;
+}
+
+.demo-quick-notes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.9rem;
+}
+
+.demo-note-card {
+  padding: 1rem 1.05rem;
+  border: 1px solid var(--border-color);
+  border-radius: 1.2rem;
+  background: var(--bg-card);
+}
+
+.demo-note-card strong {
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+.demo-note-card p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.55;
 }
 
 .scan-empty-state {
@@ -2944,6 +3050,14 @@ td select:focus {
 
 /* Responsive */
 @media (max-width: 1024px) {
+  .demo-quick-notes {
+    grid-template-columns: 1fr;
+  }
+
+  .demo-hero {
+    padding: 1rem;
+  }
+
   .dashboard-desktop-hero,
   .dashboard-desktop-insights {
     grid-template-columns: 1fr;

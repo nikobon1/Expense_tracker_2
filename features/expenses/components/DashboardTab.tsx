@@ -57,6 +57,8 @@ interface DashboardTabProps {
   onStoreChange: (value: string) => void;
   onRefresh?: () => void;
   onOpenScan?: () => void;
+  isReadOnly?: boolean;
+  readOnlyNotice?: string;
 }
 
 type DailyBarShapeProps = {
@@ -335,6 +337,8 @@ export default function DashboardTab({
   onStoreChange,
   onRefresh,
   onOpenScan,
+  isReadOnly = false,
+  readOnlyNotice = "Это демо-режим. В этой версии редактирование и сохранение отключены.",
 }: DashboardTabProps) {
   const [activeBarDate, setActiveBarDate] = useState<string | null>(null);
   const [tooltipReceiptLimit, setTooltipReceiptLimit] = useState<TooltipReceiptLimit>(5);
@@ -790,6 +794,9 @@ export default function DashboardTab({
     if (!editorReceipt) return 0;
     return sanitizeItems(editorReceipt.items).reduce((sum, item) => sum + Number(item.price || 0), 0);
   }, [editorReceipt]);
+  const showReadOnlyNotice = () => {
+    window.alert(readOnlyNotice);
+  };
 
   const comparisonSummary = useMemo(() => {
     if (!editorReceipt || !comparisonData) return null;
@@ -797,6 +804,11 @@ export default function DashboardTab({
   }, [editorReceipt, comparisonData]);
 
   const openEditor = async (receiptId: number) => {
+    if (isReadOnly) {
+      showReadOnlyNotice();
+      return;
+    }
+
     setIsEditorOpen(true);
     setIsEditorLoading(true);
     setEditorError(null);
@@ -1148,6 +1160,11 @@ export default function DashboardTab({
   };
 
   const handleExportExcel = () => {
+    if (isReadOnly) {
+      showReadOnlyNotice();
+      return;
+    }
+
     const xml = buildExpensesExcelXml({
       startDate,
       endDate,
@@ -1292,7 +1309,7 @@ export default function DashboardTab({
                 type="button"
                 className="dashboard-mobile-action-btn ghost"
                 onClick={handleExportExcel}
-                disabled={isLoading || expenses.length === 0}
+                disabled={isReadOnly || isLoading || expenses.length === 0}
               >
                 Экспорт
               </button>
@@ -1814,14 +1831,16 @@ export default function DashboardTab({
                         <td>
                           <div className="dashboard-mobile-ledger-store">
                             <span>{exp.store}</span>
-                            <button
-                              type="button"
-                              className="dashboard-mobile-receipt-link"
-                              aria-label={`Редактировать чек #${exp.receiptId}`}
-                              onClick={() => void openEditor(exp.receiptId)}
-                            >
-                              Редактировать чек #{exp.receiptId}
-                            </button>
+                            {!isReadOnly ? (
+                              <button
+                                type="button"
+                                className="dashboard-mobile-receipt-link"
+                                aria-label={`Редактировать чек #${exp.receiptId}`}
+                                onClick={() => void openEditor(exp.receiptId)}
+                              >
+                                Редактировать чек #{exp.receiptId}
+                              </button>
+                            ) : null}
                           </div>
                         </td>
                         <td>
@@ -1847,17 +1866,21 @@ export default function DashboardTab({
         )}
       </div>
 
-      <button type="button" className="dashboard-mobile-scan-fab" onClick={onOpenScan} disabled={!onOpenScan}>
-        Сканировать
-      </button>
+      {onOpenScan ? (
+        <button type="button" className="dashboard-mobile-scan-fab" onClick={onOpenScan}>
+          Сканировать
+        </button>
+      ) : null}
 
       <nav className="dashboard-mobile-nav" aria-label="Навигация dashboard">
         <button type="button" className="active">
           Дашборд
         </button>
-        <button type="button" onClick={onOpenScan} disabled={!onOpenScan}>
-          Скан
-        </button>
+        {onOpenScan ? (
+          <button type="button" onClick={onOpenScan}>
+            Скан
+          </button>
+        ) : null}
         <button type="button" onClick={onRefresh} disabled={isLoading}>
           Обновить
         </button>
@@ -1997,7 +2020,7 @@ export default function DashboardTab({
               type="button"
               className="btn btn-secondary dashboard-refresh-btn"
               onClick={handleExportExcel}
-              disabled={isLoading || expenses.length === 0}
+              disabled={isReadOnly || isLoading || expenses.length === 0}
             >
               {"\u042d\u043a\u0441\u043f\u043e\u0440\u0442 \u0432 Excel"}
             </button>
@@ -2063,7 +2086,7 @@ export default function DashboardTab({
                     <div>
                       <strong>{formatCurrency(exp.price)}</strong>
                       <span>{exp.category}</span>
-                      {isFirstInReceipt ? (
+                      {!isReadOnly && isFirstInReceipt ? (
                         <button
                           type="button"
                           className="dashboard-desktop-link"
@@ -2445,7 +2468,7 @@ export default function DashboardTab({
                         <td>
                           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
                             <span>{exp.store}</span>
-                            {isFirstInReceipt && (
+                            {!isReadOnly && isFirstInReceipt && (
                               <button
                                 type="button"
                                 className="btn btn-secondary"

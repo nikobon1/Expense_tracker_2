@@ -1,5 +1,6 @@
 'use client';
 
+import Link from "next/link";
 import { getProviders, signIn } from "next-auth/react";
 import { FormEvent, useEffect, useState } from "react";
 
@@ -125,6 +126,10 @@ export default function LoginPage() {
             Не настроен ни один способ входа. Проверьте переменные окружения.
           </p>
         )}
+
+        <Link href="/demo" className="google-btn demo-login-link">
+          Посмотреть демо без входа
+        </Link>
 
         <p className="login-footer">Только для авторизованных пользователей</p>
       </div>
