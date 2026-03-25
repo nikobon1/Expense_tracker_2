@@ -2743,7 +2743,7 @@ td select:focus {
   border-bottom: 1px solid var(--dashboard-mobile-table-border);
   color: var(--dashboard-mobile-table-text);
   font-size: 0.82rem;
-  vertical-align: top;
+  vertical-align: middle;
 }
 
 .dashboard-mobile-ledger-table th {
