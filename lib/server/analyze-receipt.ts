@@ -25,9 +25,11 @@ ${CATEGORY_PROMPT_LIST}
 
 const TOTAL_AMOUNT_HINTS = `
 Additional receipt rules:
+- "Total a pagar" is the final amount paid and must be treated as the true purchase total.
 - If the receipt contains "Total", "TOTAL A PAGAR", or "Total a pagar", treat that line as the final amount actually paid/spent.
 - Prefer the final paid total over subtotal/intermediate totals.
 - Use the final paid total to validate extracted items.
+- If extracted item prices do not match "Total a pagar", reconcile them using item-level discounts and by excluding savings/discount summary lines.
 - Use the category "Кофе" for coffee beans, ground coffee, capsules, instant coffee, and similar coffee products.
 - For Pingo Doce receipts, a number in parentheses directly under an item is that item's discount amount, not a separate product line.
 - For Pingo Doce receipts, "Total Poupanca" means total savings/discount and must not be added as a product or expense.
