@@ -75,7 +75,6 @@ type DailyTooltipContentProps = {
   payload?: ReadonlyArray<{ value?: number; payload?: DailyPoint }>;
 };
 
-type TooltipReceiptLimit = 5 | 10 | "all";
 type LedgerSortField = "price" | "date";
 type LedgerSortDirection = "desc" | "asc";
 
@@ -106,6 +105,7 @@ type LedgerReceiptGroup = {
 const MAX_UPLOAD_DIMENSION = 1600;
 const MAX_ANALYZE_PAYLOAD_CHARS = 3_500_000;
 const DAILY_CHART_STEP_EUR = 20;
+const ACTIVITY_CHART_DAYS = 7;
 
 function getLocalTodayIso() {
   const now = new Date();
@@ -360,7 +360,8 @@ export default function DashboardTab({
   readOnlyNotice = "Это демо-режим. В этой версии редактирование и сохранение отключены.",
 }: DashboardTabProps) {
   const [activeBarDate, setActiveBarDate] = useState<string | null>(null);
-  const [tooltipReceiptLimit, setTooltipReceiptLimit] = useState<TooltipReceiptLimit>(5);
+  const tooltipReceiptLimit: number | "all" = ACTIVITY_CHART_DAYS;
+  const setTooltipReceiptLimit = (_value: number | "all") => undefined;
   const [isCategoryComparisonOpen, setIsCategoryComparisonOpen] = useState(false);
   const [comparisonMode, setComparisonMode] = useState<"periods" | "stores">("periods");
   const [comparisonView, setComparisonView] = useState<"table" | "lines">("lines");
@@ -829,9 +830,8 @@ export default function DashboardTab({
     return formatted.charAt(0).toUpperCase() + formatted.slice(1);
   }, [currentPeriodLabel, endDate]);
   const activityChartData = useMemo(() => {
-    if (tooltipReceiptLimit === "all") return dailyData;
-    return dailyData.slice(-tooltipReceiptLimit);
-  }, [dailyData, tooltipReceiptLimit]);
+    return dailyData.slice(-ACTIVITY_CHART_DAYS);
+  }, [dailyData]);
   const activityChartYAxisTicks = useMemo(
     () => buildAxisTicks(Math.max(...activityChartData.map((point) => point.amount), 0), DAILY_CHART_STEP_EUR),
     [activityChartData]
@@ -1089,12 +1089,8 @@ export default function DashboardTab({
 
     const count = point.receiptCount ?? 0;
     const receiptLabel = count === 1 ? "чек" : count >= 2 && count <= 4 ? "чека" : "чеков";
-    const visibleSegments =
-      tooltipReceiptLimit === "all"
-        ? point.receiptSegments
-        : point.receiptSegments.slice(0, tooltipReceiptLimit);
-    const hiddenSegments =
-      tooltipReceiptLimit === "all" ? [] : point.receiptSegments.slice(tooltipReceiptLimit);
+    const visibleSegments = point.receiptSegments;
+    const hiddenSegments: DailyReceiptSegment[] = [];
     const hiddenCount = hiddenSegments.length;
     const hiddenTotal = hiddenSegments.reduce((sum, segment) => sum + segment.amount, 0);
 
@@ -1505,7 +1501,7 @@ export default function DashboardTab({
                     <span className="dashboard-mobile-panel-kicker">Активность</span>
                     <h3>Динамика по дням</h3>
                   </div>
-                  <div className="dashboard-mobile-segmented">
+                  <div className="dashboard-mobile-segmented" style={{ display: "none" }}>
                     {([
                       { value: 5, label: "5" },
                       { value: 10, label: "10" },
