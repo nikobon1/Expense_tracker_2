@@ -428,10 +428,6 @@ export default function DashboardTab({
   const [comparisonImage, setComparisonImage] = useState<string | null>(null);
   const [comparisonData, setComparisonData] = useState<ReceiptData | null>(null);
   const compareFileInputRef = useRef<HTMLInputElement | null>(null);
-  const mobileStartDateInputRef = useRef<HTMLInputElement | null>(null);
-  const mobileEndDateInputRef = useRef<HTMLInputElement | null>(null);
-  const desktopStartDateInputRef = useRef<HTMLInputElement | null>(null);
-  const desktopEndDateInputRef = useRef<HTMLInputElement | null>(null);
 
   const getReceiptSegmentColor = (segment: DailyReceiptSegment, index: number) =>
     CHART_COLORS[(segment.receiptId + index) % CHART_COLORS.length];
@@ -499,23 +495,6 @@ export default function DashboardTab({
   }, [endDate, startDate, todayIso]);
   const toggleCategoryFilter = (category: string) => {
     setCategoryFilter((prev) => (prev === category ? "all" : category));
-  };
-  const openDateInputPicker = (input: HTMLInputElement | null) => {
-    if (!input) return;
-
-    input.focus({ preventScroll: true });
-
-    const pickerInput = input as HTMLInputElement & { showPicker?: () => void };
-    if (typeof pickerInput.showPicker === "function") {
-      try {
-        pickerInput.showPicker();
-        return;
-      } catch {
-        // Fallback to native click below when showPicker is unavailable.
-      }
-    }
-
-    input.click();
   };
   const handleDashboardStartDateChange = (value: string) => {
     if (!value) {
@@ -1391,13 +1370,11 @@ export default function DashboardTab({
 
         <section className="dashboard-mobile-controls">
           <div className="dashboard-mobile-date-row">
-            <div
-              className="dashboard-mobile-date-card dashboard-date-trigger"
-              onClick={() => openDateInputPicker(mobileStartDateInputRef.current)}
-            >
+            <div className="dashboard-mobile-date-card dashboard-date-trigger">
               <label htmlFor="dashboard-start-date">Начало периода</label>
+              <span className="dashboard-date-value">{formatPeriodLabel(startDate)}</span>
               <input
-                ref={mobileStartDateInputRef}
+                className="dashboard-date-input-overlay"
                 id="dashboard-start-date"
                 type="date"
                 aria-label="Начало периода"
@@ -1406,13 +1383,11 @@ export default function DashboardTab({
                 onChange={(e) => handleDashboardStartDateChange(e.target.value)}
               />
             </div>
-            <div
-              className="dashboard-mobile-date-card dashboard-date-trigger"
-              onClick={() => openDateInputPicker(mobileEndDateInputRef.current)}
-            >
+            <div className="dashboard-mobile-date-card dashboard-date-trigger">
               <label htmlFor="dashboard-end-date">Конец периода</label>
+              <span className="dashboard-date-value">{formatPeriodLabel(endDate)}</span>
               <input
-                ref={mobileEndDateInputRef}
+                className="dashboard-date-input-overlay"
                 id="dashboard-end-date"
                 type="date"
                 aria-label="Конец периода"
@@ -2194,19 +2169,21 @@ export default function DashboardTab({
       </section>
 
       <div className="date-filter">
-        <div className="dashboard-date-trigger" onClick={() => openDateInputPicker(desktopStartDateInputRef.current)}>
+        <div className="dashboard-date-trigger">
           <label>📅 Начало периода</label>
+          <span className="dashboard-date-value">{formatPeriodLabel(startDate)}</span>
           <input
-            ref={desktopStartDateInputRef}
+            className="dashboard-date-input-overlay"
             type="date"
             value={startDate}
             onChange={(e) => handleDashboardStartDateChange(e.target.value)}
           />
         </div>
-        <div className="dashboard-date-trigger" onClick={() => openDateInputPicker(desktopEndDateInputRef.current)}>
+        <div className="dashboard-date-trigger">
           <label>📅 Конец периода</label>
+          <span className="dashboard-date-value">{formatPeriodLabel(endDate)}</span>
           <input
-            ref={desktopEndDateInputRef}
+            className="dashboard-date-input-overlay"
             type="date"
             value={endDate}
             onChange={(e) => handleDashboardEndDateChange(e.target.value)}

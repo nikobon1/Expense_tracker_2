@@ -1352,10 +1352,33 @@ td select:focus {
 
 .dashboard-date-trigger {
   cursor: pointer;
+  position: relative;
+  overflow: hidden;
 }
 
 .dashboard-date-trigger label,
-.dashboard-date-trigger input {
+.dashboard-date-trigger input,
+.dashboard-date-trigger span {
+  cursor: pointer;
+}
+
+.dashboard-date-value {
+  display: block;
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.dashboard-date-input-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
   cursor: pointer;
 }
 
@@ -2280,6 +2303,15 @@ td select:focus {
   text-transform: uppercase;
 }
 
+.dashboard-mobile-date-card .dashboard-date-value {
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--dashboard-mobile-heading);
+  font-size: 0.98rem;
+}
+
 .dashboard-mobile-date-card input,
 .dashboard-mobile-select,
 .dashboard-mobile-inline-select {
@@ -3148,6 +3180,10 @@ td select:focus {
   .dashboard-mobile-date-card label,
   .dashboard-mobile-filter-card label {
     font-size: 0.76rem;
+  }
+
+  .dashboard-mobile-date-card .dashboard-date-value {
+    font-size: 1.02rem;
   }
 
   .dashboard-mobile-date-card input,
