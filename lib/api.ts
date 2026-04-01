@@ -100,6 +100,7 @@ export async function saveReceipt(payload: {
   store_name: string;
   purchase_date: string;
   items: ReceiptItem[];
+  comment?: string;
 }): Promise<void> {
   const response = await fetch("/api/receipts", {
     method: "POST",
@@ -135,7 +136,7 @@ export async function getReceipt(receiptId: number): Promise<ReceiptDetails> {
 
 export async function updateReceipt(
   receiptId: number,
-  payload: { store_name: string; purchase_date: string; items: ReceiptItem[] }
+  payload: { store_name: string; purchase_date: string; items: ReceiptItem[]; comment?: string }
 ): Promise<void> {
   const response = await fetch(`/api/receipts/${receiptId}`, {
     method: "PATCH",

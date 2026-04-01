@@ -83,6 +83,7 @@ type EditableReceipt = {
   store_name: string;
   purchase_date: string;
   items: ReceiptItem[];
+  comment: string;
   source?: string | null;
   telegram_file_id?: string | null;
 };
@@ -900,6 +901,7 @@ export default function DashboardTab({
         store_name: receipt.store_name,
         purchase_date: receipt.purchase_date,
         items: sanitizeItems(receipt.items),
+        comment: receipt.comment ?? "",
         source: receipt.source ?? null,
         telegram_file_id: receipt.telegram_file_id ?? null,
       });
@@ -1070,6 +1072,7 @@ export default function DashboardTab({
         store_name: editorReceipt.store_name.trim(),
         purchase_date: editorReceipt.purchase_date,
         items: preparedItems,
+        comment: editorReceipt.comment.trim(),
       });
 
       closeEditor();
@@ -2699,6 +2702,19 @@ export default function DashboardTab({
                       onChange={(e) =>
                         setEditorReceipt((prev) => (prev ? { ...prev, purchase_date: e.target.value } : prev))
                       }
+                    />
+                  </div>
+                  <div className="receipt-editor-comment-field">
+                    <label className="scan-field-label">рџ’¬ РљРѕРјРјРµРЅС‚Р°СЂРёР№ Рє С‡РµРєСѓ</label>
+                    <textarea
+                      className="scan-field-input receipt-editor-comment-input"
+                      value={editorReceipt.comment}
+                      onChange={(e) =>
+                        setEditorReceipt((prev) => (prev ? { ...prev, comment: e.target.value } : prev))
+                      }
+                      placeholder="Например: покупка на неделю, скидка по карте, товары для дома"
+                      maxLength={500}
+                      rows={4}
                     />
                   </div>
                 </div>

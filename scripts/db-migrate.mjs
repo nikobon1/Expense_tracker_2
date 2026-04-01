@@ -16,6 +16,7 @@ const statements = [
       store_name TEXT,
       purchase_date DATE,
       total_amount DECIMAL(10, 2),
+      comment TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `,
@@ -26,6 +27,10 @@ const statements = [
   `
     ALTER TABLE receipts
     ADD COLUMN IF NOT EXISTS telegram_file_id TEXT
+  `,
+  `
+    ALTER TABLE receipts
+    ADD COLUMN IF NOT EXISTS comment TEXT
   `,
   `
     CREATE TABLE IF NOT EXISTS items (

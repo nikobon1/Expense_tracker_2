@@ -76,16 +76,23 @@ function normalizeReceiptItems(items: ReceiptItem[]): Array<{
   }));
 }
 
+function normalizeReceiptComment(comment: string | null | undefined): string | null {
+  const normalized = String(comment ?? "").trim();
+  return normalized || null;
+}
+
 export async function saveReceiptToDb(payload: {
   store_name: string;
   purchase_date: string;
   items: ReceiptItem[];
+  comment?: string | null;
   source?: string;
   telegram_file_id?: string | null;
 }): Promise<{ receiptId: number; totalAmount: number }> {
-  const { store_name, purchase_date, items, source, telegram_file_id } = payload;
+  const { store_name, purchase_date, items, comment, source, telegram_file_id } = payload;
   const normalizedStoreName = normalizeStoreName(store_name);
   const normalizedItems = normalizeReceiptItems(items);
+  const normalizedComment = normalizeReceiptComment(comment);
 
   if (!normalizedStoreName || !purchase_date || !normalizedItems.length) {
     throw new Error("Missing required fields");
@@ -99,8 +106,8 @@ export async function saveReceiptToDb(payload: {
   const [receiptResult] = (await sql.transaction((tx) => [
     tx`
       WITH inserted_receipt AS (
-        INSERT INTO receipts (store_name, purchase_date, total_amount, source, telegram_file_id)
-        VALUES (${normalizedStoreName}, ${purchase_date}, ${totalAmount}, ${source ?? null}, ${telegram_file_id ?? null})
+        INSERT INTO receipts (store_name, purchase_date, total_amount, comment, source, telegram_file_id)
+        VALUES (${normalizedStoreName}, ${purchase_date}, ${totalAmount}, ${normalizedComment}, ${source ?? null}, ${telegram_file_id ?? null})
         RETURNING id
       ),
       inserted_items AS (
@@ -130,7 +137,7 @@ export async function getReceiptById(
   const sql = getDb();
 
   const receiptRows = (await sql`
-    SELECT id, store_name, purchase_date, total_amount, source, telegram_file_id
+    SELECT id, store_name, purchase_date, total_amount, comment, source, telegram_file_id
     FROM receipts
     WHERE id = ${receiptId}
     LIMIT 1
@@ -139,6 +146,7 @@ export async function getReceiptById(
     store_name: string | null;
     purchase_date: string | Date | null;
     total_amount: number | string | null;
+    comment: string | null;
     source: string | null;
     telegram_file_id: string | null;
   }>;
@@ -164,6 +172,7 @@ export async function getReceiptById(
     store_name: normalizeStoreName(receipt.store_name ?? ""),
     purchase_date: purchaseDate,
     total_amount: Number(receipt.total_amount ?? 0),
+    comment: normalizeReceiptComment(receipt.comment),
     source: receipt.source ?? null,
     telegram_file_id: receipt.telegram_file_id ?? null,
     items: itemRows.map((item) => ({
@@ -176,11 +185,12 @@ export async function getReceiptById(
 
 export async function updateReceiptInDb(
   receiptId: number,
-  payload: { store_name: string; purchase_date: string; items: ReceiptItem[] }
+  payload: { store_name: string; purchase_date: string; items: ReceiptItem[]; comment?: string | null }
 ): Promise<{ receiptId: number; totalAmount: number }> {
-  const { store_name, purchase_date, items } = payload;
+  const { store_name, purchase_date, items, comment } = payload;
   const normalizedStoreName = normalizeStoreName(store_name);
   const normalizedItems = normalizeReceiptItems(items);
+  const normalizedComment = normalizeReceiptComment(comment);
 
   if (!normalizedStoreName || !purchase_date || !normalizedItems.length) {
     throw new Error("Missing required fields");
@@ -197,6 +207,7 @@ export async function updateReceiptInDb(
         UPDATE receipts
         SET store_name = ${normalizedStoreName},
             purchase_date = ${purchase_date},
+            comment = ${normalizedComment},
             total_amount = ${totalAmount}
         WHERE id = ${receiptId}
         RETURNING id

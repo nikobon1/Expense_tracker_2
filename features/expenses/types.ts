@@ -8,6 +8,7 @@ export interface ReceiptData {
   store_name: string;
   purchase_date: string;
   items: ReceiptItem[];
+  comment?: string | null;
 }
 
 export interface ReceiptDetails extends ReceiptData {

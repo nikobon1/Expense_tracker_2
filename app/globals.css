@@ -2025,6 +2025,16 @@ td select:focus {
   font-size: 0.85rem;
 }
 
+.receipt-editor-comment-field {
+  grid-column: 1 / -1;
+}
+
+.receipt-editor-comment-input {
+  min-height: 5.75rem;
+  resize: vertical;
+  font: inherit;
+}
+
 .receipt-editor-items-head {
   display: flex;
   align-items: center;

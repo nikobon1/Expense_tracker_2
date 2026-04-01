@@ -33,12 +33,17 @@ const receiptPayloadSchema = z.object({
     .refine(isValidIsoDate, "purchase_date must be a valid YYYY-MM-DD date"),
   items: z.array(receiptItemSchema)
     .min(1, "At least one item is required"),
+  comment: z.preprocess(
+    (value) => (typeof value === "string" ? value.trim() : value),
+    z.string().max(500, "Comment must be 500 characters or less").optional().nullable()
+  ).transform((value) => value || undefined),
 });
 
 export type ReceiptPayload = {
   store_name: string;
   purchase_date: string;
   items: ReceiptItem[];
+  comment?: string;
 };
 
 export function parseReceiptPayload(payload: unknown): ReceiptPayload {
@@ -47,6 +52,7 @@ export function parseReceiptPayload(payload: unknown): ReceiptPayload {
     store_name: parsed.store_name,
     purchase_date: parsed.purchase_date,
     items: parsed.items as ReceiptItem[],
+    comment: parsed.comment,
   };
 }
 

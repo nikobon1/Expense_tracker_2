@@ -65,6 +65,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       store_name: body.store_name,
       purchase_date: body.purchase_date,
       items: body.items,
+      comment: body.comment,
     });
 
     return NextResponse.json({ success: true, receiptId: updated.receiptId, totalAmount: updated.totalAmount });

@@ -22,6 +22,7 @@ export async function POST(request: NextRequest) {
       store_name: body.store_name,
       purchase_date: body.purchase_date,
       items: body.items,
+      comment: body.comment,
       source: "web",
     });
 
