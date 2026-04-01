@@ -1350,6 +1350,15 @@ td select:focus {
   margin-bottom: 0.5rem;
 }
 
+.dashboard-date-trigger {
+  cursor: pointer;
+}
+
+.dashboard-date-trigger label,
+.dashboard-date-trigger input {
+  cursor: pointer;
+}
+
 .date-filter input {
   width: 100%;
   padding: 0.75rem;

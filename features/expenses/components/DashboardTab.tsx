@@ -77,6 +77,7 @@ type DailyTooltipContentProps = {
 
 type LedgerSortField = "price" | "date";
 type LedgerSortDirection = "desc" | "asc";
+type DashboardRangePreset = "custom" | "yesterday" | "last7" | "last14" | "last30" | "previousMonth";
 
 type EditableReceipt = {
   id: number;
@@ -107,11 +108,27 @@ const MAX_UPLOAD_DIMENSION = 1600;
 const MAX_ANALYZE_PAYLOAD_CHARS = 3_500_000;
 const DAILY_CHART_STEP_EUR = 20;
 const ACTIVITY_CHART_DAYS = 7;
+const DASHBOARD_RANGE_PRESET_OPTIONS: Array<{ value: DashboardRangePreset; label: string }> = [
+  { value: "custom", label: "Свой период" },
+  { value: "yesterday", label: "Вчера" },
+  { value: "last7", label: "Последние 7 дней" },
+  { value: "last14", label: "Последние 14 дней" },
+  { value: "last30", label: "Последние 30 дней" },
+  { value: "previousMonth", label: "Прошлый месяц" },
+];
 
 function getLocalTodayIso() {
   const now = new Date();
   const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
   return local.toISOString().slice(0, 10);
+}
+
+function shiftIsoDateByDays(dateString: string, dayOffset: number): string {
+  const base = new Date(`${dateString}T00:00:00.000Z`);
+  if (Number.isNaN(base.getTime())) return dateString;
+
+  base.setUTCDate(base.getUTCDate() + dayOffset);
+  return base.toISOString().slice(0, 10);
 }
 
 function shiftDateByMonths(dateString: string, monthOffset: number): string {
@@ -127,6 +144,31 @@ function shiftDateByMonths(dateString: string, monthOffset: number): string {
   const normalizedDay = Math.min(day, lastDayOfTargetMonth);
 
   return new Date(Date.UTC(targetYear, normalizedMonthIndex, normalizedDay)).toISOString().split("T")[0];
+}
+
+function getDashboardPresetRange(preset: Exclude<DashboardRangePreset, "custom">, anchorDate: string) {
+  switch (preset) {
+    case "yesterday": {
+      const yesterday = shiftIsoDateByDays(anchorDate, -1);
+      return { start: yesterday, end: yesterday };
+    }
+    case "last7":
+      return { start: shiftIsoDateByDays(anchorDate, -6), end: anchorDate };
+    case "last14":
+      return { start: shiftIsoDateByDays(anchorDate, -13), end: anchorDate };
+    case "last30":
+      return { start: shiftIsoDateByDays(anchorDate, -29), end: anchorDate };
+    case "previousMonth": {
+      const anchor = new Date(`${anchorDate}T00:00:00.000Z`);
+      const startOfCurrentMonth = new Date(Date.UTC(anchor.getUTCFullYear(), anchor.getUTCMonth(), 1));
+      const endOfPreviousMonth = new Date(startOfCurrentMonth.getTime() - 86_400_000);
+      const startOfPreviousMonth = new Date(Date.UTC(endOfPreviousMonth.getUTCFullYear(), endOfPreviousMonth.getUTCMonth(), 1));
+      return {
+        start: startOfPreviousMonth.toISOString().slice(0, 10),
+        end: endOfPreviousMonth.toISOString().slice(0, 10),
+      };
+    }
+  }
 }
 
 function formatPeriodLabel(value: string): string {
@@ -386,6 +428,10 @@ export default function DashboardTab({
   const [comparisonImage, setComparisonImage] = useState<string | null>(null);
   const [comparisonData, setComparisonData] = useState<ReceiptData | null>(null);
   const compareFileInputRef = useRef<HTMLInputElement | null>(null);
+  const mobileStartDateInputRef = useRef<HTMLInputElement | null>(null);
+  const mobileEndDateInputRef = useRef<HTMLInputElement | null>(null);
+  const desktopStartDateInputRef = useRef<HTMLInputElement | null>(null);
+  const desktopEndDateInputRef = useRef<HTMLInputElement | null>(null);
 
   const getReceiptSegmentColor = (segment: DailyReceiptSegment, index: number) =>
     CHART_COLORS[(segment.receiptId + index) % CHART_COLORS.length];
@@ -439,8 +485,37 @@ export default function DashboardTab({
     if (categoryFilter === "all") return expenses;
     return expenses.filter((expense) => expense.category === categoryFilter);
   }, [categoryFilter, expenses]);
+  const todayIso = getLocalTodayIso();
+  const activeRangePreset = useMemo<DashboardRangePreset>(() => {
+    for (const option of DASHBOARD_RANGE_PRESET_OPTIONS) {
+      if (option.value === "custom") continue;
+      const range = getDashboardPresetRange(option.value, todayIso);
+      if (range.start === startDate && range.end === endDate) {
+        return option.value;
+      }
+    }
+
+    return "custom";
+  }, [endDate, startDate, todayIso]);
   const toggleCategoryFilter = (category: string) => {
     setCategoryFilter((prev) => (prev === category ? "all" : category));
+  };
+  const openDateInputPicker = (input: HTMLInputElement | null) => {
+    if (!input) return;
+
+    input.focus({ preventScroll: true });
+
+    const pickerInput = input as HTMLInputElement & { showPicker?: () => void };
+    if (typeof pickerInput.showPicker === "function") {
+      try {
+        pickerInput.showPicker();
+        return;
+      } catch {
+        // Fallback to native click below when showPicker is unavailable.
+      }
+    }
+
+    input.click();
   };
   const handleDashboardStartDateChange = (value: string) => {
     if (!value) {
@@ -465,6 +540,13 @@ export default function DashboardTab({
     }
 
     onEndDateChange(value);
+  };
+  const handleDashboardPresetChange = (value: DashboardRangePreset) => {
+    if (value === "custom") return;
+
+    const range = getDashboardPresetRange(value, todayIso);
+    onStartDateChange(range.start);
+    onEndDateChange(range.end);
   };
   const filteredCategoryTotal = useMemo(
     () => categoryChartData.reduce((sum, point) => sum + point.value, 0),
@@ -1309,9 +1391,13 @@ export default function DashboardTab({
 
         <section className="dashboard-mobile-controls">
           <div className="dashboard-mobile-date-row">
-            <div className="dashboard-mobile-date-card">
+            <div
+              className="dashboard-mobile-date-card dashboard-date-trigger"
+              onClick={() => openDateInputPicker(mobileStartDateInputRef.current)}
+            >
               <label htmlFor="dashboard-start-date">Начало периода</label>
               <input
+                ref={mobileStartDateInputRef}
                 id="dashboard-start-date"
                 type="date"
                 aria-label="Начало периода"
@@ -1320,9 +1406,13 @@ export default function DashboardTab({
                 onChange={(e) => handleDashboardStartDateChange(e.target.value)}
               />
             </div>
-            <div className="dashboard-mobile-date-card">
+            <div
+              className="dashboard-mobile-date-card dashboard-date-trigger"
+              onClick={() => openDateInputPicker(mobileEndDateInputRef.current)}
+            >
               <label htmlFor="dashboard-end-date">Конец периода</label>
               <input
+                ref={mobileEndDateInputRef}
                 id="dashboard-end-date"
                 type="date"
                 aria-label="Конец периода"
@@ -1331,6 +1421,22 @@ export default function DashboardTab({
                 onChange={(e) => handleDashboardEndDateChange(e.target.value)}
               />
             </div>
+          </div>
+
+          <div className="dashboard-mobile-filter-card">
+            <label htmlFor="dashboard-range-preset-mobile">Быстрый период</label>
+            <select
+              id="dashboard-range-preset-mobile"
+              className="dashboard-mobile-select"
+              value={activeRangePreset}
+              onChange={(e) => handleDashboardPresetChange(e.target.value as DashboardRangePreset)}
+            >
+              {DASHBOARD_RANGE_PRESET_OPTIONS.map((option) => (
+                <option key={`mobile-range-${option.value}`} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="dashboard-mobile-filter-card">
@@ -2088,13 +2194,37 @@ export default function DashboardTab({
       </section>
 
       <div className="date-filter">
-        <div>
+        <div className="dashboard-date-trigger" onClick={() => openDateInputPicker(desktopStartDateInputRef.current)}>
           <label>📅 Начало периода</label>
-          <input type="date" value={startDate} onChange={(e) => handleDashboardStartDateChange(e.target.value)} />
+          <input
+            ref={desktopStartDateInputRef}
+            type="date"
+            value={startDate}
+            onChange={(e) => handleDashboardStartDateChange(e.target.value)}
+          />
+        </div>
+        <div className="dashboard-date-trigger" onClick={() => openDateInputPicker(desktopEndDateInputRef.current)}>
+          <label>📅 Конец периода</label>
+          <input
+            ref={desktopEndDateInputRef}
+            type="date"
+            value={endDate}
+            onChange={(e) => handleDashboardEndDateChange(e.target.value)}
+          />
         </div>
         <div>
-          <label>📅 Конец периода</label>
-          <input type="date" value={endDate} onChange={(e) => handleDashboardEndDateChange(e.target.value)} />
+          <label>⚡ Быстрый период</label>
+          <select
+            className="metric-filter-select dashboard-date-preset-select"
+            value={activeRangePreset}
+            onChange={(e) => handleDashboardPresetChange(e.target.value as DashboardRangePreset)}
+          >
+            {DASHBOARD_RANGE_PRESET_OPTIONS.map((option) => (
+              <option key={`desktop-range-${option.value}`} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
 
