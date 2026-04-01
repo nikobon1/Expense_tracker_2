@@ -2,6 +2,7 @@ export const DEFAULT_CATEGORY = "Другое";
 
 const BASE_CATEGORIES = [
   "Алкоголь",
+  "Аренда",
   "Авто",
   "Бытовая химия",
   "Гигиена",
