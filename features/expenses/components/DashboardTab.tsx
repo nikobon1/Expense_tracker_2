@@ -442,6 +442,30 @@ export default function DashboardTab({
   const toggleCategoryFilter = (category: string) => {
     setCategoryFilter((prev) => (prev === category ? "all" : category));
   };
+  const handleDashboardStartDateChange = (value: string) => {
+    if (!value) {
+      onStartDateChange(value);
+      return;
+    }
+
+    if (endDate && value > endDate) {
+      onEndDateChange(value);
+    }
+
+    onStartDateChange(value);
+  };
+  const handleDashboardEndDateChange = (value: string) => {
+    if (!value) {
+      onEndDateChange(value);
+      return;
+    }
+
+    if (startDate && value < startDate) {
+      onStartDateChange(value);
+    }
+
+    onEndDateChange(value);
+  };
   const filteredCategoryTotal = useMemo(
     () => categoryChartData.reduce((sum, point) => sum + point.value, 0),
     [categoryChartData]
@@ -1293,7 +1317,7 @@ export default function DashboardTab({
                 aria-label="Начало периода"
                 name="dashboardStartDate"
                 value={startDate}
-                onChange={(e) => onStartDateChange(e.target.value)}
+                onChange={(e) => handleDashboardStartDateChange(e.target.value)}
               />
             </div>
             <div className="dashboard-mobile-date-card">
@@ -1304,7 +1328,7 @@ export default function DashboardTab({
                 aria-label="Конец периода"
                 name="dashboardEndDate"
                 value={endDate}
-                onChange={(e) => onEndDateChange(e.target.value)}
+                onChange={(e) => handleDashboardEndDateChange(e.target.value)}
               />
             </div>
           </div>
@@ -2066,11 +2090,11 @@ export default function DashboardTab({
       <div className="date-filter">
         <div>
           <label>📅 Начало периода</label>
-          <input type="date" value={startDate} onChange={(e) => onStartDateChange(e.target.value)} />
+          <input type="date" value={startDate} onChange={(e) => handleDashboardStartDateChange(e.target.value)} />
         </div>
         <div>
           <label>📅 Конец периода</label>
-          <input type="date" value={endDate} onChange={(e) => onEndDateChange(e.target.value)} />
+          <input type="date" value={endDate} onChange={(e) => handleDashboardEndDateChange(e.target.value)} />
         </div>
       </div>
 

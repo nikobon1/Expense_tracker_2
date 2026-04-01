@@ -24,7 +24,6 @@ export default function Home() {
     setStartDate,
     setEndDate,
     setSelectedStore,
-    syncEndDateToToday,
     loadExpenses,
   } = dashboardData;
 
@@ -69,7 +68,6 @@ export default function Home() {
           <button
             className="tab"
             onClick={() => {
-              syncEndDateToToday();
               setActiveTab('dashboard');
             }}
           >
