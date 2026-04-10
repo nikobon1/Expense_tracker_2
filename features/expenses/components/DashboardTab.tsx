@@ -827,18 +827,12 @@ export default function DashboardTab({
   const averageTransactionValue = transactionCount > 0
     ? expensesTotal / transactionCount
     : 0;
-  const activeDays = useMemo(
-    () => dailyData.filter((point) => point.amount > 0).length,
-    [dailyData]
-  );
-  const strongestDay = useMemo(
-    () =>
-      dailyData.reduce<DailyPoint | null>(
-        (best, point) => (point.amount > (best?.amount ?? 0) ? point : best),
-        null
-      ),
-    [dailyData]
-  );
+  const activeDays = dailyChartData.filter((point) => point.amount > 0).length;
+  const strongestDay =
+    dailyChartData.reduce<DailyChartPoint | null>(
+      (best, point) => (point.amount > (best?.amount ?? 0) ? point : best),
+      null
+    );
   const topCategory = categoryData[0] ?? null;
   const topCategories = useMemo(() => {
     if (expensesTotal <= 0) {
@@ -1611,8 +1605,21 @@ export default function DashboardTab({
 
           <div className="dashboard-mobile-summary-side">
             <div className="dashboard-mobile-summary-foot">
-              <span>{deltaLabel}</span>
-              <span>{strongestDay ? `Пиковый день: ${strongestDayDateLabel}` : "Пиковый день еще не определен"}</span>
+              <div className="dashboard-mobile-summary-foot-item">
+                <span>Изменение к прошлому периоду</span>
+                <strong>{deltaLabel}</strong>
+              </div>
+              <div className="dashboard-mobile-summary-foot-item">
+                <span>Пиковый день</span>
+                {strongestDay ? (
+                  <>
+                    <strong>{strongestDayDateLabel}</strong>
+                    <p>{strongestDayAmountLabel}</p>
+                  </>
+                ) : (
+                  <strong>Еще не определен</strong>
+                )}
+              </div>
             </div>
 
             <div className="dashboard-mobile-summary-actions">
