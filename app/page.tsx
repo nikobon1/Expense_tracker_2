@@ -5,6 +5,7 @@ import DashboardTab from '@/features/expenses/components/DashboardTab';
 import ScanTab from '@/features/expenses/components/ScanTab';
 import { useCategoryOptions } from '@/features/expenses/hooks/useCategoryOptions';
 import { useDashboardData } from '@/features/expenses/hooks/useDashboardData';
+import { useRecurringExpenses } from '@/features/expenses/hooks/useRecurringExpenses';
 import { useReceiptFlow } from '@/features/expenses/hooks/useReceiptFlow';
 
 export default function Home() {
@@ -12,6 +13,7 @@ export default function Home() {
   const receiptFlow = useReceiptFlow();
   const categoryOptions = useCategoryOptions();
   const dashboardData = useDashboardData();
+  const recurringExpenses = useRecurringExpenses();
   const {
     startDate,
     endDate,
@@ -91,10 +93,16 @@ export default function Home() {
             manualTotal={receiptFlow.manualTotal}
             categoryOptions={categoryOptions.categoryOptions}
             customCategories={categoryOptions.customCategories}
+            recurringPlans={recurringExpenses.plans}
+            isRecurringLoading={recurringExpenses.isLoading}
+            isRecurringSaving={recurringExpenses.isSaving}
+            deletingRecurringId={recurringExpenses.deletingId}
             isAnalyzing={receiptFlow.isAnalyzing}
             isSaving={receiptFlow.isSaving}
             onAddCategory={categoryOptions.addCategory}
             onDeleteCategory={categoryOptions.removeCategory}
+            onCreateRecurring={recurringExpenses.createPlan}
+            onDeleteRecurring={recurringExpenses.deletePlan}
             fileInputRef={receiptFlow.fileInputRef}
             onDrop={receiptFlow.handleDrop}
             onFileSelect={receiptFlow.handleFile}

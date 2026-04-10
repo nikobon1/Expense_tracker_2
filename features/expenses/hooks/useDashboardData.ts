@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { buildLocalDashboardDemoData } from "@/features/expenses/demo-data";
 import type { Expense } from "@/features/expenses/types";
 import { getExpenses } from "@/lib/api";
@@ -46,6 +46,7 @@ export function useDashboardData() {
     }>;
   }>({ totalUsd: 0, count: 0, items: [] });
   const [isLoading, setIsLoading] = useState(false);
+  const latestRequestIdRef = useRef(0);
 
   const syncEndDateToToday = useCallback(() => {
     const today = getLocalIsoDate(new Date());
@@ -55,6 +56,8 @@ export function useDashboardData() {
   const loadExpenses = useCallback(async () => {
     if (!startDate || !endDate) return;
 
+    const requestId = latestRequestIdRef.current + 1;
+    latestRequestIdRef.current = requestId;
     setIsLoading(true);
     try {
       const data = await getExpenses(startDate, endDate, selectedStore);
@@ -63,15 +66,24 @@ export function useDashboardData() {
           ? buildLocalDashboardDemoData({ startDate, endDate, selectedStore })
           : data;
 
+      if (requestId !== latestRequestIdRef.current) {
+        return;
+      }
+
       setExpenses(resolvedData.expenses);
       setPrevMonthTotal(resolvedData.prevMonthTotal);
       setPrevPeriodCategoryTotals(resolvedData.prevPeriodCategoryTotals);
       setAnalyzeCost(resolvedData.analyzeCost);
       setStores(resolvedData.stores);
     } catch (error) {
+      if (requestId !== latestRequestIdRef.current) {
+        return;
+      }
       console.error("Error loading expenses:", error);
     } finally {
-      setIsLoading(false);
+      if (requestId === latestRequestIdRef.current) {
+        setIsLoading(false);
+      }
     }
   }, [endDate, isLocalDashboardDemoEnabled, selectedStore, startDate]);
 

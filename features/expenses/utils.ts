@@ -16,6 +16,7 @@ export interface DailyReceiptSegment {
   receiptId: number;
   store: string;
   amount: number;
+  label?: string;
 }
 
 function isIsoDate(value: string) {
@@ -83,6 +84,7 @@ export function buildDailyData(expenses: Expense[], startDate?: string, endDate?
         receiptId: exp.receiptId,
         store: exp.store,
         amount: exp.price,
+        label: exp.sourceType === "recurring" ? `Автосписание • ${exp.item}` : undefined,
       });
     }
   }

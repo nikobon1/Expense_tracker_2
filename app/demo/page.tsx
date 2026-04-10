@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useEffectEvent, useMemo, useState } from "react";
 import DashboardTab from "@/features/expenses/components/DashboardTab";
 import { CATEGORIES } from "@/features/expenses/constants";
 import {
@@ -70,10 +70,13 @@ export default function DemoPage() {
       ),
     [demoData.expenses]
   );
+  const resetSelectedStore = useEffectEvent(() => {
+    setSelectedStore("all");
+  });
 
   useEffect(() => {
     if (selectedStore !== "all" && !demoData.stores.includes(selectedStore)) {
-      setSelectedStore("all");
+      resetSelectedStore();
     }
   }, [demoData.stores, selectedStore]);
 

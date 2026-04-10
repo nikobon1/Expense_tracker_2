@@ -88,6 +88,25 @@ const statements = [
     CREATE UNIQUE INDEX IF NOT EXISTS custom_categories_name_lower_idx
     ON custom_categories (LOWER(name))
   `,
+  `
+    CREATE TABLE IF NOT EXISTS recurring_expenses (
+      id BIGSERIAL PRIMARY KEY,
+      title TEXT NOT NULL,
+      store_name TEXT NOT NULL,
+      amount NUMERIC(10, 2) NOT NULL,
+      category TEXT NOT NULL,
+      frequency TEXT NOT NULL,
+      start_date DATE NOT NULL,
+      end_date DATE,
+      is_active BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `,
+  `
+    CREATE INDEX IF NOT EXISTS recurring_expenses_schedule_idx
+    ON recurring_expenses (start_date, end_date, is_active)
+  `,
 ];
 
 try {

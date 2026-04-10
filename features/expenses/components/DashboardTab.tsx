@@ -8,6 +8,7 @@ import {
   Cell,
   BarChart,
   Bar,
+  LabelList,
   LineChart,
   Line,
   CartesianGrid,
@@ -66,13 +67,20 @@ type DailyBarShapeProps = {
   y?: number;
   width?: number;
   height?: number;
-  payload?: DailyPoint;
+  payload?: DailyChartPoint;
 };
 
 type DailyTooltipContentProps = {
   active?: boolean;
   label?: string | number;
-  payload?: ReadonlyArray<{ value?: number; payload?: DailyPoint }>;
+  payload?: ReadonlyArray<{ value?: number; payload?: DailyChartPoint }>;
+};
+
+type DailyBarLabelProps = {
+  x?: number | string;
+  y?: number | string;
+  width?: number | string;
+  payload?: DailyChartPoint;
 };
 
 type LedgerSortField = "price" | "date";
@@ -102,12 +110,18 @@ type LedgerReceiptGroup = {
   items: Expense[];
   total: number;
   categories: string[];
+  sourceType?: Expense["sourceType"];
+};
+
+type DailyChartPoint = DailyPoint & {
+  chartAmount: number;
+  isClipped: boolean;
 };
 
 const MAX_UPLOAD_DIMENSION = 1600;
 const MAX_ANALYZE_PAYLOAD_CHARS = 3_500_000;
 const DAILY_CHART_STEP_EUR = 20;
-const ACTIVITY_CHART_DAYS = 7;
+const DAILY_CHART_CLIP_LIMIT_EUR = 120;
 const DASHBOARD_RANGE_PRESET_OPTIONS: Array<{ value: DashboardRangePreset; label: string }> = [
   { value: "custom", label: "Свой период" },
   { value: "yesterday", label: "Вчера" },
@@ -254,6 +268,10 @@ function formatCountNoun(count: number, singular: string, paucal: string, plural
   if (lastDigit === 1) return singular;
   if (lastDigit >= 2 && lastDigit <= 4) return paucal;
   return plural;
+}
+
+function isExpenseEditable(expense: Expense): boolean {
+  return expense.sourceType !== "recurring" && expense.canEdit !== false;
 }
 
 function buildAxisTicks(maxValue: number, step: number): number[] {
@@ -403,7 +421,7 @@ export default function DashboardTab({
   readOnlyNotice = "Это демо-режим. В этой версии редактирование и сохранение отключены.",
 }: DashboardTabProps) {
   const [activeBarDate, setActiveBarDate] = useState<string | null>(null);
-  const tooltipReceiptLimit: number | "all" = ACTIVITY_CHART_DAYS;
+  const tooltipReceiptLimit: number | "all" = 7;
   const setTooltipReceiptLimit = (_value: number | "all") => undefined;
   const [isCategoryComparisonOpen, setIsCategoryComparisonOpen] = useState(false);
   const [comparisonMode, setComparisonMode] = useState<"periods" | "stores">("periods");
@@ -722,6 +740,15 @@ export default function DashboardTab({
     () => buildDailyData(categoryFilteredExpenses, startDate, endDate),
     [categoryFilteredExpenses, endDate, startDate]
   );
+  const dailyChartData = useMemo<DailyChartPoint[]>(
+    () =>
+      dailyData.map((point) => ({
+        ...point,
+        chartAmount: Math.min(point.amount, DAILY_CHART_CLIP_LIMIT_EUR),
+        isClipped: point.amount > DAILY_CHART_CLIP_LIMIT_EUR,
+      })),
+    [dailyData]
+  );
   const storeOptions = useMemo(() => {
     const baseStores = [...new Set(stores.map((store) => String(store ?? "").trim()).filter(Boolean))].sort((a, b) =>
       a.localeCompare(b, "ru")
@@ -859,6 +886,7 @@ export default function DashboardTab({
         items: [expense],
         total: expense.price,
         categories: [],
+        sourceType: expense.sourceType,
       });
     }
 
@@ -915,11 +943,9 @@ export default function DashboardTab({
 
     return formatted.charAt(0).toUpperCase() + formatted.slice(1);
   }, [currentPeriodLabel, endDate]);
-  const activityChartData = useMemo(() => {
-    return dailyData.slice(-ACTIVITY_CHART_DAYS);
-  }, [dailyData]);
+  const activityChartData = useMemo(() => dailyChartData, [dailyChartData]);
   const activityChartYAxisTicks = useMemo(
-    () => buildAxisTicks(Math.max(...activityChartData.map((point) => point.amount), 0), DAILY_CHART_STEP_EUR),
+    () => buildAxisTicks(Math.max(...activityChartData.map((point) => point.chartAmount), 0), DAILY_CHART_STEP_EUR),
     [activityChartData]
   );
   const activityChartYAxisDomain: [number, number] = [
@@ -927,8 +953,8 @@ export default function DashboardTab({
     activityChartYAxisTicks[activityChartYAxisTicks.length - 1] ?? DAILY_CHART_STEP_EUR,
   ];
   const desktopDailyChartYAxisTicks = useMemo(
-    () => buildAxisTicks(Math.max(...dailyData.map((point) => point.amount), 0), DAILY_CHART_STEP_EUR),
-    [dailyData]
+    () => buildAxisTicks(Math.max(...dailyChartData.map((point) => point.chartAmount), 0), DAILY_CHART_STEP_EUR),
+    [dailyChartData]
   );
   const desktopDailyChartYAxisDomain: [number, number] = [
     0,
@@ -1257,6 +1283,25 @@ export default function DashboardTab({
     );
   };
 
+  const buildClippedBarPath = (x: number, y: number, width: number, height: number) => {
+    const bottom = y + height;
+    const waveDepth = Math.max(6, Math.min(10, height * 0.16));
+    const crestCount = 4;
+    const step = width / crestCount;
+    let path = `M ${x} ${bottom} L ${x} ${y + waveDepth}`;
+
+    for (let index = 0; index < crestCount; index += 1) {
+      const peakX = x + step * index + step / 2;
+      const endX = x + step * (index + 1);
+      const peakY = index % 2 === 0 ? y : y + waveDepth;
+      const endY = index % 2 === 0 ? y + waveDepth : y;
+      path += ` L ${peakX} ${peakY} L ${endX} ${endY}`;
+    }
+
+    path += ` L ${x + width} ${bottom} Z`;
+    return path;
+  };
+
   const renderDailyBar = ({ x, y, width, height, payload }: DailyBarShapeProps) => {
     if (
       typeof x !== "number" ||
@@ -1272,13 +1317,27 @@ export default function DashboardTab({
     const segments = payload.receiptSegments ?? [];
     const canSplit = isActive && segments.length > 1 && payload.amount > 0;
     const inset = Math.max(1, Math.min(2, width / 8));
+    const clipId = `daily-bar-clip-${payload.date.replace(/[^a-zA-Z0-9_-]/g, "")}-${Math.round(x)}-${Math.round(y)}-${Math.round(width)}`;
+    const clippedBarPath = payload.isClipped ? buildClippedBarPath(x, y, width, height) : null;
 
     let bottom = y + height;
     let cumulative = 0;
 
     return (
       <g>
-        <rect x={x} y={y} width={width} height={height} rx={4} ry={4} fill={isActive ? "#4f46e5" : "#6366f1"} />
+        {clippedBarPath ? (
+          <defs>
+            <clipPath id={clipId}>
+              <path d={clippedBarPath} />
+            </clipPath>
+          </defs>
+        ) : null}
+
+        {clippedBarPath ? (
+          <path d={clippedBarPath} fill={isActive ? "#4f46e5" : "#6366f1"} />
+        ) : (
+          <rect x={x} y={y} width={width} height={height} rx={4} ry={4} fill={isActive ? "#4f46e5" : "#6366f1"} />
+        )}
 
         {canSplit &&
           segments.map((segment, index) => {
@@ -1296,6 +1355,7 @@ export default function DashboardTab({
                 height={Math.max(0, segmentBottom - segmentTop)}
                 fill={getReceiptSegmentColor(segment, index)}
                 fillOpacity={0.9}
+                clipPath={clippedBarPath ? `url(#${clipId})` : undefined}
               />
             );
           })}
@@ -1314,10 +1374,42 @@ export default function DashboardTab({
                 y2={boundaryY}
                 stroke="rgba(255,255,255,0.55)"
                 strokeWidth={1.25}
+                clipPath={clippedBarPath ? `url(#${clipId})` : undefined}
               />
             );
           })}
       </g>
+    );
+  };
+
+  const formatDailyBarLabel = (value: unknown) => {
+    const numericValue = typeof value === "number" ? value : Number(value);
+    if (!Number.isFinite(numericValue) || numericValue <= 0) return "";
+    return `${Number.isInteger(numericValue) ? numericValue.toFixed(0) : numericValue.toFixed(2)}€`;
+  };
+
+  const renderDailyBarLabel = ({ x, y, width, payload }: DailyBarLabelProps) => {
+    if (
+      typeof x !== "number" ||
+      typeof y !== "number" ||
+      typeof width !== "number" ||
+      !payload ||
+      payload.amount <= 0
+    ) {
+      return null;
+    }
+
+    return (
+      <text
+        x={x + width / 2}
+        y={y - (payload.isClipped ? 12 : 8)}
+        textAnchor="middle"
+        fill={payload.isClipped ? "#fafafa" : "#d4d4d8"}
+        fontSize={payload.isClipped ? 12 : 11}
+        fontWeight={payload.isClipped ? 700 : 500}
+      >
+        {formatDailyBarLabel(payload.amount)}
+      </text>
     );
   };
 
@@ -1637,6 +1729,7 @@ export default function DashboardTab({
                     <ResponsiveContainer width="100%" height={210}>
                       <BarChart
                         data={activityChartData}
+                        margin={{ top: 28, right: 0, left: 0, bottom: 0 }}
                         onMouseMove={(state) => {
                           const nextLabel = state && typeof state.activeLabel === "string" ? state.activeLabel : null;
                           setActiveBarDate(nextLabel);
@@ -1660,7 +1753,13 @@ export default function DashboardTab({
                           tickLine={false}
                         />
                         <Tooltip content={(props) => renderDailyTooltip(props as DailyTooltipContentProps)} />
-                        <Bar dataKey="amount" fill="#7c3aed" radius={[8, 8, 0, 0]} shape={renderDailyBar} />
+                        <Bar dataKey="chartAmount" fill="#7c3aed" radius={[8, 8, 0, 0]} shape={renderDailyBar}>
+                          <LabelList
+                            dataKey="chartAmount"
+                            position="top"
+                            content={(props) => renderDailyBarLabel(props as DailyBarLabelProps)}
+                          />
+                        </Bar>
                       </BarChart>
                     </ResponsiveContainer>
 
@@ -2033,7 +2132,7 @@ export default function DashboardTab({
                             <td>
                               <div className="dashboard-mobile-ledger-store">
                                 <span>{receipt.store}</span>
-                                {!isReadOnly ? (
+                                {!isReadOnly && receipt.sourceType !== "recurring" ? (
                                   <button
                                     type="button"
                                     className="dashboard-mobile-receipt-link"
@@ -2045,6 +2144,8 @@ export default function DashboardTab({
                                   >
                                     Редактировать чек #{receipt.receiptId}
                                   </button>
+                                ) : receipt.sourceType === "recurring" ? (
+                                  <span className="dashboard-mobile-ledger-chip">Автосписание</span>
                                 ) : null}
                               </div>
                             </td>
@@ -2332,6 +2433,7 @@ export default function DashboardTab({
             <div className="dashboard-desktop-activity-list">
               {recentExpenses.map((exp) => {
                 const isFirstInReceipt = receiptFirstExpenseId.get(exp.receiptId) === exp.id;
+                const canOpenEditor = isExpenseEditable(exp) && isFirstInReceipt && !isReadOnly;
 
                 return (
                   <div key={`hero-expense-${exp.id}`} className="dashboard-desktop-activity-item">
@@ -2344,7 +2446,7 @@ export default function DashboardTab({
                     <div>
                       <strong>{formatCurrency(exp.price)}</strong>
                       <span>{exp.category}</span>
-                      {!isReadOnly && isFirstInReceipt ? (
+                      {canOpenEditor ? (
                         <button
                           type="button"
                           className="dashboard-desktop-link"
@@ -2352,6 +2454,8 @@ export default function DashboardTab({
                         >
                           Чек #{exp.receiptId}
                         </button>
+                      ) : exp.sourceType === "recurring" ? (
+                        <span>Автосписание</span>
                       ) : null}
                     </div>
                   </div>
@@ -2533,7 +2637,8 @@ export default function DashboardTab({
               </div>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart
-                  data={dailyData}
+                  data={dailyChartData}
+                  margin={{ top: 34, right: 0, left: 0, bottom: 0 }}
                   onMouseMove={(state) => {
                     const nextLabel = state && typeof state.activeLabel === "string" ? state.activeLabel : null;
                     setActiveBarDate(nextLabel);
@@ -2551,7 +2656,13 @@ export default function DashboardTab({
                     tickLine={false}
                   />
                   <Tooltip content={(props) => renderDailyTooltip(props as DailyTooltipContentProps)} />
-                  <Bar dataKey="amount" fill="#6366f1" radius={[4, 4, 0, 0]} shape={renderDailyBar} />
+                  <Bar dataKey="chartAmount" fill="#6366f1" radius={[4, 4, 0, 0]} shape={renderDailyBar}>
+                    <LabelList
+                      dataKey="chartAmount"
+                      position="top"
+                      content={(props) => renderDailyBarLabel(props as DailyBarLabelProps)}
+                    />
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -2719,6 +2830,7 @@ export default function DashboardTab({
                 <tbody>
                   {sortedLedgerExpenses.map((exp) => {
                     const isFirstInReceipt = receiptFirstExpenseId.get(exp.receiptId) === exp.id;
+                    const canOpenEditor = isExpenseEditable(exp) && isFirstInReceipt && !isReadOnly;
 
                     return (
                       <tr key={exp.id}>
@@ -2726,7 +2838,7 @@ export default function DashboardTab({
                         <td>
                           <div className="dashboard-desktop-ledger-store-cell">
                             <span>{exp.store}</span>
-                            {!isReadOnly && isFirstInReceipt && (
+                            {canOpenEditor && (
                               <button
                                 type="button"
                                 className="btn btn-secondary"
@@ -2736,6 +2848,7 @@ export default function DashboardTab({
                                 ✏️ Чек #{exp.receiptId}
                               </button>
                             )}
+                            {exp.sourceType === "recurring" ? <span className="dashboard-mobile-ledger-chip">Автосписание</span> : null}
                           </div>
                         </td>
                         <td>{exp.item}</td>

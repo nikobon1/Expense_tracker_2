@@ -1,10 +1,16 @@
 "use client";
 
-import type { DragEvent, RefObject } from "react";
+import { useMemo, useState, type DragEvent, type RefObject } from "react";
 import Image from "next/image";
 import CategoryManager from "@/features/expenses/components/CategoryManager";
 import type { AddCategoryResult, DeleteCategoryResult } from "@/features/expenses/hooks/useCategoryOptions";
-import type { ReceiptData, ReceiptItem } from "@/features/expenses/types";
+import type {
+  CreateRecurringExpensePayload,
+  ReceiptData,
+  ReceiptItem,
+  RecurringExpensePlan,
+  RecurringFrequency,
+} from "@/features/expenses/types";
 
 interface ScanTabProps {
   uploadedImage: string | null;
@@ -19,6 +25,10 @@ interface ScanTabProps {
   manualTotal: string;
   categoryOptions: string[];
   customCategories: string[];
+  recurringPlans: RecurringExpensePlan[];
+  isRecurringLoading: boolean;
+  isRecurringSaving: boolean;
+  deletingRecurringId: number | null;
   isAnalyzing: boolean;
   isSaving: boolean;
   fileInputRef: RefObject<HTMLInputElement | null>;
@@ -28,6 +38,8 @@ interface ScanTabProps {
   onReset: () => void;
   onSave: () => void;
   onManualSave: () => void;
+  onCreateRecurring: (payload: CreateRecurringExpensePayload) => Promise<void>;
+  onDeleteRecurring: (id: number) => Promise<void>;
   onAddCategory: (value: string) => Promise<AddCategoryResult>;
   onDeleteCategory: (value: string) => Promise<DeleteCategoryResult>;
   onStoreNameChange: (value: string) => void;
@@ -48,6 +60,18 @@ function getLocalTodayIso() {
   return local.toISOString().slice(0, 10);
 }
 
+function getFrequencyLabel(value: RecurringFrequency): string {
+  switch (value) {
+    case "daily":
+      return "Каждый день";
+    case "weekly":
+      return "Каждую неделю";
+    case "monthly":
+    default:
+      return "Каждый месяц";
+  }
+}
+
 export default function ScanTab({
   uploadedImage,
   receiptData,
@@ -61,6 +85,10 @@ export default function ScanTab({
   manualTotal,
   categoryOptions,
   customCategories,
+  recurringPlans,
+  isRecurringLoading,
+  isRecurringSaving,
+  deletingRecurringId,
   isAnalyzing,
   isSaving,
   fileInputRef,
@@ -70,6 +98,8 @@ export default function ScanTab({
   onReset,
   onSave,
   onManualSave,
+  onCreateRecurring,
+  onDeleteRecurring,
   onAddCategory,
   onDeleteCategory,
   onStoreNameChange,
@@ -83,6 +113,61 @@ export default function ScanTab({
   onItemDelete,
   currentTotal,
 }: ScanTabProps) {
+  const recurringCategoryFallback = useMemo(
+    () => categoryOptions.find((option) => option === "Подписки") ?? categoryOptions[0] ?? "Подписки",
+    [categoryOptions]
+  );
+  const [recurringTitle, setRecurringTitle] = useState("");
+  const [recurringStoreName, setRecurringStoreName] = useState("");
+  const [recurringAmount, setRecurringAmount] = useState("");
+  const [recurringFrequency, setRecurringFrequency] = useState<RecurringFrequency>("monthly");
+  const [recurringStartDate, setRecurringStartDate] = useState(getLocalTodayIso);
+  const [recurringCategory, setRecurringCategory] = useState(recurringCategoryFallback);
+  const [recurringFeedback, setRecurringFeedback] = useState<string | null>(null);
+  const [recurringFeedbackType, setRecurringFeedbackType] = useState<"success" | "error" | null>(null);
+  const resolvedRecurringCategory = categoryOptions.includes(recurringCategory)
+    ? recurringCategory
+    : recurringCategoryFallback;
+
+  const handleRecurringSave = async () => {
+    setRecurringFeedback(null);
+    setRecurringFeedbackType(null);
+
+    try {
+      await onCreateRecurring({
+        title: recurringTitle,
+        store_name: recurringStoreName,
+        amount: Number(String(recurringAmount).replace(",", ".")),
+        category: resolvedRecurringCategory,
+        frequency: recurringFrequency,
+        start_date: recurringStartDate,
+      });
+
+      setRecurringTitle("");
+      setRecurringStoreName("");
+      setRecurringAmount("");
+      setRecurringFrequency("monthly");
+      setRecurringStartDate(getLocalTodayIso());
+      setRecurringCategory(recurringCategoryFallback);
+      setRecurringFeedback("Автосписание сохранено.");
+      setRecurringFeedbackType("success");
+    } catch (error) {
+      setRecurringFeedback(error instanceof Error ? error.message : "Не удалось сохранить автосписание.");
+      setRecurringFeedbackType("error");
+    }
+  };
+
+  const handleRecurringDelete = async (id: number) => {
+    try {
+      await onDeleteRecurring(id);
+      setRecurringFeedback("Автосписание остановлено.");
+      setRecurringFeedbackType("success");
+    } catch (error) {
+      setRecurringFeedback(error instanceof Error ? error.message : "Не удалось остановить автосписание.");
+      setRecurringFeedbackType("error");
+    }
+  };
+
   if (!uploadedImage) {
     return (
       <div className="scan-empty-state">
@@ -95,8 +180,8 @@ export default function ScanTab({
             onClick={() => fileInputRef.current?.click()}
           >
             <div className="upload-icon">Загрузить</div>
-            <p>Перетащите изображение или нажмите для выбора</p>
-            <span>Поддерживаются: JPG, PNG</span>
+            <p>Перетащите изображение сюда или нажмите для выбора файла</p>
+            <span>Поддерживаются JPG и PNG</span>
             <input
               ref={fileInputRef}
               type="file"
@@ -153,7 +238,7 @@ export default function ScanTab({
                 className="scan-field-input"
                 placeholder="12,49 или 1 234,56"
               />
-              <p className="scan-field-hint">Можно вводить с точкой, запятой, пробелами и символом валюты.</p>
+              <p className="scan-field-hint">Поддерживаются точка, запятая, пробелы и символ валюты.</p>
             </div>
           </div>
 
@@ -161,12 +246,13 @@ export default function ScanTab({
             {isSaving ? (
               <>
                 <div className="spinner"></div>
-                Сохраняем...
+                Сохранение...
               </>
             ) : (
               <>Сохранить без чека</>
             )}
           </button>
+
           <div className="category-manager-panel">
             <h4>Категории</h4>
             <CategoryManager
@@ -174,6 +260,142 @@ export default function ScanTab({
               onAddCategory={onAddCategory}
               onDeleteCategory={onDeleteCategory}
             />
+          </div>
+        </div>
+
+        <div className="card">
+          <h3>Автосписания</h3>
+          <p className="scan-field-hint">Для подписок и других регулярных расходов. Они будут автоматически попадать в аналитику.</p>
+
+          <div className="scan-form-grid recurring-form-grid">
+            <div>
+              <label className="scan-field-label">Название</label>
+              <input
+                type="text"
+                value={recurringTitle}
+                onChange={(e) => setRecurringTitle(e.target.value)}
+                className="scan-field-input"
+                placeholder="Netflix, Spotify, аренда"
+              />
+            </div>
+
+            <div>
+              <label className="scan-field-label">Сервис / магазин</label>
+              <input
+                type="text"
+                value={recurringStoreName}
+                onChange={(e) => setRecurringStoreName(e.target.value)}
+                className="scan-field-input"
+                placeholder="Netflix"
+              />
+            </div>
+
+            <div>
+              <label className="scan-field-label">Сумма (EUR)</label>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={recurringAmount}
+                onChange={(e) => setRecurringAmount(e.target.value)}
+                className="scan-field-input"
+                placeholder="9.99"
+              />
+            </div>
+
+            <div>
+              <label className="scan-field-label">Частота</label>
+              <select
+                value={recurringFrequency}
+                onChange={(e) => setRecurringFrequency(e.target.value as RecurringFrequency)}
+                className="scan-field-input"
+              >
+                <option value="monthly">Каждый месяц</option>
+                <option value="weekly">Каждую неделю</option>
+                <option value="daily">Каждый день</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="scan-field-label">Дата начала</label>
+              <input
+                type="date"
+                value={recurringStartDate}
+                onChange={(e) => setRecurringStartDate(e.target.value)}
+                className="scan-field-input"
+              />
+            </div>
+
+            <div>
+                <label className="scan-field-label">Категория</label>
+              <select
+                value={resolvedRecurringCategory}
+                onChange={(e) => setRecurringCategory(e.target.value)}
+                className="scan-field-input"
+              >
+                {categoryOptions.map((cat) => (
+                  <option key={`recurring-category-${cat}`} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <button className="btn btn-primary btn-full" onClick={() => void handleRecurringSave()} disabled={isRecurringSaving}>
+            {isRecurringSaving ? (
+              <>
+                <div className="spinner"></div>
+                Сохранение...
+              </>
+            ) : (
+              <>Создать автосписание</>
+            )}
+          </button>
+
+          {recurringFeedback ? (
+            <p className={`recurring-feedback ${recurringFeedbackType === "error" ? "error" : "success"}`}>
+              {recurringFeedback}
+            </p>
+          ) : null}
+
+          <div className="recurring-plans">
+            <div className="recurring-plans-head">
+              <h4>Активные списания</h4>
+              <span>{recurringPlans.length}</span>
+            </div>
+
+            {isRecurringLoading ? (
+              <p className="recurring-empty">Загрузка...</p>
+            ) : recurringPlans.length === 0 ? (
+              <p className="recurring-empty">Пока нет активных автосписаний.</p>
+            ) : (
+              <div className="recurring-plan-list">
+                {recurringPlans.map((plan) => (
+                  <div key={plan.id} className="recurring-plan-card">
+                    <div>
+                      <strong>{plan.title}</strong>
+                      <span>{plan.store_name}</span>
+                    </div>
+                    <div>
+                      <strong>{plan.amount.toFixed(2)} EUR</strong>
+                      <span>{plan.category}</span>
+                      <span>
+                        {getFrequencyLabel(plan.frequency)}
+                        {plan.next_charge_date ? ` • следующее ${plan.next_charge_date}` : ""}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      className="category-manager-delete"
+                      onClick={() => void handleRecurringDelete(plan.id)}
+                      disabled={deletingRecurringId === plan.id}
+                    >
+                      {deletingRecurringId === plan.id ? "Остановка..." : "Остановить"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -230,6 +452,7 @@ export default function ScanTab({
                   className="scan-field-input"
                 />
               </div>
+
               <div>
                 <div className="scan-date-label-row">
                   <label className="scan-field-label">Дата покупки</label>
@@ -247,9 +470,7 @@ export default function ScanTab({
                   onChange={(e) => onPurchaseDateChange(e.target.value)}
                   className="scan-field-input"
                 />
-                <p className="scan-field-hint">
-                  Подтвердите дату покупки. Можно исправить вручную в формате ДД/ММ/ГГ.
-                </p>
+                <p className="scan-field-hint">Можно исправить дату вручную и ввести её в формате ДД/ММ/ГГ.</p>
                 <input
                   type="text"
                   value={purchaseDateManual}
@@ -258,11 +479,11 @@ export default function ScanTab({
                   inputMode="numeric"
                   className="scan-field-input scan-date-manual-input"
                 />
-                {purchaseDateWarningText && (
+                {purchaseDateWarningText ? (
                   <div className="scan-date-warning" role="alert">
                     {purchaseDateWarningText}
                   </div>
-                )}
+                ) : null}
               </div>
             </div>
 
@@ -280,7 +501,7 @@ export default function ScanTab({
                 <thead>
                   <tr>
                     <th>Название</th>
-                    <th className="scan-col-price">Цена (€)</th>
+                    <th className="scan-col-price">Цена (EUR)</th>
                     <th className="scan-col-category">Категория</th>
                     <th className="scan-col-delete"></th>
                   </tr>
@@ -328,17 +549,17 @@ export default function ScanTab({
 
             <div className="total-row">
               <span className="total-label">Итого:</span>
-              <span className="total-value">{currentTotal.toFixed(2)} €</span>
+              <span className="total-value">{currentTotal.toFixed(2)} EUR</span>
             </div>
 
             <button className="btn btn-primary btn-full mt-16" onClick={onSave} disabled={isSaving}>
               {isSaving ? (
                 <>
                   <div className="spinner"></div>
-                  Сохраняем...
+                  Сохранение...
                 </>
               ) : (
-                <>Сохранить в базу данных</>
+                <>Сохранить в базу</>
               )}
             </button>
           </div>
