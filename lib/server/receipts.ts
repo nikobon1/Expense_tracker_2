@@ -1,5 +1,6 @@
 import { neon } from "@neondatabase/serverless";
 import type { ReceiptData, ReceiptItem } from "@/features/expenses/types";
+import { normalizeCalendarDate } from "@/lib/calendar-date";
 import { normalizeCategory } from "@/lib/category-normalization";
 import { normalizeStoreName } from "@/lib/store-normalization";
 
@@ -39,29 +40,8 @@ export function isDatabaseSchemaMissingError(error: unknown): boolean {
   );
 }
 
-function padDatePart(value: number): string {
-  return String(value).padStart(2, "0");
-}
-
 function normalizePurchaseDate(value: string | Date | null): string {
-  if (!value) return "";
-
-  if (value instanceof Date) {
-    if (Number.isNaN(value.getTime())) return "";
-    return `${value.getUTCFullYear()}-${padDatePart(value.getUTCMonth() + 1)}-${padDatePart(value.getUTCDate())}`;
-  }
-
-  const normalized = value.trim();
-  if (!normalized) return "";
-
-  if (/^\d{4}-\d{2}-\d{2}/.test(normalized)) {
-    return normalized.slice(0, 10);
-  }
-
-  const parsed = new Date(normalized);
-  if (Number.isNaN(parsed.getTime())) return "";
-
-  return `${parsed.getUTCFullYear()}-${padDatePart(parsed.getUTCMonth() + 1)}-${padDatePart(parsed.getUTCDate())}`;
+  return normalizeCalendarDate(value);
 }
 
 function normalizeReceiptItems(items: ReceiptItem[]): Array<{
@@ -79,6 +59,19 @@ function normalizeReceiptItems(items: ReceiptItem[]): Array<{
 function normalizeReceiptComment(comment: string | null | undefined): string | null {
   const normalized = String(comment ?? "").trim();
   return normalized || null;
+}
+
+function normalizeTelegramDraft<T extends ReceiptData>(receipt: T): T {
+  const normalizedPurchaseDate =
+    normalizePurchaseDate(receipt.purchase_date) || String(receipt.purchase_date ?? "").trim();
+
+  return {
+    ...receipt,
+    store_name: normalizeStoreName(receipt.store_name ?? ""),
+    purchase_date: normalizedPurchaseDate,
+    items: normalizeReceiptItems(Array.isArray(receipt.items) ? receipt.items : []),
+    comment: normalizeReceiptComment(receipt.comment),
+  };
 }
 
 export async function saveReceiptToDb(payload: {
@@ -293,7 +286,7 @@ export async function saveTelegramDraft(
   if (options?.telegram_file_id !== undefined) {
     receiptWithMeta._telegram_file_id = options.telegram_file_id;
   }
-  const payloadText = JSON.stringify(receiptWithMeta);
+  const payloadText = JSON.stringify(normalizeTelegramDraft(receiptWithMeta));
 
   await sql`
     INSERT INTO telegram_receipt_drafts (chat_id, user_id, payload_text)
@@ -318,7 +311,7 @@ export async function getTelegramDraft(chatId: number): Promise<ReceiptData | nu
   if (!rows[0]?.payload_text) return null;
 
   try {
-    return JSON.parse(rows[0].payload_text) as ReceiptData;
+    return normalizeTelegramDraft(JSON.parse(rows[0].payload_text) as ReceiptData);
   } catch {
     return null;
   }

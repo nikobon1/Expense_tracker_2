@@ -396,17 +396,21 @@ function getDraftDateWarningLines(purchaseDate: string): string[] {
   const warning = getReceiptDateWarning(purchaseDate, getTelegramDateWarningThresholdDays());
   if (!warning?.shouldWarn) return [];
 
+  const formattedPurchaseDate = formatDateHuman(purchaseDate);
+
   if (warning.direction === "past") {
     return [
-      `\u26A0\uFE0F \u0414\u0430\u0442\u0430 \u0447\u0435\u043A\u0430 \u043D\u0430 ${warning.diffDays} \u0434\u043D. \u0440\u0430\u043D\u044C\u0448\u0435 \u0441\u0435\u0433\u043E\u0434\u043D\u044F\u0448\u043D\u0435\u0439.`,
-      `\u0415\u0441\u043B\u0438 \u0447\u0435\u043A \u0437\u0430 \u0441\u0435\u0433\u043E\u0434\u043D\u044F, \u043D\u0430\u0436\u043C\u0438\u0442\u0435 \u00AB\u0421\u0435\u0433\u043E\u0434\u043D\u044F\u00BB.`,
+      `⚠️ Дата чека: <b>${escapeHtml(formattedPurchaseDate)}</b>. Это на ${warning.diffDays} дн. раньше сегодняшней.`,
+      "Такой чек не попадет в текущий период дашборда, пока дата не будет исправлена.",
+      "Если чек за сегодня, нажмите «Сегодня» или отправьте команду вида <code>Дата 2026-04-10</code>.",
     ];
   }
 
   if (warning.direction === "future") {
     return [
-      `\u26A0\uFE0F \u0414\u0430\u0442\u0430 \u0447\u0435\u043A\u0430 \u043D\u0430 ${warning.diffDays} \u0434\u043D. \u043F\u043E\u0437\u0436\u0435 \u0441\u0435\u0433\u043E\u0434\u043D\u044F\u0448\u043D\u0435\u0439.`,
-      `\u0415\u0441\u043B\u0438 \u0447\u0435\u043A \u0437\u0430 \u0441\u0435\u0433\u043E\u0434\u043D\u044F, \u043D\u0430\u0436\u043C\u0438\u0442\u0435 \u00AB\u0421\u0435\u0433\u043E\u0434\u043D\u044F\u00BB.`,
+      `⚠️ Дата чека: <b>${escapeHtml(formattedPurchaseDate)}</b>. Это на ${warning.diffDays} дн. позже сегодняшней.`,
+      "Такой чек не попадет в текущий период дашборда, пока дата не будет исправлена.",
+      "Если чек за сегодня, нажмите «Сегодня» или отправьте команду вида <code>Дата 2026-04-10</code>.",
     ];
   }
 

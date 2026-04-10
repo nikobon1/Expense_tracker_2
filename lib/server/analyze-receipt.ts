@@ -1,6 +1,7 @@
 import OpenAI from "openai";
 import type { ReceiptData } from "@/features/expenses/types";
 import { CATEGORIES } from "@/features/expenses/constants";
+import { normalizeCategory } from "@/lib/category-normalization";
 import { saveReceiptAnalyzeLog } from "@/lib/server/receipts";
 
 const CATEGORY_PROMPT_LIST = CATEGORIES.map((category) => `- ${category}`).join("\n");
@@ -185,7 +186,16 @@ function normalizeAnalyzedPurchaseDate(value: string): string {
 function sanitizeAnalyzedReceipt(receipt: ReceiptData): ReceiptData {
   return {
     ...receipt,
+    store_name: String(receipt.store_name ?? "").trim(),
     purchase_date: normalizeAnalyzedPurchaseDate(receipt.purchase_date),
+    items: Array.isArray(receipt.items)
+      ? receipt.items.map((item) => ({
+          name: String(item.name ?? "").trim(),
+          price: Number(item.price || 0),
+          category: normalizeCategory(item.category),
+        }))
+      : [],
+    comment: typeof receipt.comment === "string" ? receipt.comment.trim() || undefined : undefined,
   };
 }
 

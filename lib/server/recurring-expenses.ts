@@ -4,6 +4,7 @@ import type {
   RecurringExpensePlan,
   RecurringFrequency,
 } from "@/features/expenses/types";
+import { normalizeCalendarDate } from "@/lib/calendar-date";
 import { normalizeCategory } from "@/lib/category-normalization";
 import { normalizeStoreName } from "@/lib/store-normalization";
 import { getDb } from "@/lib/server/receipts";
@@ -31,20 +32,9 @@ function failValidation(message: string): never {
 }
 
 function normalizeIsoDate(value: string | Date | null | undefined): string {
-  if (!value) return "";
-
-  if (value instanceof Date) {
-    if (Number.isNaN(value.getTime())) return "";
-    return value.toISOString().slice(0, 10);
-  }
-
-  const raw = String(value).trim();
-  if (!raw) return "";
-  if (ISO_DATE_RE.test(raw)) return raw;
-
-  const parsed = new Date(raw);
-  if (Number.isNaN(parsed.getTime())) return "";
-  return parsed.toISOString().slice(0, 10);
+  const normalized = normalizeCalendarDate(value);
+  if (normalized && ISO_DATE_RE.test(normalized)) return normalized;
+  return "";
 }
 
 function parseUtcDate(value: string): Date {

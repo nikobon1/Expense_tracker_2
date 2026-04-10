@@ -428,6 +428,7 @@ export default function DashboardTab({
   const tooltipReceiptLimit: number | "all" = 7;
   const setTooltipReceiptLimit = (_value: number | "all") => undefined;
   const [isCategoryComparisonOpen, setIsCategoryComparisonOpen] = useState(false);
+  const [isCategoryExcludeOpen, setIsCategoryExcludeOpen] = useState(false);
   const [comparisonMode, setComparisonMode] = useState<"periods" | "stores">("periods");
   const [comparisonView, setComparisonView] = useState<"table" | "lines">("lines");
   const [comparisonStoreA, setComparisonStoreA] = useState<string>("");
@@ -439,6 +440,7 @@ export default function DashboardTab({
   const [isEditorDeleting, setIsEditorDeleting] = useState(false);
   const [isComparing, setIsComparing] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [excludedCategories, setExcludedCategories] = useState<string[]>([]);
   const [ledgerStoreFilter, setLedgerStoreFilter] = useState<string>("all");
   const [showAllCategories, setShowAllCategories] = useState(false);
   const [showAllLedger, setShowAllLedger] = useState(false);
@@ -495,9 +497,16 @@ export default function DashboardTab({
     if (categoryFilter === "all") return categoryData;
     return categoryData.filter((point) => point.name === categoryFilter);
   }, [categoryData, categoryFilter]);
+  const categoryChartSource = useMemo(() => {
+    if (categoryFilter !== "all") return filteredCategoryData;
+    if (excludedCategories.length === 0) return filteredCategoryData;
+
+    const excludedSet = new Set(excludedCategories);
+    return filteredCategoryData.filter((point) => !excludedSet.has(point.name));
+  }, [categoryFilter, excludedCategories, filteredCategoryData]);
   const categoryChartData = useMemo(
-    () => [...filteredCategoryData].sort((a, b) => b.value - a.value || a.name.localeCompare(b.name, "ru")),
-    [filteredCategoryData]
+    () => [...categoryChartSource].sort((a, b) => b.value - a.value || a.name.localeCompare(b.name, "ru")),
+    [categoryChartSource]
   );
   const categoryFilteredExpenses = useMemo(() => {
     if (categoryFilter === "all") return expenses;
@@ -517,6 +526,11 @@ export default function DashboardTab({
   }, [endDate, startDate, todayIso]);
   const toggleCategoryFilter = (category: string) => {
     setCategoryFilter((prev) => (prev === category ? "all" : category));
+  };
+  const toggleExcludedCategory = (category: string) => {
+    setExcludedCategories((prev) =>
+      prev.includes(category) ? prev.filter((entry) => entry !== category) : [...prev, category].sort((a, b) => a.localeCompare(b, "ru"))
+    );
   };
   const handleDashboardStartDateChange = (value: string) => {
     if (!value) {
@@ -750,8 +764,16 @@ export default function DashboardTab({
     }
   }, [categoryFilter, categoryFilterOptions]);
   useEffect(() => {
+    setExcludedCategories((prev) => prev.filter((category) => categoryFilterOptions.includes(category)));
+  }, [categoryFilterOptions]);
+  useEffect(() => {
     setShowAllCategories(false);
   }, [categoryFilter, selectedStore, startDate, endDate]);
+  useEffect(() => {
+    if (categoryFilter !== "all" && isCategoryExcludeOpen) {
+      setIsCategoryExcludeOpen(false);
+    }
+  }, [categoryFilter, isCategoryExcludeOpen]);
   const dailyData = useMemo(
     () => buildDailyData(categoryFilteredExpenses, startDate, endDate),
     [categoryFilteredExpenses, endDate, startDate]
@@ -972,7 +994,12 @@ export default function DashboardTab({
   ];
   const activeStoreLabel = activeStore === "all" ? "Все магазины" : activeStore;
   const ledgerStoreFilterLabel = ledgerStoreFilter === "all" ? "Все магазины" : ledgerStoreFilter;
-  const activeCategoryLabel = categoryFilter === "all" ? "Все категории" : categoryFilter;
+  const activeCategoryLabel = useMemo(() => {
+    if (categoryFilter !== "all") return categoryFilter;
+    if (excludedCategories.length === 0) return "Все категории";
+    if (excludedCategories.length === 1) return `Все, кроме ${excludedCategories[0]}`;
+    return `Все, кроме ${excludedCategories.length}`;
+  }, [categoryFilter, excludedCategories]);
   const visibleCategoryItems = showAllCategories ? categoryListItems : categoryListItems.slice(0, 4);
   const visibleLedgerReceipts = sortedLedgerReceipts;
   const receiptFirstExpenseId = useMemo(() => {
@@ -1583,6 +1610,15 @@ export default function DashboardTab({
                 <span>Активных дней</span>
                 <strong>{activeDays}</strong>
               </div>
+              {categoryChartData.length === 0 ? (
+                <div className="empty-state">
+                  <p>
+                    {excludedCategories.length > 0 && categoryFilter === "all"
+                      ? "Нет расходов после исключения выбранных категорий."
+                      : "Нет расходов по выбранной категории."}
+                  </p>
+                </div>
+              ) : null}
             </div>
 
             <div className="dashboard-mobile-summary-compare" aria-hidden="true">
@@ -1674,6 +1710,50 @@ export default function DashboardTab({
                   </div>
                 </div>
 
+                {categoryFilter === "all" && categoryFilterOptions.length > 0 ? (
+                  <div className="dashboard-category-exclude-box">
+                    <button
+                      type="button"
+                      className={`dashboard-category-exclude-toggle ${
+                        isCategoryExcludeOpen || excludedCategories.length > 0 ? "active" : ""
+                      }`}
+                      onClick={() => setIsCategoryExcludeOpen((prev) => !prev)}
+                      aria-expanded={isCategoryExcludeOpen}
+                    >
+                      {excludedCategories.length > 0 ? `Все, кроме: ${excludedCategories.length}` : "Все, кроме"}
+                    </button>
+                    {(isCategoryExcludeOpen || excludedCategories.length > 0) && (
+                      <>
+                        <div className="dashboard-category-exclude-chips">
+                          {categoryFilterOptions.map((category) => {
+                            const isExcluded = excludedCategories.includes(category);
+                            return (
+                              <button
+                                key={`mobile-exclude-category-${category}`}
+                                type="button"
+                                className={`dashboard-category-exclude-chip ${isExcluded ? "active" : ""}`}
+                                onClick={() => toggleExcludedCategory(category)}
+                                aria-pressed={isExcluded}
+                              >
+                                {category}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        {excludedCategories.length > 0 ? (
+                          <button
+                            type="button"
+                            className="dashboard-category-exclude-clear"
+                            onClick={() => setExcludedCategories([])}
+                          >
+                            Сбросить исключения
+                          </button>
+                        ) : null}
+                      </>
+                    )}
+                  </div>
+                ) : null}
+
                 {categoryChartData.length > 0 ? (
                   <>
                     <div className="dashboard-mobile-donut-wrap">
@@ -1738,7 +1818,11 @@ export default function DashboardTab({
                     </div>
                   </>
                 ) : (
-                  <div className="dashboard-mobile-empty-card">Нет расходов по выбранной категории.</div>
+                  <div className="dashboard-mobile-empty-card">
+                    {excludedCategories.length > 0 && categoryFilter === "all"
+                      ? "Нет расходов после исключения выбранных категорий."
+                      : "Нет расходов по выбранной категории."}
+                  </div>
                 )}
               </article>
 
@@ -2612,6 +2696,49 @@ export default function DashboardTab({
                   ))}
                 </select>
               </div>
+              {categoryFilter === "all" && categoryFilterOptions.length > 0 ? (
+                <div className="dashboard-category-exclude-box">
+                  <button
+                    type="button"
+                    className={`dashboard-category-exclude-toggle ${
+                      isCategoryExcludeOpen || excludedCategories.length > 0 ? "active" : ""
+                    }`}
+                    onClick={() => setIsCategoryExcludeOpen((prev) => !prev)}
+                    aria-expanded={isCategoryExcludeOpen}
+                  >
+                    {excludedCategories.length > 0 ? `Все, кроме: ${excludedCategories.length}` : "Все, кроме"}
+                  </button>
+                  {(isCategoryExcludeOpen || excludedCategories.length > 0) && (
+                    <>
+                      <div className="dashboard-category-exclude-chips">
+                        {categoryFilterOptions.map((category) => {
+                          const isExcluded = excludedCategories.includes(category);
+                          return (
+                            <button
+                              key={`desktop-exclude-category-${category}`}
+                              type="button"
+                              className={`dashboard-category-exclude-chip ${isExcluded ? "active" : ""}`}
+                              onClick={() => toggleExcludedCategory(category)}
+                              aria-pressed={isExcluded}
+                            >
+                              {category}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {excludedCategories.length > 0 ? (
+                        <button
+                          type="button"
+                          className="dashboard-category-exclude-clear"
+                          onClick={() => setExcludedCategories([])}
+                        >
+                          Сбросить исключения
+                        </button>
+                      ) : null}
+                    </>
+                  )}
+                </div>
+              ) : null}
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                   <Pie
@@ -2663,6 +2790,15 @@ export default function DashboardTab({
                   );
                 })}
               </div>
+              {categoryChartData.length === 0 ? (
+                <div className="empty-state">
+                  <p>
+                    {excludedCategories.length > 0 && categoryFilter === "all"
+                      ? "Нет расходов после исключения выбранных категорий."
+                      : "Нет расходов по выбранной категории."}
+                  </p>
+                </div>
+              ) : null}
             </div>
 
             <div className="chart-card">

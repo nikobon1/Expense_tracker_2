@@ -4,28 +4,66 @@ const LEGACY_CATEGORY_MAP: Record<string, string> = {
   "????": "Кофе",
 };
 
-function countMojibakeMarkers(value: string): number {
-  return Array.from(value).reduce((count, ch) => count + (ch === "Р " || ch === "РЎ" ? 1 : 0), 0);
+const CYRILLIC_PATTERN = /[\u0400-\u04FF]/;
+const INVALID_DECODE_PATTERN = /\uFFFD/;
+
+function looksLikeMojibake(value: string): boolean {
+  return /(?:Ð.|Ñ.|Ã.){2,}|(?:Р.|С.|Г.){2,}/.test(value);
+}
+
+function normalizeWhitespace(value: string | null | undefined): string {
+  return String(value ?? "").replace(/\s+/g, " ").trim();
+}
+
+function matchKnownCategory(value: string): string | null {
+  const exact = CATEGORIES.find((category) => category === value);
+  if (exact) return exact;
+
+  const lower = value.toLocaleLowerCase("ru");
+  return CATEGORIES.find((category) => category.toLocaleLowerCase("ru") === lower) ?? null;
+}
+
+function recoverUtf8Mojibake(value: string): string | null {
+  if (!looksLikeMojibake(value)) return null;
+
+  try {
+    const recovered = normalizeWhitespace(Buffer.from(value, "latin1").toString("utf8"));
+    if (!recovered || recovered === value || INVALID_DECODE_PATTERN.test(recovered)) {
+      return null;
+    }
+
+    if (!CYRILLIC_PATTERN.test(recovered) && looksLikeMojibake(recovered)) {
+      return null;
+    }
+
+    return recovered;
+  } catch {
+    return null;
+  }
 }
 
 export function normalizeCategory(value: string | null | undefined): string {
-  const raw = String(value ?? "").trim();
+  const raw = normalizeWhitespace(value);
   if (!raw) return DEFAULT_CATEGORY;
 
-  const legacyMapped = LEGACY_CATEGORY_MAP[raw];
-  if (legacyMapped && CATEGORIES.includes(legacyMapped)) return legacyMapped;
+  const mapped = LEGACY_CATEGORY_MAP[raw];
+  if (mapped) return mapped;
 
-  const exact = CATEGORIES.find((category) => category === raw);
-  if (exact) return exact;
+  const knownCategory = matchKnownCategory(raw);
+  if (knownCategory) return knownCategory;
 
-  const lower = raw.toLowerCase();
-  const caseInsensitive = CATEGORIES.find((category) => category.toLowerCase() === lower);
-  if (caseInsensitive) return caseInsensitive;
+  const recovered = recoverUtf8Mojibake(raw);
+  if (recovered) {
+    const recoveredMapped = LEGACY_CATEGORY_MAP[recovered];
+    if (recoveredMapped) return recoveredMapped;
 
-  const likelyMojibake =
-    raw.includes("РІР‚") || raw.includes("СЂСџ") || raw.includes("Гђ") || raw.includes("Г‘") || countMojibakeMarkers(raw) >= 2;
+    const recoveredKnownCategory = matchKnownCategory(recovered);
+    if (recoveredKnownCategory) return recoveredKnownCategory;
 
-  if (likelyMojibake) {
+    return recovered;
+  }
+
+  if (looksLikeMojibake(raw)) {
     return DEFAULT_CATEGORY;
   }
 

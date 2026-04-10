@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { normalizeCalendarDate } from "@/lib/calendar-date";
 import { normalizeCategory } from "@/lib/category-normalization";
 import { normalizeStoreName } from "@/lib/store-normalization";
 import {
@@ -27,20 +28,7 @@ function shiftDateByMonths(dateString: string, monthOffset: number) {
 }
 
 function normalizeIsoDate(value: string | Date | null | undefined): string {
-  if (!value) return "";
-
-  if (value instanceof Date) {
-    if (Number.isNaN(value.getTime())) return "";
-    return value.toISOString().slice(0, 10);
-  }
-
-  const raw = String(value).trim();
-  if (!raw) return "";
-  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
-
-  const parsed = new Date(raw);
-  if (Number.isNaN(parsed.getTime())) return "";
-  return parsed.toISOString().slice(0, 10);
+  return normalizeCalendarDate(value);
 }
 
 function aggregateCategoryTotals(rows: Array<{ category?: unknown; total?: unknown }>) {

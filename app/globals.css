@@ -1347,6 +1347,58 @@ td select:focus {
   font-size: 0.82rem;
 }
 
+.dashboard-category-exclude-box {
+  display: grid;
+  gap: 0.6rem;
+  margin-bottom: 0.75rem;
+}
+
+.dashboard-category-exclude-toggle,
+.dashboard-category-exclude-chip,
+.dashboard-category-exclude-clear {
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.dashboard-category-exclude-toggle {
+  justify-self: start;
+  padding: 0.45rem 0.8rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.dashboard-category-exclude-toggle.active {
+  border-color: rgba(99, 102, 241, 0.45);
+  background: rgba(99, 102, 241, 0.12);
+  color: #c7d2fe;
+}
+
+.dashboard-category-exclude-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.dashboard-category-exclude-chip {
+  padding: 0.35rem 0.7rem;
+  font-size: 0.78rem;
+}
+
+.dashboard-category-exclude-chip.active {
+  border-color: rgba(248, 113, 113, 0.5);
+  background: rgba(127, 29, 29, 0.22);
+  color: #fecaca;
+}
+
+.dashboard-category-exclude-clear {
+  justify-self: start;
+  padding: 0.35rem 0.75rem;
+  font-size: 0.76rem;
+}
+
 .category-legend {
   columns: 2;
   column-gap: 0.9rem;

@@ -1,4 +1,5 @@
 import type { Expense, ReceiptData, ReceiptDetails, ReceiptItem } from "@/features/expenses/types";
+import { normalizeCalendarDate } from "@/lib/calendar-date";
 
 interface ExpensesResponse {
   expenses: Expense[];
@@ -28,17 +29,7 @@ interface CategoriesResponse {
 }
 
 function normalizeIsoDate(value: string): string {
-  const normalized = value.trim();
-  if (!normalized) return "";
-
-  if (/^\d{4}-\d{2}-\d{2}/.test(normalized)) {
-    return normalized.slice(0, 10);
-  }
-
-  const parsed = new Date(normalized);
-  if (Number.isNaN(parsed.getTime())) return "";
-
-  return parsed.toISOString().slice(0, 10);
+  return normalizeCalendarDate(value);
 }
 
 async function readJsonOrText(response: Response): Promise<unknown> {
