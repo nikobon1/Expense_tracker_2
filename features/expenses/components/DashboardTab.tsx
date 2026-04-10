@@ -421,6 +421,10 @@ export default function DashboardTab({
   readOnlyNotice = "Это демо-режим. В этой версии редактирование и сохранение отключены.",
 }: DashboardTabProps) {
   const [activeBarDate, setActiveBarDate] = useState<string | null>(null);
+  const mobileStartDateInputRef = useRef<HTMLInputElement | null>(null);
+  const mobileEndDateInputRef = useRef<HTMLInputElement | null>(null);
+  const desktopStartDateInputRef = useRef<HTMLInputElement | null>(null);
+  const desktopEndDateInputRef = useRef<HTMLInputElement | null>(null);
   const tooltipReceiptLimit: number | "all" = 7;
   const setTooltipReceiptLimit = (_value: number | "all") => undefined;
   const [isCategoryComparisonOpen, setIsCategoryComparisonOpen] = useState(false);
@@ -544,6 +548,18 @@ export default function DashboardTab({
     const range = getDashboardPresetRange(value, todayIso);
     onStartDateChange(range.start);
     onEndDateChange(range.end);
+  };
+  const openDatePicker = (input: HTMLInputElement | null) => {
+    if (!input) return;
+
+    input.focus({ preventScroll: true });
+
+    if (typeof input.showPicker === "function") {
+      input.showPicker();
+      return;
+    }
+
+    input.click();
   };
   const filteredCategoryTotal = useMemo(
     () => categoryChartData.reduce((sum, point) => sum + point.value, 0),
@@ -1462,12 +1478,24 @@ export default function DashboardTab({
 
         <section className="dashboard-mobile-controls">
           <div className="dashboard-mobile-date-row">
-            <div className="dashboard-mobile-date-card dashboard-date-trigger">
+            <div
+              className="dashboard-mobile-date-card dashboard-date-trigger"
+              role="button"
+              tabIndex={0}
+              onClick={() => openDatePicker(mobileStartDateInputRef.current)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  openDatePicker(mobileStartDateInputRef.current);
+                }
+              }}
+            >
               <label htmlFor="dashboard-start-date">Начало периода</label>
               <span className="dashboard-date-value">{formatPeriodLabel(startDate)}</span>
               <input
                 className="dashboard-date-input-overlay"
                 id="dashboard-start-date"
+                ref={mobileStartDateInputRef}
                 type="date"
                 aria-label="Начало периода"
                 name="dashboardStartDate"
@@ -1475,12 +1503,24 @@ export default function DashboardTab({
                 onChange={(e) => handleDashboardStartDateChange(e.target.value)}
               />
             </div>
-            <div className="dashboard-mobile-date-card dashboard-date-trigger">
+            <div
+              className="dashboard-mobile-date-card dashboard-date-trigger"
+              role="button"
+              tabIndex={0}
+              onClick={() => openDatePicker(mobileEndDateInputRef.current)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  openDatePicker(mobileEndDateInputRef.current);
+                }
+              }}
+            >
               <label htmlFor="dashboard-end-date">Конец периода</label>
               <span className="dashboard-date-value">{formatPeriodLabel(endDate)}</span>
               <input
                 className="dashboard-date-input-overlay"
                 id="dashboard-end-date"
+                ref={mobileEndDateInputRef}
                 type="date"
                 aria-label="Конец периода"
                 name="dashboardEndDate"
@@ -2270,21 +2310,47 @@ export default function DashboardTab({
       </section>
 
       <div className="date-filter">
-        <div className="dashboard-date-trigger">
-          <label>📅 Начало периода</label>
+        <div
+          className="dashboard-date-trigger"
+          role="button"
+          tabIndex={0}
+          onClick={() => openDatePicker(desktopStartDateInputRef.current)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              openDatePicker(desktopStartDateInputRef.current);
+            }
+          }}
+        >
+          <label htmlFor="dashboard-start-date-desktop">📅 Начало периода</label>
           <span className="dashboard-date-value">{formatPeriodLabel(startDate)}</span>
           <input
             className="dashboard-date-input-overlay"
+            id="dashboard-start-date-desktop"
+            ref={desktopStartDateInputRef}
             type="date"
             value={startDate}
             onChange={(e) => handleDashboardStartDateChange(e.target.value)}
           />
         </div>
-        <div className="dashboard-date-trigger">
-          <label>📅 Конец периода</label>
+        <div
+          className="dashboard-date-trigger"
+          role="button"
+          tabIndex={0}
+          onClick={() => openDatePicker(desktopEndDateInputRef.current)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              openDatePicker(desktopEndDateInputRef.current);
+            }
+          }}
+        >
+          <label htmlFor="dashboard-end-date-desktop">📅 Конец периода</label>
           <span className="dashboard-date-value">{formatPeriodLabel(endDate)}</span>
           <input
             className="dashboard-date-input-overlay"
+            id="dashboard-end-date-desktop"
+            ref={desktopEndDateInputRef}
             type="date"
             value={endDate}
             onChange={(e) => handleDashboardEndDateChange(e.target.value)}
