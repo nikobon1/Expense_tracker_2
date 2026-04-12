@@ -1,6 +1,7 @@
 import NextAuth, { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
+import { upsertUserFromSession } from "@/lib/server/users";
 
 const providers: NextAuthOptions["providers"] = [];
 const isDevLoginEnabled = process.env.DEV_LOGIN_ENABLED?.trim().toLowerCase() === "true";
@@ -62,6 +63,35 @@ export const authOptions: NextAuthOptions = {
     },
     session: {
         strategy: "jwt",
+    },
+    callbacks: {
+        async jwt({ token, user }) {
+            if (typeof token.appUserId === "number" && user === undefined) {
+                return token;
+            }
+
+            const email = user?.email ?? token.email;
+            if (!email) {
+                return token;
+            }
+
+            const internalUser = await upsertUserFromSession({
+                email,
+                name: user?.name ?? token.name,
+                image: user?.image ?? (typeof token.picture === "string" ? token.picture : null),
+            });
+
+            token.appUserId = internalUser.id;
+            return token;
+        },
+        async session({ session, token }) {
+            if (session.user && typeof token.appUserId === "number") {
+                session.user.id = String(token.appUserId);
+                session.user.appUserId = token.appUserId;
+            }
+
+            return session;
+        },
     },
     secret: process.env.NEXTAUTH_SECRET,
 };

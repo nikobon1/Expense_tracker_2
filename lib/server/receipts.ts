@@ -81,8 +81,9 @@ export async function saveReceiptToDb(payload: {
   comment?: string | null;
   source?: string;
   telegram_file_id?: string | null;
+  userId?: number | null;
 }): Promise<{ receiptId: number; totalAmount: number }> {
-  const { store_name, purchase_date, items, comment, source, telegram_file_id } = payload;
+  const { store_name, purchase_date, items, comment, source, telegram_file_id, userId } = payload;
   const normalizedStoreName = normalizeStoreName(store_name);
   const normalizedItems = normalizeReceiptItems(items);
   const normalizedComment = normalizeReceiptComment(comment);
@@ -99,8 +100,8 @@ export async function saveReceiptToDb(payload: {
   const [receiptResult] = (await sql.transaction((tx) => [
     tx`
       WITH inserted_receipt AS (
-        INSERT INTO receipts (store_name, purchase_date, total_amount, comment, source, telegram_file_id)
-        VALUES (${normalizedStoreName}, ${purchase_date}, ${totalAmount}, ${normalizedComment}, ${source ?? null}, ${telegram_file_id ?? null})
+        INSERT INTO receipts (store_name, purchase_date, total_amount, comment, source, telegram_file_id, user_id)
+        VALUES (${normalizedStoreName}, ${purchase_date}, ${totalAmount}, ${normalizedComment}, ${source ?? null}, ${telegram_file_id ?? null}, ${userId ?? null})
         RETURNING id
       ),
       inserted_items AS (
@@ -125,16 +126,26 @@ export async function saveReceiptToDb(payload: {
 }
 
 export async function getReceiptById(
-  receiptId: number
+  receiptId: number,
+  options?: { userId?: number | null }
 ): Promise<(ReceiptData & { id: number; total_amount: number; source: string | null; telegram_file_id: string | null }) | null> {
   const sql = getDb();
+  const userId = options?.userId;
 
-  const receiptRows = (await sql`
-    SELECT id, store_name, purchase_date, total_amount, comment, source, telegram_file_id
-    FROM receipts
-    WHERE id = ${receiptId}
-    LIMIT 1
-  `) as Array<{
+  const receiptRows = (userId == null
+    ? await sql`
+        SELECT id, store_name, purchase_date, total_amount, comment, source, telegram_file_id
+        FROM receipts
+        WHERE id = ${receiptId}
+        LIMIT 1
+      `
+    : await sql`
+        SELECT id, store_name, purchase_date, total_amount, comment, source, telegram_file_id
+        FROM receipts
+        WHERE id = ${receiptId}
+          AND user_id = ${userId}
+        LIMIT 1
+      `) as Array<{
     id: number | string;
     store_name: string | null;
     purchase_date: string | Date | null;
@@ -178,9 +189,11 @@ export async function getReceiptById(
 
 export async function updateReceiptInDb(
   receiptId: number,
-  payload: { store_name: string; purchase_date: string; items: ReceiptItem[]; comment?: string | null }
+  payload: { store_name: string; purchase_date: string; items: ReceiptItem[]; comment?: string | null },
+  options?: { userId?: number | null }
 ): Promise<{ receiptId: number; totalAmount: number }> {
   const { store_name, purchase_date, items, comment } = payload;
+  const userId = options?.userId;
   const normalizedStoreName = normalizeStoreName(store_name);
   const normalizedItems = normalizeReceiptItems(items);
   const normalizedComment = normalizeReceiptComment(comment);
@@ -203,6 +216,7 @@ export async function updateReceiptInDb(
             comment = ${normalizedComment},
             total_amount = ${totalAmount}
         WHERE id = ${receiptId}
+          AND (${userId == null} OR user_id = ${userId ?? null})
         RETURNING id
       ),
       deleted_items AS (
@@ -232,15 +246,24 @@ export async function updateReceiptInDb(
   return { receiptId, totalAmount };
 }
 
-export async function deleteReceiptFromDb(receiptId: number): Promise<void> {
+export async function deleteReceiptFromDb(receiptId: number, options?: { userId?: number | null }): Promise<void> {
   const sql = getDb();
+  const userId = options?.userId;
 
-  const existingRows = (await sql`
-    SELECT id
-    FROM receipts
-    WHERE id = ${receiptId}
-    LIMIT 1
-  `) as Array<{ id: number | string }>;
+  const existingRows = (userId == null
+    ? await sql`
+        SELECT id
+        FROM receipts
+        WHERE id = ${receiptId}
+        LIMIT 1
+      `
+    : await sql`
+        SELECT id
+        FROM receipts
+        WHERE id = ${receiptId}
+          AND user_id = ${userId}
+        LIMIT 1
+      `) as Array<{ id: number | string }>;
 
   if (!existingRows[0]?.id) {
     throw new Error("Receipt not found");
@@ -251,11 +274,18 @@ export async function deleteReceiptFromDb(receiptId: number): Promise<void> {
     WHERE receipt_id = ${receiptId}
   `;
 
-  const deletedReceiptRows = (await sql`
-    DELETE FROM receipts
-    WHERE id = ${receiptId}
-    RETURNING id
-  `) as Array<{ id: number | string }>;
+  const deletedReceiptRows = (userId == null
+    ? await sql`
+        DELETE FROM receipts
+        WHERE id = ${receiptId}
+        RETURNING id
+      `
+    : await sql`
+        DELETE FROM receipts
+        WHERE id = ${receiptId}
+          AND user_id = ${userId}
+        RETURNING id
+      `) as Array<{ id: number | string }>;
 
   if (!deletedReceiptRows[0]?.id) {
     throw new Error("Receipt not found");

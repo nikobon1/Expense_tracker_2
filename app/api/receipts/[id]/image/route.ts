@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+  isAuthenticationRequiredError,
+  requireCurrentUser,
+} from "@/lib/server/auth";
 import { getReceiptById } from "@/lib/server/receipts";
 
 type RouteContext = {
@@ -49,10 +53,11 @@ async function fetchTelegramFileAsDataUrl(fileId: string, fallbackMime = "image/
 
 export async function GET(_request: NextRequest, context: RouteContext) {
   try {
+    const currentUser = await requireCurrentUser();
     const { id } = await context.params;
     const receiptId = parseReceiptId(id);
 
-    const receipt = await getReceiptById(receiptId);
+    const receipt = await getReceiptById(receiptId, { userId: currentUser.id });
     if (!receipt) {
       return NextResponse.json({ error: "Receipt not found" }, { status: 404 });
     }
@@ -66,7 +71,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to load receipt image";
     const status =
-      /invalid receipt id/i.test(message) ? 400 : /not found|no telegram image/i.test(message) ? 404 : 500;
+      /invalid receipt id/i.test(message) ? 400 : isAuthenticationRequiredError(error) ? 401 : /not found|no telegram image/i.test(message) ? 404 : 500;
     return NextResponse.json({ error: message }, { status });
   }
 }

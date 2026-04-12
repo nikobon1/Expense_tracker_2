@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  isAuthenticationRequiredError,
+  requireCurrentUser,
+} from "@/lib/server/auth";
+import {
   deleteReceiptFromDb,
   getDatabaseSchemaMissingMessage,
   getReceiptById,
@@ -30,10 +34,11 @@ function isInvalidJsonError(error: unknown): boolean {
 
 export async function GET(_request: NextRequest, context: RouteContext) {
   try {
+    const currentUser = await requireCurrentUser();
     const { id } = await context.params;
     const receiptId = parseReceiptId(id);
 
-    const receipt = await getReceiptById(receiptId);
+    const receipt = await getReceiptById(receiptId, { userId: currentUser.id });
     if (!receipt) {
       return NextResponse.json({ error: "Receipt not found" }, { status: 404 });
     }
@@ -43,6 +48,8 @@ export async function GET(_request: NextRequest, context: RouteContext) {
     const message = error instanceof Error ? error.message : "Failed to load receipt";
     const status = /invalid receipt id/i.test(message)
       ? 400
+      : isAuthenticationRequiredError(error)
+        ? 401
       : isDatabaseSchemaMissingError(error)
         ? 503
         : 500;
@@ -56,6 +63,7 @@ export async function GET(_request: NextRequest, context: RouteContext) {
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
   try {
+    const currentUser = await requireCurrentUser();
     const { id } = await context.params;
     const receiptId = parseReceiptId(id);
 
@@ -66,7 +74,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       purchase_date: body.purchase_date,
       items: body.items,
       comment: body.comment,
-    });
+    }, { userId: currentUser.id });
 
     return NextResponse.json({ success: true, receiptId: updated.receiptId, totalAmount: updated.totalAmount });
   } catch (error) {
@@ -78,6 +86,8 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
           ? 400
           : isReceiptValidationError(error)
             ? 400
+        : isAuthenticationRequiredError(error)
+          ? 401
         : /receipt not found/i.test(message)
           ? 404
           : isDatabaseSchemaMissingError(error)
@@ -98,16 +108,19 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 
 export async function DELETE(_request: NextRequest, context: RouteContext) {
   try {
+    const currentUser = await requireCurrentUser();
     const { id } = await context.params;
     const receiptId = parseReceiptId(id);
 
-    await deleteReceiptFromDb(receiptId);
+    await deleteReceiptFromDb(receiptId, { userId: currentUser.id });
 
     return NextResponse.json({ success: true, receiptId });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to delete receipt";
     const status = /invalid receipt id/i.test(message)
       ? 400
+      : isAuthenticationRequiredError(error)
+        ? 401
       : /receipt not found/i.test(message)
         ? 404
         : isDatabaseSchemaMissingError(error)

@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  isAuthenticationRequiredError,
+  requireCurrentUser,
+} from "@/lib/server/auth";
+import {
   getDatabaseSchemaMissingMessage,
   isDatabaseSchemaMissingError,
   saveReceiptToDb,
@@ -16,6 +20,7 @@ function isInvalidJsonError(error: unknown): boolean {
 
 export async function POST(request: NextRequest) {
   try {
+    const currentUser = await requireCurrentUser();
     const body = parseReceiptPayload(await request.json());
 
     const result = await saveReceiptToDb({
@@ -24,6 +29,7 @@ export async function POST(request: NextRequest) {
       items: body.items,
       comment: body.comment,
       source: "web",
+      userId: currentUser.id,
     });
 
     return NextResponse.json({ success: true, receiptId: result.receiptId });
@@ -40,6 +46,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: getReceiptValidationErrorMessage(error) },
         { status: 400 }
+      );
+    }
+
+    if (isAuthenticationRequiredError(error)) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 401 }
       );
     }
 
