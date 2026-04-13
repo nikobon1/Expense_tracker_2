@@ -10,6 +10,7 @@ import { useReceiptFlow } from '@/features/expenses/hooks/useReceiptFlow';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'scan' | 'dashboard'>('scan');
+  const [manualEntryRequest, setManualEntryRequest] = useState(0);
   const receiptFlow = useReceiptFlow();
   const categoryOptions = useCategoryOptions();
   const dashboardData = useDashboardData();
@@ -46,6 +47,11 @@ export default function Home() {
 
     return () => clearInterval(interval);
   }, [activeTab, loadExpenses]);
+
+  const openManualReceiptEntry = () => {
+    setActiveTab('scan');
+    setManualEntryRequest((value) => value + 1);
+  };
 
   return (
     <div className="app-container">
@@ -120,6 +126,7 @@ export default function Home() {
             onItemUpdate={receiptFlow.updateItem}
             onItemDelete={receiptFlow.deleteItem}
             currentTotal={receiptFlow.currentTotal}
+            focusManualEntrySignal={manualEntryRequest}
           />
         ) : (
           <DashboardTab
@@ -140,7 +147,7 @@ export default function Home() {
             onEndDateChange={setEndDate}
             onStoreChange={setSelectedStore}
             onRefresh={() => void loadExpenses()}
-            onOpenScan={() => setActiveTab('scan')}
+            onOpenScan={openManualReceiptEntry}
           />
         )}
       </main>

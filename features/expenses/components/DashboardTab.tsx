@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Image from "next/image";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
@@ -1488,7 +1488,7 @@ export default function DashboardTab({
           <div className="dashboard-mobile-topbar-actions">
             {onOpenScan ? (
               <button type="button" className="dashboard-desktop-top-action" onClick={onOpenScan}>
-                Сканировать
+                Добавить чек
               </button>
             ) : null}
             <div className="dashboard-mobile-avatar" aria-hidden="true">
@@ -2332,7 +2332,7 @@ export default function DashboardTab({
 
       {onOpenScan ? (
         <button type="button" className="dashboard-mobile-scan-fab" onClick={onOpenScan}>
-          Сканировать
+          Добавить чек
         </button>
       ) : null}
 
@@ -2342,7 +2342,7 @@ export default function DashboardTab({
         </button>
         {onOpenScan ? (
           <button type="button" onClick={onOpenScan}>
-            Скан
+            Добавить
           </button>
         ) : null}
         <button type="button" onClick={onRefresh} disabled={isLoading}>

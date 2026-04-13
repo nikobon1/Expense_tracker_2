@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { useMemo, useState, type DragEvent, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type DragEvent, type RefObject } from "react";
 import Image from "next/image";
 import CategoryManager from "@/features/expenses/components/CategoryManager";
 import type { AddCategoryResult, DeleteCategoryResult } from "@/features/expenses/hooks/useCategoryOptions";
@@ -52,6 +52,7 @@ interface ScanTabProps {
   onItemUpdate: (index: number, field: keyof ReceiptItem, value: string | number) => void;
   onItemDelete: (index: number) => void;
   currentTotal: number;
+  focusManualEntrySignal?: number;
 }
 
 function getLocalTodayIso() {
@@ -112,7 +113,10 @@ export default function ScanTab({
   onItemUpdate,
   onItemDelete,
   currentTotal,
+  focusManualEntrySignal = 0,
 }: ScanTabProps) {
+  const manualSectionRef = useRef<HTMLDivElement | null>(null);
+  const manualStoreInputRef = useRef<HTMLInputElement | null>(null);
   const recurringCategoryFallback = useMemo(
     () => categoryOptions.find((option) => option === "Подписки") ?? categoryOptions[0] ?? "Подписки",
     [categoryOptions]
@@ -128,6 +132,16 @@ export default function ScanTab({
   const resolvedRecurringCategory = categoryOptions.includes(recurringCategory)
     ? recurringCategory
     : recurringCategoryFallback;
+
+  useEffect(() => {
+    if (!focusManualEntrySignal || uploadedImage) return;
+
+    manualSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.setTimeout(() => {
+      manualStoreInputRef.current?.focus();
+      manualStoreInputRef.current?.select();
+    }, 150);
+  }, [focusManualEntrySignal, uploadedImage]);
 
   const handleRecurringSave = async () => {
     setRecurringFeedback(null);
@@ -171,7 +185,7 @@ export default function ScanTab({
   if (!uploadedImage) {
     return (
       <div className="scan-empty-state">
-        <div className="card">
+        <div className="card" ref={manualSectionRef}>
           <h3>Загрузите фото чека</h3>
           <div
             className="upload-area"
@@ -192,7 +206,7 @@ export default function ScanTab({
           </div>
         </div>
 
-        <div className="card">
+        <div className="card" ref={manualSectionRef}>
           <h3>Быстрое добавление</h3>
           <p className="scan-field-hint">Сохраните общую сумму, если фото чека нет.</p>
 
@@ -200,6 +214,7 @@ export default function ScanTab({
             <div>
               <label className="scan-field-label">Магазин</label>
               <input
+                ref={manualStoreInputRef}
                 type="text"
                 value={manualStoreName}
                 onChange={(e) => onManualStoreNameChange(e.target.value)}
