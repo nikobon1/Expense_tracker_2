@@ -3,6 +3,10 @@ import { normalizeCalendarDate } from "@/lib/calendar-date";
 import { normalizeCategory } from "@/lib/category-normalization";
 import { normalizeStoreName } from "@/lib/store-normalization";
 import {
+  isAuthenticationRequiredError,
+  requireCurrentUser,
+} from "@/lib/server/auth";
+import {
   generateRecurringExpensesForRange,
   getRecurringExpensePlansInDb,
 } from "@/lib/server/recurring-expenses";
@@ -48,6 +52,7 @@ function aggregateCategoryTotals(rows: Array<{ category?: unknown; total?: unkno
 
 export async function GET(request: NextRequest) {
   try {
+    const currentUser = await requireCurrentUser();
     const { searchParams } = new URL(request.url);
     const startDate = searchParams.get("start");
     const endDate = searchParams.get("end");
@@ -77,6 +82,7 @@ export async function GET(request: NextRequest) {
       FROM receipts r
       JOIN items i ON r.id = i.receipt_id
       WHERE r.purchase_date BETWEEN ${startDate} AND ${endDate}
+        AND r.user_id = ${currentUser.id}
       ORDER BY r.purchase_date DESC
     `) as Array<{
       id: number | string;
@@ -92,6 +98,7 @@ export async function GET(request: NextRequest) {
       SELECT store_name, COALESCE(SUM(total_amount), 0) as total
       FROM receipts
       WHERE purchase_date BETWEEN ${prevPeriodStart} AND ${prevPeriodEnd}
+        AND user_id = ${currentUser.id}
       GROUP BY store_name
     `) as Array<{
       store_name: string | null;
@@ -103,6 +110,7 @@ export async function GET(request: NextRequest) {
       FROM receipts r
       JOIN items i ON r.id = i.receipt_id
       WHERE r.purchase_date BETWEEN ${prevPeriodStart} AND ${prevPeriodEnd}
+        AND r.user_id = ${currentUser.id}
       GROUP BY r.store_name, i.category
     `) as Array<{
       store_name: string | null;
@@ -114,6 +122,7 @@ export async function GET(request: NextRequest) {
       SELECT DISTINCT TRIM(store_name) as store
       FROM receipts
       WHERE purchase_date BETWEEN ${startDate} AND ${endDate}
+        AND user_id = ${currentUser.id}
         AND store_name IS NOT NULL
         AND TRIM(store_name) <> ''
       ORDER BY store
@@ -132,6 +141,7 @@ export async function GET(request: NextRequest) {
         created_at
       FROM receipt_analyze_logs
       WHERE created_at::date BETWEEN ${startDate} AND ${endDate}
+        AND user_id = ${currentUser.id}
       ORDER BY created_at DESC
       LIMIT 20
     `) as Array<{
@@ -149,6 +159,7 @@ export async function GET(request: NextRequest) {
     const recurringPlans = await getRecurringExpensePlansInDb({
       fromDate: rangeFloor,
       toDate: rangeCeiling,
+      userId: currentUser.id,
     });
     const recurringExpenses = generateRecurringExpensesForRange(recurringPlans, startDate, endDate);
     const prevRecurringExpenses = generateRecurringExpensesForRange(recurringPlans, prevPeriodStart, prevPeriodEnd);
@@ -250,6 +261,10 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error("Get expenses error:", error);
+
+    if (isAuthenticationRequiredError(error)) {
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
 
     if (error instanceof Error && error.message.includes("DATABASE_URL")) {
       return NextResponse.json({

@@ -364,6 +364,7 @@ export async function saveReceiptAnalyzeLog(payload: {
   totalTokens: number;
   estimatedCostUsd: number | null;
   storeName?: string | null;
+  userId?: number | null;
 }): Promise<void> {
   const sql = getDb();
 
@@ -375,7 +376,8 @@ export async function saveReceiptAnalyzeLog(payload: {
       output_tokens,
       total_tokens,
       estimated_cost_usd,
-      store_name
+      store_name,
+      user_id
     )
     VALUES (
       ${payload.provider},
@@ -384,7 +386,8 @@ export async function saveReceiptAnalyzeLog(payload: {
       ${Math.max(0, Math.floor(Number(payload.outputTokens || 0)))},
       ${Math.max(0, Math.floor(Number(payload.totalTokens || 0)))},
       ${payload.estimatedCostUsd},
-      ${payload.storeName?.trim() || null}
+      ${payload.storeName?.trim() || null},
+      ${payload.userId ?? null}
     )
   `;
 }

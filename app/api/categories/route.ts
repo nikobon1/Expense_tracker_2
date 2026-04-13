@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { CATEGORIES } from "@/features/expenses/constants";
 import {
+  isAuthenticationRequiredError,
+  requireCurrentUser,
+} from "@/lib/server/auth";
+import {
   createCategoryInDb,
   deleteCategoryFromDb,
   getCustomCategoriesFromDb,
@@ -32,12 +36,17 @@ function mergeCategoryOptions(customCategories: string[]): string[] {
 
 export async function GET() {
   try {
-    const customCategories = await getCustomCategoriesFromDb();
+    const currentUser = await requireCurrentUser();
+    const customCategories = await getCustomCategoriesFromDb(currentUser.id);
     return NextResponse.json({
       categories: mergeCategoryOptions(customCategories),
       customCategories,
     });
   } catch (error) {
+    if (isAuthenticationRequiredError(error)) {
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
+
     if (isDatabaseSchemaMissingError(error)) {
       return NextResponse.json({ error: getDatabaseSchemaMissingMessage() }, { status: 503 });
     }
@@ -51,22 +60,23 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const currentUser = await requireCurrentUser();
     const payload = (await request.json()) as { name?: unknown };
     const normalizedName = normalizeCategoryInput(payload?.name);
 
     if (!normalizedName) {
-      return NextResponse.json({ error: "Введите название категории." }, { status: 400 });
+      return NextResponse.json({ error: "Category name is required." }, { status: 400 });
     }
 
     if (normalizedName.length > 40) {
-      return NextResponse.json({ error: "Название категории должно быть не длиннее 40 символов." }, { status: 400 });
+      return NextResponse.json({ error: "Category name must be 40 characters or fewer." }, { status: 400 });
     }
 
     const existingBaseCategory = CATEGORIES.find(
       (category) => category.toLocaleLowerCase("ru") === normalizedName.toLocaleLowerCase("ru")
     );
     if (existingBaseCategory) {
-      const customCategories = await getCustomCategoriesFromDb();
+      const customCategories = await getCustomCategoriesFromDb(currentUser.id);
       return NextResponse.json({
         success: true,
         category: existingBaseCategory,
@@ -76,16 +86,21 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const result = await createCategoryInDb(normalizedName);
-    const customCategories = await getCustomCategoriesFromDb();
+    const result = await createCategoryInDb(currentUser.id, normalizedName);
+    const customCategories = await getCustomCategoriesFromDb(currentUser.id);
 
     return NextResponse.json({
       success: true,
       category: result.name,
       existed: result.existed,
       categories: mergeCategoryOptions(customCategories),
+      customCategories,
     });
   } catch (error) {
+    if (isAuthenticationRequiredError(error)) {
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
+
     if (isDatabaseSchemaMissingError(error)) {
       return NextResponse.json({ error: getDatabaseSchemaMissingMessage() }, { status: 503 });
     }
@@ -99,22 +114,23 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const currentUser = await requireCurrentUser();
     const payload = (await request.json()) as { name?: unknown };
     const normalizedName = normalizeCategoryInput(payload?.name);
 
     if (!normalizedName) {
-      return NextResponse.json({ error: "Введите название категории." }, { status: 400 });
+      return NextResponse.json({ error: "Category name is required." }, { status: 400 });
     }
 
     const isBaseCategory = CATEGORIES.some(
       (category) => category.toLocaleLowerCase("ru") === normalizedName.toLocaleLowerCase("ru")
     );
     if (isBaseCategory) {
-      return NextResponse.json({ error: "Встроенные категории удалять нельзя." }, { status: 400 });
+      return NextResponse.json({ error: "Built-in categories cannot be deleted." }, { status: 400 });
     }
 
-    const result = await deleteCategoryFromDb(normalizedName);
-    const customCategories = await getCustomCategoriesFromDb();
+    const result = await deleteCategoryFromDb(currentUser.id, normalizedName);
+    const customCategories = await getCustomCategoriesFromDb(currentUser.id);
 
     return NextResponse.json({
       success: true,
@@ -124,6 +140,10 @@ export async function DELETE(request: NextRequest) {
       customCategories,
     });
   } catch (error) {
+    if (isAuthenticationRequiredError(error)) {
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
+
     if (isDatabaseSchemaMissingError(error)) {
       return NextResponse.json({ error: getDatabaseSchemaMissingMessage() }, { status: 503 });
     }

@@ -5,12 +5,13 @@ function normalizeCategoryName(value: string): string {
   return String(value ?? "").replace(/\s+/g, " ").trim();
 }
 
-export async function getCustomCategoriesFromDb(): Promise<string[]> {
+export async function getCustomCategoriesFromDb(userId: number): Promise<string[]> {
   const sql = getDb();
 
   const rows = (await sql`
     SELECT name
     FROM custom_categories
+    WHERE user_id = ${userId}
     ORDER BY name
   `) as Array<{ name: string | null }>;
 
@@ -24,7 +25,7 @@ export async function getCustomCategoriesFromDb(): Promise<string[]> {
     );
 }
 
-export async function createCategoryInDb(name: string): Promise<{ name: string; existed: boolean }> {
+export async function createCategoryInDb(userId: number, name: string): Promise<{ name: string; existed: boolean }> {
   const normalizedName = normalizeCategoryName(name);
   if (!normalizedName) {
     throw new Error("Category name is required");
@@ -35,7 +36,8 @@ export async function createCategoryInDb(name: string): Promise<{ name: string; 
   const existingRows = (await sql`
     SELECT name
     FROM custom_categories
-    WHERE LOWER(name) = LOWER(${normalizedName})
+    WHERE user_id = ${userId}
+      AND LOWER(name) = LOWER(${normalizedName})
     LIMIT 1
   `) as Array<{ name: string | null }>;
 
@@ -44,15 +46,15 @@ export async function createCategoryInDb(name: string): Promise<{ name: string; 
   }
 
   const insertedRows = (await sql`
-    INSERT INTO custom_categories (name)
-    VALUES (${normalizedName})
+    INSERT INTO custom_categories (name, user_id)
+    VALUES (${normalizedName}, ${userId})
     RETURNING name
   `) as Array<{ name: string | null }>;
 
   return { name: normalizeCategoryName(insertedRows[0]?.name ?? normalizedName), existed: false };
 }
 
-export async function deleteCategoryFromDb(name: string): Promise<{ name: string; deleted: boolean }> {
+export async function deleteCategoryFromDb(userId: number, name: string): Promise<{ name: string; deleted: boolean }> {
   const normalizedName = normalizeCategoryName(name);
   if (!normalizedName) {
     throw new Error("Category name is required");
@@ -66,7 +68,8 @@ export async function deleteCategoryFromDb(name: string): Promise<{ name: string
 
   const deletedRows = (await sql`
     DELETE FROM custom_categories
-    WHERE LOWER(name) = LOWER(${normalizedName})
+    WHERE user_id = ${userId}
+      AND LOWER(name) = LOWER(${normalizedName})
     RETURNING name
   `) as Array<{ name: string | null }>;
 

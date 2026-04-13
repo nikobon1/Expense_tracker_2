@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
+  isAuthenticationRequiredError,
+  requireCurrentUser,
+} from "@/lib/server/auth";
+import {
   createRecurringExpenseInDb,
   deactivateRecurringExpenseInDb,
   getRecurringExpensePlansInDb,
@@ -17,9 +21,14 @@ function isInvalidJsonError(error: unknown): boolean {
 
 export async function GET() {
   try {
-    const plans = await getRecurringExpensePlansInDb({ activeOnly: true });
+    const currentUser = await requireCurrentUser();
+    const plans = await getRecurringExpensePlansInDb({ activeOnly: true, userId: currentUser.id });
     return NextResponse.json({ plans });
   } catch (error) {
+    if (isAuthenticationRequiredError(error)) {
+      return NextResponse.json({ error: error.message }, { status: 401 });
+    }
+
     if (isDatabaseSchemaMissingError(error)) {
       return NextResponse.json({ error: getDatabaseSchemaMissingMessage() }, { status: 503 });
     }
@@ -33,9 +42,10 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const currentUser = await requireCurrentUser();
     const payload = parseRecurringExpensePayload(await request.json());
-    await createRecurringExpenseInDb(payload);
-    const plans = await getRecurringExpensePlansInDb({ activeOnly: true });
+    await createRecurringExpenseInDb(payload, { userId: currentUser.id });
+    const plans = await getRecurringExpensePlansInDb({ activeOnly: true, userId: currentUser.id });
     return NextResponse.json({ plans });
   } catch (error) {
     if (isInvalidJsonError(error)) {
@@ -44,6 +54,10 @@ export async function POST(request: NextRequest) {
 
     if (isRecurringExpenseValidationError(error)) {
       return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
+    if (isAuthenticationRequiredError(error)) {
+      return NextResponse.json({ error: error.message }, { status: 401 });
     }
 
     if (isDatabaseSchemaMissingError(error)) {
@@ -59,22 +73,27 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    const currentUser = await requireCurrentUser();
     const payload = (await request.json()) as { id?: unknown };
     const id = Number(payload?.id);
     if (!Number.isInteger(id) || id <= 0) {
       return NextResponse.json({ error: "Invalid recurring expense id" }, { status: 400 });
     }
 
-    const deleted = await deactivateRecurringExpenseInDb(id);
+    const deleted = await deactivateRecurringExpenseInDb(id, { userId: currentUser.id });
     if (!deleted) {
       return NextResponse.json({ error: "Recurring expense not found" }, { status: 404 });
     }
 
-    const plans = await getRecurringExpensePlansInDb({ activeOnly: true });
+    const plans = await getRecurringExpensePlansInDb({ activeOnly: true, userId: currentUser.id });
     return NextResponse.json({ plans });
   } catch (error) {
     if (isInvalidJsonError(error)) {
       return NextResponse.json({ error: "Request body must be valid JSON" }, { status: 400 });
+    }
+
+    if (isAuthenticationRequiredError(error)) {
+      return NextResponse.json({ error: error.message }, { status: 401 });
     }
 
     if (isDatabaseSchemaMissingError(error)) {

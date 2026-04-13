@@ -246,17 +246,20 @@ export async function getRecurringExpensePlansInDb(options?: {
   activeOnly?: boolean;
   fromDate?: string;
   toDate?: string;
+  userId?: number;
 }): Promise<RecurringExpensePlan[]> {
   const sql = getDb();
   const activeOnly = options?.activeOnly ?? false;
   const fromDate = normalizeIsoDate(options?.fromDate ?? "");
   const toDate = normalizeIsoDate(options?.toDate ?? "");
+  const userId = options?.userId ?? null;
 
   const rows = (fromDate && toDate)
     ? (await sql`
         SELECT id, title, store_name, amount, category, frequency, start_date, end_date, is_active
         FROM recurring_expenses
-        WHERE start_date <= ${toDate}
+        WHERE user_id = ${userId}
+          AND start_date <= ${toDate}
           AND COALESCE(end_date, ${FAR_FUTURE_DATE}::date) >= ${fromDate}
           AND (${activeOnly} = FALSE OR is_active = TRUE)
         ORDER BY created_at DESC, id DESC
@@ -264,7 +267,8 @@ export async function getRecurringExpensePlansInDb(options?: {
     : (await sql`
         SELECT id, title, store_name, amount, category, frequency, start_date, end_date, is_active
         FROM recurring_expenses
-        WHERE (${activeOnly} = FALSE OR is_active = TRUE)
+        WHERE user_id = ${userId}
+          AND (${activeOnly} = FALSE OR is_active = TRUE)
         ORDER BY created_at DESC, id DESC
       `) as RecurringExpenseRow[];
 
@@ -278,18 +282,23 @@ export async function getRecurringExpensePlansInDb(options?: {
   });
 }
 
-export async function createRecurringExpenseInDb(payload: CreateRecurringExpensePayload): Promise<RecurringExpensePlan> {
+export async function createRecurringExpenseInDb(
+  payload: CreateRecurringExpensePayload,
+  options: { userId: number }
+): Promise<RecurringExpensePlan> {
   const sql = getDb();
+  const userId = options.userId;
 
   const rows = (await sql`
-    INSERT INTO recurring_expenses (title, store_name, amount, category, frequency, start_date)
+    INSERT INTO recurring_expenses (title, store_name, amount, category, frequency, start_date, user_id)
     VALUES (
       ${payload.title},
       ${payload.store_name},
       ${payload.amount},
       ${payload.category},
       ${payload.frequency},
-      ${payload.start_date}
+      ${payload.start_date},
+      ${userId}
     )
     RETURNING id, title, store_name, amount, category, frequency, start_date, end_date, is_active
   `) as RecurringExpenseRow[];
@@ -301,8 +310,9 @@ export async function createRecurringExpenseInDb(payload: CreateRecurringExpense
   };
 }
 
-export async function deactivateRecurringExpenseInDb(id: number): Promise<boolean> {
+export async function deactivateRecurringExpenseInDb(id: number, options: { userId: number }): Promise<boolean> {
   const sql = getDb();
+  const userId = options.userId;
 
   const rows = (await sql`
     UPDATE recurring_expenses
@@ -311,6 +321,7 @@ export async function deactivateRecurringExpenseInDb(id: number): Promise<boolea
       end_date = COALESCE(end_date, CURRENT_DATE),
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ${id}
+      AND user_id = ${userId}
       AND is_active = TRUE
     RETURNING id
   `) as Array<{ id: number | string }>;

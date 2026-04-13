@@ -73,7 +73,7 @@ function estimateUsdCost(payload: UsagePayload): number | null {
   return Number((inputCost + outputCost).toFixed(8));
 }
 
-async function logAnalyzeUsage(payload: UsagePayload, storeName?: string | null) {
+async function logAnalyzeUsage(payload: UsagePayload, options?: { storeName?: string | null; userId?: number | null }) {
   const estimatedCostUsd = estimateUsdCost(payload);
   const logPayload = {
     provider: payload.provider,
@@ -82,13 +82,14 @@ async function logAnalyzeUsage(payload: UsagePayload, storeName?: string | null)
     output_tokens: payload.outputTokens,
     total_tokens: payload.totalTokens,
     estimated_cost_usd: estimatedCostUsd,
-    store_name: storeName?.trim() || null,
+    store_name: options?.storeName?.trim() || null,
     cost_rates_configured:
       payload.provider === "openai:gpt-4o"
         ? Boolean(process.env.RECEIPT_COST_OPENAI_INPUT_PER_1M_USD) &&
           Boolean(process.env.RECEIPT_COST_OPENAI_OUTPUT_PER_1M_USD)
         : Boolean(process.env.RECEIPT_COST_GEMINI_INPUT_PER_1M_USD) &&
           Boolean(process.env.RECEIPT_COST_GEMINI_OUTPUT_PER_1M_USD),
+    user_id: options?.userId ?? null,
     logged_at: new Date().toISOString(),
   };
 
@@ -102,7 +103,8 @@ async function logAnalyzeUsage(payload: UsagePayload, storeName?: string | null)
       outputTokens: payload.outputTokens,
       totalTokens: payload.totalTokens,
       estimatedCostUsd,
-      storeName: storeName?.trim() || null,
+      storeName: options?.storeName?.trim() || null,
+      userId: options?.userId ?? null,
     });
   } catch (error) {
     console.warn("Failed to persist receipt analyze usage:", error);
@@ -199,7 +201,10 @@ function sanitizeAnalyzedReceipt(receipt: ReceiptData): ReceiptData {
   };
 }
 
-export async function analyzeReceiptImageDataUrl(image: string): Promise<ReceiptData> {
+export async function analyzeReceiptImageDataUrl(
+  image: string,
+  options?: { userId?: number | null }
+): Promise<ReceiptData> {
   if (!image) {
     throw new Error("Image is required");
   }
@@ -247,7 +252,7 @@ export async function analyzeReceiptImageDataUrl(image: string): Promise<Receipt
       inputTokens: Number.isFinite(promptTokens) ? promptTokens : 0,
       outputTokens: Number.isFinite(completionTokens) ? completionTokens : 0,
       totalTokens: Number.isFinite(totalTokens) ? totalTokens : 0,
-    }, parsed.store_name);
+    }, { storeName: parsed.store_name, userId: options?.userId ?? null });
 
     return parsed;
   }
@@ -309,7 +314,7 @@ export async function analyzeReceiptImageDataUrl(image: string): Promise<Receipt
     inputTokens: Number.isFinite(promptTokens) ? promptTokens : 0,
     outputTokens: Number.isFinite(completionTokens) ? completionTokens : 0,
     totalTokens: Number.isFinite(totalTokens) ? totalTokens : 0,
-  }, parsed.store_name);
+  }, { storeName: parsed.store_name, userId: options?.userId ?? null });
 
   return parsed;
 }
