@@ -1,10 +1,13 @@
 import type { Expense, ReceiptData, ReceiptDetails, ReceiptItem } from "@/features/expenses/types";
 import { normalizeCalendarDate } from "@/lib/calendar-date";
+import { DEFAULT_CURRENCY, normalizeCurrencyCode } from "@/lib/currency";
 
 interface ExpensesResponse {
   expenses: Expense[];
   prevMonthTotal: number;
   prevPeriodCategoryTotals: Array<{ category: string; total: number }>;
+  activeCurrency: string;
+  currencies: string[];
   analyzeCost: {
     totalUsd: number;
     count: number;
@@ -84,13 +87,18 @@ export async function analyzeReceipt(image: string): Promise<ReceiptData> {
     throw new Error("Сервер вернул некорректный ответ при анализе чека");
   }
 
-  return payload as ReceiptData;
+  const receipt = payload as ReceiptData;
+  return {
+    ...receipt,
+    currency: normalizeCurrencyCode(receipt.currency ?? DEFAULT_CURRENCY),
+  };
 }
 
 export async function saveReceipt(payload: {
   store_name: string;
   purchase_date: string;
   items: ReceiptItem[];
+  currency: string;
   comment?: string;
 }): Promise<void> {
   const response = await fetch("/api/receipts", {
@@ -122,6 +130,7 @@ export async function getReceipt(receiptId: number): Promise<ReceiptDetails> {
   return {
     ...receipt,
     purchase_date: normalizeIsoDate(receipt.purchase_date),
+    currency: normalizeCurrencyCode(receipt.currency ?? DEFAULT_CURRENCY),
   };
 }
 
@@ -162,7 +171,12 @@ export async function getReceiptImageFromTelegram(receiptId: number): Promise<st
   return image;
 }
 
-export async function getExpenses(startDate: string, endDate: string, store: string = "all"): Promise<ExpensesResponse> {
+export async function getExpenses(
+  startDate: string,
+  endDate: string,
+  store: string = "all",
+  currency?: string
+): Promise<ExpensesResponse> {
   const params = new URLSearchParams({
     start: startDate,
     end: endDate,
@@ -170,6 +184,10 @@ export async function getExpenses(startDate: string, endDate: string, store: str
 
   if (store && store !== "all") {
     params.set("store", store);
+  }
+
+  if (currency) {
+    params.set("currency", currency);
   }
 
   const response = await fetch(`/api/expenses?${params.toString()}`);

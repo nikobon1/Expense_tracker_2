@@ -2,6 +2,7 @@ import { neon } from "@neondatabase/serverless";
 import type { ReceiptData, ReceiptItem } from "@/features/expenses/types";
 import { normalizeCalendarDate } from "@/lib/calendar-date";
 import { normalizeCategory } from "@/lib/category-normalization";
+import { DEFAULT_CURRENCY, normalizeCurrencyCode } from "@/lib/currency";
 import { normalizeStoreName } from "@/lib/store-normalization";
 
 type DbClient = ReturnType<typeof neon>;
@@ -69,6 +70,7 @@ function normalizeTelegramDraft<T extends ReceiptData>(receipt: T): T {
     ...receipt,
     store_name: normalizeStoreName(receipt.store_name ?? ""),
     purchase_date: normalizedPurchaseDate,
+    currency: normalizeCurrencyCode(receipt.currency ?? DEFAULT_CURRENCY),
     items: normalizeReceiptItems(Array.isArray(receipt.items) ? receipt.items : []),
     comment: normalizeReceiptComment(receipt.comment),
   };
@@ -78,14 +80,16 @@ export async function saveReceiptToDb(payload: {
   store_name: string;
   purchase_date: string;
   items: ReceiptItem[];
+  currency?: string | null;
   comment?: string | null;
   source?: string;
   telegram_file_id?: string | null;
   userId?: number | null;
 }): Promise<{ receiptId: number; totalAmount: number }> {
-  const { store_name, purchase_date, items, comment, source, telegram_file_id, userId } = payload;
+  const { store_name, purchase_date, items, currency, comment, source, telegram_file_id, userId } = payload;
   const normalizedStoreName = normalizeStoreName(store_name);
   const normalizedItems = normalizeReceiptItems(items);
+  const normalizedCurrency = normalizeCurrencyCode(currency ?? DEFAULT_CURRENCY);
   const normalizedComment = normalizeReceiptComment(comment);
 
   if (!normalizedStoreName || !purchase_date || !normalizedItems.length) {
@@ -100,8 +104,8 @@ export async function saveReceiptToDb(payload: {
   const [receiptResult] = (await sql.transaction((tx) => [
     tx`
       WITH inserted_receipt AS (
-        INSERT INTO receipts (store_name, purchase_date, total_amount, comment, source, telegram_file_id, user_id)
-        VALUES (${normalizedStoreName}, ${purchase_date}, ${totalAmount}, ${normalizedComment}, ${source ?? null}, ${telegram_file_id ?? null}, ${userId ?? null})
+        INSERT INTO receipts (store_name, purchase_date, total_amount, currency, comment, source, telegram_file_id, user_id)
+        VALUES (${normalizedStoreName}, ${purchase_date}, ${totalAmount}, ${normalizedCurrency}, ${normalizedComment}, ${source ?? null}, ${telegram_file_id ?? null}, ${userId ?? null})
         RETURNING id
       ),
       inserted_items AS (
@@ -134,13 +138,13 @@ export async function getReceiptById(
 
   const receiptRows = (userId == null
     ? await sql`
-        SELECT id, store_name, purchase_date, total_amount, comment, source, telegram_file_id
+        SELECT id, store_name, purchase_date, total_amount, currency, comment, source, telegram_file_id
         FROM receipts
         WHERE id = ${receiptId}
         LIMIT 1
       `
     : await sql`
-        SELECT id, store_name, purchase_date, total_amount, comment, source, telegram_file_id
+        SELECT id, store_name, purchase_date, total_amount, currency, comment, source, telegram_file_id
         FROM receipts
         WHERE id = ${receiptId}
           AND user_id = ${userId}
@@ -150,6 +154,7 @@ export async function getReceiptById(
     store_name: string | null;
     purchase_date: string | Date | null;
     total_amount: number | string | null;
+    currency: string | null;
     comment: string | null;
     source: string | null;
     telegram_file_id: string | null;
@@ -176,6 +181,7 @@ export async function getReceiptById(
     store_name: normalizeStoreName(receipt.store_name ?? ""),
     purchase_date: purchaseDate,
     total_amount: Number(receipt.total_amount ?? 0),
+    currency: normalizeCurrencyCode(receipt.currency ?? DEFAULT_CURRENCY),
     comment: normalizeReceiptComment(receipt.comment),
     source: receipt.source ?? null,
     telegram_file_id: receipt.telegram_file_id ?? null,
@@ -189,13 +195,14 @@ export async function getReceiptById(
 
 export async function updateReceiptInDb(
   receiptId: number,
-  payload: { store_name: string; purchase_date: string; items: ReceiptItem[]; comment?: string | null },
+  payload: { store_name: string; purchase_date: string; items: ReceiptItem[]; currency?: string | null; comment?: string | null },
   options?: { userId?: number | null }
 ): Promise<{ receiptId: number; totalAmount: number }> {
-  const { store_name, purchase_date, items, comment } = payload;
+  const { store_name, purchase_date, items, currency, comment } = payload;
   const userId = options?.userId;
   const normalizedStoreName = normalizeStoreName(store_name);
   const normalizedItems = normalizeReceiptItems(items);
+  const normalizedCurrency = currency == null ? null : normalizeCurrencyCode(currency);
   const normalizedComment = normalizeReceiptComment(comment);
 
   if (!normalizedStoreName || !purchase_date || !normalizedItems.length) {
@@ -213,6 +220,7 @@ export async function updateReceiptInDb(
         UPDATE receipts
         SET store_name = ${normalizedStoreName},
             purchase_date = ${purchase_date},
+            currency = COALESCE(${normalizedCurrency}, currency, ${DEFAULT_CURRENCY}),
             comment = ${normalizedComment},
             total_amount = ${totalAmount}
         WHERE id = ${receiptId}

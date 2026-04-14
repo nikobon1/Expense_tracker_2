@@ -81,6 +81,10 @@ const statements = [
     ADD COLUMN IF NOT EXISTS user_id BIGINT REFERENCES users(id)
   `,
   `
+    ALTER TABLE receipts
+    ADD COLUMN IF NOT EXISTS currency TEXT NOT NULL DEFAULT 'EUR'
+  `,
+  `
     CREATE INDEX IF NOT EXISTS receipts_user_purchase_date_idx
     ON receipts (user_id, purchase_date DESC, id DESC)
   `,
@@ -173,6 +177,10 @@ const statements = [
   `
     ALTER TABLE recurring_expenses
     ADD COLUMN IF NOT EXISTS user_id BIGINT REFERENCES users(id)
+  `,
+  `
+    ALTER TABLE recurring_expenses
+    ADD COLUMN IF NOT EXISTS currency TEXT NOT NULL DEFAULT 'EUR'
   `,
   `
     CREATE INDEX IF NOT EXISTS recurring_expenses_schedule_idx

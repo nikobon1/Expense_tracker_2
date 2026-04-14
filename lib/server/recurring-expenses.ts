@@ -6,6 +6,7 @@ import type {
 } from "@/features/expenses/types";
 import { normalizeCalendarDate } from "@/lib/calendar-date";
 import { normalizeCategory } from "@/lib/category-normalization";
+import { DEFAULT_CURRENCY, normalizeCurrencyCode } from "@/lib/currency";
 import { normalizeStoreName } from "@/lib/store-normalization";
 import { getDb } from "@/lib/server/receipts";
 
@@ -18,6 +19,7 @@ type RecurringExpenseRow = {
   title: string | null;
   store_name: string | null;
   amount: number | string | null;
+  currency: string | null;
   category: string | null;
   frequency: string | null;
   start_date: string | Date | null;
@@ -95,6 +97,7 @@ function toPlan(row: RecurringExpenseRow): RecurringExpensePlan {
     title: String(row.title ?? "").replace(/\s+/g, " ").trim(),
     store_name: normalizeStoreName(String(row.store_name ?? "")),
     amount: Number(row.amount ?? 0),
+    currency: normalizeCurrencyCode(row.currency ?? DEFAULT_CURRENCY),
     category: normalizeCategory(String(row.category ?? "")),
     frequency: RECURRING_FREQUENCIES.has(frequency) ? frequency : "monthly",
     start_date: normalizeIsoDate(row.start_date),
@@ -185,6 +188,7 @@ function mapRecurringExpense(plan: RecurringExpensePlan, date: string): Expense 
     item: plan.title,
     price: Number(plan.amount.toFixed(2)),
     category: plan.category,
+    currency: plan.currency,
     sourceType: "recurring",
     recurringId: plan.id,
     recurringFrequency: plan.frequency,
@@ -222,6 +226,8 @@ export function parseRecurringExpensePayload(payload: unknown): CreateRecurringE
     failValidation("Категория обязательна.");
   }
 
+  const currency = normalizeCurrencyCode(String(raw.currency ?? DEFAULT_CURRENCY));
+
   const frequency = String(raw.frequency ?? "").trim().toLowerCase() as RecurringFrequency;
   if (!RECURRING_FREQUENCIES.has(frequency)) {
     failValidation("Неверная частота списания.");
@@ -236,6 +242,7 @@ export function parseRecurringExpensePayload(payload: unknown): CreateRecurringE
     title,
     store_name: storeName,
     amount: Number(amount.toFixed(2)),
+    currency,
     category,
     frequency,
     start_date: startDate,
@@ -247,27 +254,31 @@ export async function getRecurringExpensePlansInDb(options?: {
   fromDate?: string;
   toDate?: string;
   userId?: number;
+  currency?: string;
 }): Promise<RecurringExpensePlan[]> {
   const sql = getDb();
   const activeOnly = options?.activeOnly ?? false;
   const fromDate = normalizeIsoDate(options?.fromDate ?? "");
   const toDate = normalizeIsoDate(options?.toDate ?? "");
   const userId = options?.userId ?? null;
+  const currency = normalizeCurrencyCode(options?.currency ?? DEFAULT_CURRENCY);
 
   const rows = (fromDate && toDate)
     ? (await sql`
-        SELECT id, title, store_name, amount, category, frequency, start_date, end_date, is_active
+        SELECT id, title, store_name, amount, currency, category, frequency, start_date, end_date, is_active
         FROM recurring_expenses
         WHERE user_id = ${userId}
+          AND currency = ${currency}
           AND start_date <= ${toDate}
           AND COALESCE(end_date, ${FAR_FUTURE_DATE}::date) >= ${fromDate}
           AND (${activeOnly} = FALSE OR is_active = TRUE)
         ORDER BY created_at DESC, id DESC
       `) as RecurringExpenseRow[]
     : (await sql`
-        SELECT id, title, store_name, amount, category, frequency, start_date, end_date, is_active
+        SELECT id, title, store_name, amount, currency, category, frequency, start_date, end_date, is_active
         FROM recurring_expenses
         WHERE user_id = ${userId}
+          AND currency = ${currency}
           AND (${activeOnly} = FALSE OR is_active = TRUE)
         ORDER BY created_at DESC, id DESC
       `) as RecurringExpenseRow[];
@@ -282,6 +293,24 @@ export async function getRecurringExpensePlansInDb(options?: {
   });
 }
 
+export async function getRecurringExpenseCurrenciesInDb(userId: number): Promise<string[]> {
+  const sql = getDb();
+  const rows = (await sql`
+    SELECT DISTINCT currency
+    FROM recurring_expenses
+    WHERE user_id = ${userId}
+      AND currency IS NOT NULL
+      AND TRIM(currency) <> ''
+    ORDER BY currency
+  `) as Array<{ currency: string | null }>;
+
+  const currencies = rows
+    .map((row) => normalizeCurrencyCode(row.currency ?? DEFAULT_CURRENCY))
+    .filter((value, index, list) => list.indexOf(value) === index);
+
+  return currencies.length > 0 ? currencies : [DEFAULT_CURRENCY];
+}
+
 export async function createRecurringExpenseInDb(
   payload: CreateRecurringExpensePayload,
   options: { userId: number }
@@ -290,17 +319,18 @@ export async function createRecurringExpenseInDb(
   const userId = options.userId;
 
   const rows = (await sql`
-    INSERT INTO recurring_expenses (title, store_name, amount, category, frequency, start_date, user_id)
+    INSERT INTO recurring_expenses (title, store_name, amount, currency, category, frequency, start_date, user_id)
     VALUES (
       ${payload.title},
       ${payload.store_name},
       ${payload.amount},
+      ${normalizeCurrencyCode(payload.currency ?? DEFAULT_CURRENCY)},
       ${payload.category},
       ${payload.frequency},
       ${payload.start_date},
       ${userId}
     )
-    RETURNING id, title, store_name, amount, category, frequency, start_date, end_date, is_active
+    RETURNING id, title, store_name, amount, currency, category, frequency, start_date, end_date, is_active
   `) as RecurringExpenseRow[];
 
   const plan = toPlan(rows[0]);

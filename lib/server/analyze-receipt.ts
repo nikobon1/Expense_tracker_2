@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import type { ReceiptData } from "@/features/expenses/types";
 import { CATEGORIES } from "@/features/expenses/constants";
 import { normalizeCategory } from "@/lib/category-normalization";
+import { DEFAULT_CURRENCY, normalizeCurrencyCode } from "@/lib/currency";
 import { saveReceiptAnalyzeLog } from "@/lib/server/receipts";
 
 const CATEGORY_PROMPT_LIST = CATEGORIES.map((category) => `- ${category}`).join("\n");
@@ -38,6 +39,14 @@ Additional receipt rules:
 `;
 
 const EFFECTIVE_SYSTEM_PROMPT = `${SYSTEM_PROMPT}\n\n${TOTAL_AMOUNT_HINTS}`;
+const SUPPORTED_ANALYZE_IMAGE_TYPES = new Set([
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+]);
 
 type UsagePayload = {
   provider: "openai:gpt-4o" | "google:gemini-2.0-flash";
@@ -119,13 +128,41 @@ function extractJson(text: string): string {
   return cleaned;
 }
 
+function getMaxAnalyzeImageBytes(): number {
+  const defaultBytes = 10 * 1024 * 1024;
+  const configuredMegabytes = parsePositiveNumber(process.env.RECEIPT_ANALYZE_MAX_IMAGE_MB);
+  if (configuredMegabytes === null || configuredMegabytes === 0) {
+    return defaultBytes;
+  }
+
+  return Math.max(1, Math.floor(configuredMegabytes * 1024 * 1024));
+}
+
+function estimateBase64Size(base64Data: string): number {
+  const normalized = base64Data.trim();
+  const paddingLength = normalized.endsWith("==") ? 2 : normalized.endsWith("=") ? 1 : 0;
+  return Math.max(0, Math.floor((normalized.length * 3) / 4) - paddingLength);
+}
+
 function ensureSupportedImageDataUrl(image: string): { mimeType: string; base64Data: string } {
   const match = /^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/.exec(image);
   if (!match) {
     throw new Error("Invalid image payload");
   }
 
-  return { mimeType: match[1], base64Data: match[2] };
+  const mimeType = String(match[1] ?? "").toLowerCase();
+  const base64Data = match[2];
+
+  if (!SUPPORTED_ANALYZE_IMAGE_TYPES.has(mimeType)) {
+    throw new Error("Unsupported image format. Use JPG, PNG, WEBP, HEIC, or HEIF.");
+  }
+
+  const maxBytes = getMaxAnalyzeImageBytes();
+  if (estimateBase64Size(base64Data) > maxBytes) {
+    throw new Error(`Image is too large. Max size is ${Math.round(maxBytes / (1024 * 1024))} MB.`);
+  }
+
+  return { mimeType, base64Data };
 }
 
 function toIsoDateUtc(date: Date): string {
@@ -190,6 +227,7 @@ function sanitizeAnalyzedReceipt(receipt: ReceiptData): ReceiptData {
     ...receipt,
     store_name: String(receipt.store_name ?? "").trim(),
     purchase_date: normalizeAnalyzedPurchaseDate(receipt.purchase_date),
+    currency: normalizeCurrencyCode(receipt.currency ?? DEFAULT_CURRENCY),
     items: Array.isArray(receipt.items)
       ? receipt.items.map((item) => ({
           name: String(item.name ?? "").trim(),

@@ -158,12 +158,15 @@ export default function DemoPage() {
             prevMonthTotal={demoData.prevMonthTotal}
             prevPeriodCategoryTotals={demoData.prevPeriodCategoryTotals}
             analyzeCost={demoData.analyzeCost}
+            currencies={["EUR"]}
+            selectedCurrency="EUR"
             isLoading={false}
             onAddCategory={readOnlyCategoryAdd}
             onDeleteCategory={readOnlyCategoryDelete}
             onStartDateChange={setStartDate}
             onEndDateChange={setEndDate}
             onStoreChange={setSelectedStore}
+            onCurrencyChange={() => undefined}
             onRefresh={() => undefined}
             currencyCode="EUR"
             isReadOnly

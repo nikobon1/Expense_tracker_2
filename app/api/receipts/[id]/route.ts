@@ -73,6 +73,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       store_name: body.store_name,
       purchase_date: body.purchase_date,
       items: body.items,
+      currency: body.currency,
       comment: body.comment,
     }, { userId: currentUser.id });
 

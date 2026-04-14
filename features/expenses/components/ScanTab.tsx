@@ -160,6 +160,7 @@ export default function ScanTab({
         title: recurringTitle,
         store_name: recurringStoreName,
         amount: Number(String(recurringAmount).replace(",", ".")),
+        currency: currencyCode,
         category: resolvedRecurringCategory,
         frequency: recurringFrequency,
         start_date: recurringStartDate,

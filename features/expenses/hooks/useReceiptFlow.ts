@@ -1,8 +1,9 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_CATEGORY } from "@/features/expenses/constants";
 import { analyzeReceipt, saveReceipt } from "@/lib/api";
+import { DEFAULT_CURRENCY, normalizeCurrencyCode } from "@/lib/currency";
 import { formatAmountForInput, parseFlexibleAmount } from "@/lib/amount";
 import { getReceiptDateWarning } from "@/lib/receipt-date-warning";
 import type { AlertState, ReceiptData, ReceiptItem } from "@/features/expenses/types";
@@ -134,7 +135,7 @@ function getDateWarningText(purchaseDate: string): string | null {
   return null;
 }
 
-export function useReceiptFlow() {
+export function useReceiptFlow(defaultCurrency: string = DEFAULT_CURRENCY) {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
@@ -192,11 +193,15 @@ export function useReceiptFlow() {
     setIsAnalyzing(true);
     try {
       const data = await analyzeReceipt(uploadedImage);
-      setReceiptData(data);
-      setEditedItems(data.items);
-      setStoreName(data.store_name);
-      setPurchaseDate(data.purchase_date);
-      setPurchaseDateManual(formatManualDate(data.purchase_date));
+      const normalizedData: ReceiptData = {
+        ...data,
+        currency: normalizeCurrencyCode(defaultCurrency),
+      };
+      setReceiptData(normalizedData);
+      setEditedItems(normalizedData.items);
+      setStoreName(normalizedData.store_name);
+      setPurchaseDate(normalizedData.purchase_date);
+      setPurchaseDateManual(formatManualDate(normalizedData.purchase_date));
       setAlert({ type: "success", message: "Чек успешно распознан!" });
     } catch (error) {
       setAlert({
@@ -206,7 +211,7 @@ export function useReceiptFlow() {
     } finally {
       setIsAnalyzing(false);
     }
-  }, [uploadedImage]);
+  }, [defaultCurrency, uploadedImage]);
 
   const handlePurchaseDateChange = useCallback((value: string) => {
     setPurchaseDate(value);
@@ -239,6 +244,7 @@ export function useReceiptFlow() {
         store_name: storeName,
         purchase_date: purchaseDate,
         items: editedItems,
+        currency: normalizeCurrencyCode(defaultCurrency),
       });
 
       setAlert({ type: "success", message: "Чек сохранен в базу данных" });
@@ -253,7 +259,7 @@ export function useReceiptFlow() {
     } finally {
       setIsSaving(false);
     }
-  }, [editedItems, purchaseDate, storeName]);
+  }, [defaultCurrency, editedItems, purchaseDate, storeName]);
 
   const handleManualSave = useCallback(async () => {
     const normalizedStoreName = manualStoreName.trim();
@@ -282,6 +288,7 @@ export function useReceiptFlow() {
       await saveReceipt({
         store_name: normalizedStoreName,
         purchase_date: manualPurchaseDate,
+        currency: normalizeCurrencyCode(defaultCurrency),
         items: [
           {
             name: "Покупка без чека",
@@ -300,7 +307,7 @@ export function useReceiptFlow() {
     } finally {
       setIsSaving(false);
     }
-  }, [manualPurchaseDate, manualStoreName, manualTotal]);
+  }, [defaultCurrency, manualPurchaseDate, manualStoreName, manualTotal]);
 
   const normalizeManualTotal = useCallback(() => {
     const parsed = parseFlexibleAmount(manualTotal);

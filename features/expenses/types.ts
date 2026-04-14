@@ -11,6 +11,7 @@ export interface ReceiptData {
   store_name: string;
   purchase_date: string;
   items: ReceiptItem[];
+  currency: string;
   comment?: string | null;
 }
 
@@ -29,6 +30,7 @@ export interface Expense {
   item: string;
   price: number;
   category: string;
+  currency?: string;
   sourceType?: ExpenseSourceType;
   recurringId?: number | null;
   recurringFrequency?: RecurringFrequency | null;
@@ -40,6 +42,7 @@ export interface RecurringExpensePlan {
   title: string;
   store_name: string;
   amount: number;
+  currency: string;
   category: string;
   frequency: RecurringFrequency;
   start_date: string;
@@ -52,6 +55,7 @@ export interface CreateRecurringExpensePayload {
   title: string;
   store_name: string;
   amount: number;
+  currency: string;
   category: string;
   frequency: RecurringFrequency;
   start_date: string;

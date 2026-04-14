@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { normalizeCalendarDate } from "@/lib/calendar-date";
 import { normalizeCategory } from "@/lib/category-normalization";
+import { DEFAULT_CURRENCY, normalizeCurrencyCode } from "@/lib/currency";
 import { normalizeStoreName } from "@/lib/store-normalization";
 import {
   isAuthenticationRequiredError,
@@ -8,6 +9,7 @@ import {
 } from "@/lib/server/auth";
 import {
   generateRecurringExpensesForRange,
+  getRecurringExpenseCurrenciesInDb,
   getRecurringExpensePlansInDb,
 } from "@/lib/server/recurring-expenses";
 import {
@@ -57,6 +59,7 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get("start");
     const endDate = searchParams.get("end");
     const store = (searchParams.get("store") ?? "").trim();
+    const activeCurrency = normalizeCurrencyCode(searchParams.get("currency") ?? currentUser.defaultCurrency);
     const hasStoreFilter = store.length > 0 && store.toLowerCase() !== "all";
 
     if (!startDate || !endDate) {
@@ -78,11 +81,13 @@ export async function GET(request: NextRequest) {
         r.store_name as store,
         i.name as item,
         i.price,
-        i.category
+        i.category,
+        r.currency
       FROM receipts r
       JOIN items i ON r.id = i.receipt_id
       WHERE r.purchase_date BETWEEN ${startDate} AND ${endDate}
         AND r.user_id = ${currentUser.id}
+        AND COALESCE(r.currency, ${DEFAULT_CURRENCY}) = ${activeCurrency}
       ORDER BY r.purchase_date DESC
     `) as Array<{
       id: number | string;
@@ -92,6 +97,7 @@ export async function GET(request: NextRequest) {
       item: string | null;
       price: number | string | null;
       category: string | null;
+      currency: string | null;
     }>;
 
     const prevMonthRows = (await sql`
@@ -99,6 +105,7 @@ export async function GET(request: NextRequest) {
       FROM receipts
       WHERE purchase_date BETWEEN ${prevPeriodStart} AND ${prevPeriodEnd}
         AND user_id = ${currentUser.id}
+        AND COALESCE(currency, ${DEFAULT_CURRENCY}) = ${activeCurrency}
       GROUP BY store_name
     `) as Array<{
       store_name: string | null;
@@ -111,6 +118,7 @@ export async function GET(request: NextRequest) {
       JOIN items i ON r.id = i.receipt_id
       WHERE r.purchase_date BETWEEN ${prevPeriodStart} AND ${prevPeriodEnd}
         AND r.user_id = ${currentUser.id}
+        AND COALESCE(r.currency, ${DEFAULT_CURRENCY}) = ${activeCurrency}
       GROUP BY r.store_name, i.category
     `) as Array<{
       store_name: string | null;
@@ -123,10 +131,18 @@ export async function GET(request: NextRequest) {
       FROM receipts
       WHERE purchase_date BETWEEN ${startDate} AND ${endDate}
         AND user_id = ${currentUser.id}
+        AND COALESCE(currency, ${DEFAULT_CURRENCY}) = ${activeCurrency}
         AND store_name IS NOT NULL
         AND TRIM(store_name) <> ''
       ORDER BY store
     `) as Array<{ store: string | null }>;
+
+    const receiptCurrencyRows = (await sql`
+      SELECT DISTINCT COALESCE(currency, ${DEFAULT_CURRENCY}) AS currency
+      FROM receipts
+      WHERE user_id = ${currentUser.id}
+      ORDER BY currency
+    `) as Array<{ currency: string | null }>;
 
     const analyzeCostRows = (await sql`
       SELECT
@@ -160,7 +176,9 @@ export async function GET(request: NextRequest) {
       fromDate: rangeFloor,
       toDate: rangeCeiling,
       userId: currentUser.id,
+      currency: activeCurrency,
     });
+    const recurringCurrencies = await getRecurringExpenseCurrenciesInDb(currentUser.id);
     const recurringExpenses = generateRecurringExpensesForRange(recurringPlans, startDate, endDate);
     const prevRecurringExpenses = generateRecurringExpensesForRange(recurringPlans, prevPeriodStart, prevPeriodEnd);
 
@@ -177,6 +195,7 @@ export async function GET(request: NextRequest) {
       item: string;
       price: number;
       category: string;
+      currency: string;
       sourceType: "receipt";
       recurringId: null;
       recurringFrequency: null;
@@ -189,6 +208,7 @@ export async function GET(request: NextRequest) {
         item: String(entry.item ?? ""),
         price: Number(entry.price ?? 0),
         category: normalizeCategory(String(entry.category ?? "")),
+        currency: normalizeCurrencyCode(entry.currency ?? DEFAULT_CURRENCY),
         sourceType: "receipt" as const,
         recurringId: null,
         recurringFrequency: null,
@@ -240,6 +260,14 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       expenses,
+      activeCurrency,
+      currencies: Array.from(
+        new Set(
+          receiptCurrencyRows
+            .map((row) => normalizeCurrencyCode(row.currency ?? DEFAULT_CURRENCY))
+            .concat(recurringCurrencies.map((value) => normalizeCurrencyCode(value)))
+        )
+      ).sort((a, b) => a.localeCompare(b)),
       prevMonthTotal: Number(prevMonthTotal || 0),
       prevPeriodCategoryTotals,
       analyzeCost: {
@@ -269,6 +297,8 @@ export async function GET(request: NextRequest) {
     if (error instanceof Error && error.message.includes("DATABASE_URL")) {
       return NextResponse.json({
         expenses: [],
+        activeCurrency: DEFAULT_CURRENCY,
+        currencies: [DEFAULT_CURRENCY],
         prevMonthTotal: 0,
         prevPeriodCategoryTotals: [],
         analyzeCost: {

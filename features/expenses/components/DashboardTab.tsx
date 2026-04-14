@@ -31,7 +31,9 @@ interface DashboardTabProps {
   startDate: string;
   endDate: string;
   selectedStore: string;
+  selectedCurrency: string;
   stores: string[];
+  currencies: string[];
   expenses: Expense[];
   categoryOptions: string[];
   customCategories: string[];
@@ -58,6 +60,7 @@ interface DashboardTabProps {
   onStartDateChange: (value: string) => void;
   onEndDateChange: (value: string) => void;
   onStoreChange: (value: string) => void;
+  onCurrencyChange: (value: string) => void;
   onRefresh?: () => void;
   onOpenScan?: () => void;
   currencyCode?: string;
@@ -411,7 +414,9 @@ export default function DashboardTab({
   startDate,
   endDate,
   selectedStore,
+  selectedCurrency,
   stores,
+  currencies,
   expenses,
   categoryOptions,
   customCategories,
@@ -424,6 +429,7 @@ export default function DashboardTab({
   onStartDateChange,
   onEndDateChange,
   onStoreChange,
+  onCurrencyChange,
   onRefresh,
   onOpenScan,
   currencyCode = "EUR",
@@ -808,6 +814,17 @@ export default function DashboardTab({
 
     return baseStores;
   }, [selectedStore, stores]);
+  const currencyOptions = useMemo(() => {
+    const normalized = [...new Set(currencies.map((currency) => String(currency ?? "").trim()).filter(Boolean))].sort((a, b) =>
+      a.localeCompare(b, "en")
+    );
+
+    if (selectedCurrency && !normalized.includes(selectedCurrency)) {
+      return [...normalized, selectedCurrency].sort((a, b) => a.localeCompare(b, "en"));
+    }
+
+    return normalized;
+  }, [currencies, selectedCurrency]);
   const storeComparisonOptions = useMemo(
     () =>
       [...new Set(expenses.map((expense) => String(expense.store ?? "").trim()).filter(Boolean))].sort((a, b) =>
@@ -1010,6 +1027,7 @@ export default function DashboardTab({
     desktopDailyChartYAxisTicks[desktopDailyChartYAxisTicks.length - 1] ?? DAILY_CHART_STEP,
   ];
   const activeStoreLabel = activeStore === "all" ? "Все магазины" : activeStore;
+  const activeCurrencyLabel = selectedCurrency || currencyCode;
   const ledgerStoreFilterLabel = ledgerStoreFilter === "all" ? "Все магазины" : ledgerStoreFilter;
   const activeCategoryLabel = useMemo(() => {
     if (categoryFilter !== "all") return categoryFilter;
@@ -1606,6 +1624,23 @@ export default function DashboardTab({
               ))}
             </select>
           </div>
+          <div className="dashboard-mobile-filter-card">
+            <label htmlFor="dashboard-currency-select">Currency</label>
+            <select
+              id="dashboard-currency-select"
+              className="dashboard-mobile-select"
+              aria-label="Currency"
+              name="dashboardCurrency"
+              value={selectedCurrency}
+              onChange={(e) => onCurrencyChange(e.target.value)}
+            >
+              {currencyOptions.map((currency) => (
+                <option key={currency} value={currency}>
+                  {currency}
+                </option>
+              ))}
+            </select>
+          </div>
         </section>
 
         <section className="dashboard-mobile-summary">
@@ -1614,7 +1649,7 @@ export default function DashboardTab({
               <span>Общие расходы</span>
               <strong>{formatCurrency(expensesTotal)}</strong>
               <p>
-                {currentPeriodLabel} • {activeStoreLabel}
+                {currentPeriodLabel} • {activeStoreLabel} • {activeCurrencyLabel}
               </p>
             </div>
 
@@ -2382,7 +2417,7 @@ export default function DashboardTab({
           <div className="dashboard-desktop-headline-row">
             <div>
               <h2>Центр контроля расходов</h2>
-              <p>{currentPeriodLabel} | {activeStore === "all" ? "Все магазины" : activeStore} | {categoryFilter === "all" ? "Все категории" : categoryFilter}</p>
+              <p>{currentPeriodLabel} | {activeStore === "all" ? "Все магазины" : activeStore} | {activeCurrencyLabel} | {categoryFilter === "all" ? "Все категории" : categoryFilter}</p>
             </div>
 
             <div className="dashboard-desktop-total">
@@ -2540,6 +2575,24 @@ export default function DashboardTab({
               ))}
             </select>
             <span className="metric-filter-hint">Фильтр применяется ко всему дашборду</span>
+          </div>
+          <div className="metric-card-filter">
+            <label htmlFor="dashboard-currency-filter" className="metric-filter-label">
+              Currency
+            </label>
+            <select
+              id="dashboard-currency-filter"
+              className="metric-filter-select"
+              value={selectedCurrency}
+              onChange={(e) => onCurrencyChange(e.target.value)}
+            >
+              {currencyOptions.map((currency) => (
+                <option key={currency} value={currency}>
+                  {currency}
+                </option>
+              ))}
+            </select>
+            <span className="metric-filter-hint">Dashboard totals use the selected currency only</span>
           </div>
           <div className="metric-breakdown">
             <div className="metric-breakdown-row">

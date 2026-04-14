@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { buildLocalDashboardDemoData } from "@/features/expenses/demo-data";
 import type { Expense } from "@/features/expenses/types";
 import { getExpenses } from "@/lib/api";
+import { DEFAULT_CURRENCY, normalizeCurrencyCode } from "@/lib/currency";
 
 function getLocalIsoDate(date: Date): string {
   const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
@@ -19,13 +20,16 @@ function getInitialDateRange() {
   };
 }
 
-export function useDashboardData() {
+export function useDashboardData(defaultCurrency: string = DEFAULT_CURRENCY) {
   const isLocalDashboardDemoEnabled =
     process.env.NODE_ENV !== "production" &&
     process.env.NEXT_PUBLIC_LOCAL_DASHBOARD_DEMO?.trim().toLowerCase() === "true";
   const [startDate, setStartDate] = useState(() => getInitialDateRange().start);
   const [endDate, setEndDate] = useState(() => getInitialDateRange().end);
   const [selectedStore, setSelectedStore] = useState("all");
+  const [selectedCurrency, setSelectedCurrency] = useState(() => normalizeCurrencyCode(defaultCurrency));
+  const [currencies, setCurrencies] = useState<string[]>([normalizeCurrencyCode(defaultCurrency)]);
+  const [activeCurrency, setActiveCurrency] = useState(() => normalizeCurrencyCode(defaultCurrency));
   const [stores, setStores] = useState<string[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [prevMonthTotal, setPrevMonthTotal] = useState(0);
@@ -48,6 +52,10 @@ export function useDashboardData() {
   const [isLoading, setIsLoading] = useState(false);
   const latestRequestIdRef = useRef(0);
 
+  useEffect(() => {
+    setSelectedCurrency(normalizeCurrencyCode(defaultCurrency));
+  }, [defaultCurrency]);
+
   const syncEndDateToToday = useCallback(() => {
     const today = getLocalIsoDate(new Date());
     setEndDate((current) => (current === today ? current : today));
@@ -60,10 +68,14 @@ export function useDashboardData() {
     latestRequestIdRef.current = requestId;
     setIsLoading(true);
     try {
-      const data = await getExpenses(startDate, endDate, selectedStore);
+      const data = await getExpenses(startDate, endDate, selectedStore, selectedCurrency);
       const resolvedData =
         isLocalDashboardDemoEnabled && data.expenses.length === 0
-          ? buildLocalDashboardDemoData({ startDate, endDate, selectedStore })
+          ? {
+              ...buildLocalDashboardDemoData({ startDate, endDate, selectedStore }),
+              activeCurrency: normalizeCurrencyCode(selectedCurrency),
+              currencies: [normalizeCurrencyCode(selectedCurrency)],
+            }
           : data;
 
       if (requestId !== latestRequestIdRef.current) {
@@ -71,6 +83,12 @@ export function useDashboardData() {
       }
 
       setExpenses(resolvedData.expenses);
+      setActiveCurrency(normalizeCurrencyCode(resolvedData.activeCurrency ?? selectedCurrency));
+      setCurrencies(
+        Array.isArray(resolvedData.currencies) && resolvedData.currencies.length > 0
+          ? resolvedData.currencies.map((value) => normalizeCurrencyCode(value))
+          : [normalizeCurrencyCode(selectedCurrency)]
+      );
       setPrevMonthTotal(resolvedData.prevMonthTotal);
       setPrevPeriodCategoryTotals(resolvedData.prevPeriodCategoryTotals);
       setAnalyzeCost(resolvedData.analyzeCost);
@@ -85,12 +103,15 @@ export function useDashboardData() {
         setIsLoading(false);
       }
     }
-  }, [endDate, isLocalDashboardDemoEnabled, selectedStore, startDate]);
+  }, [endDate, isLocalDashboardDemoEnabled, selectedCurrency, selectedStore, startDate]);
 
   return {
     startDate,
     endDate,
     selectedStore,
+    selectedCurrency,
+    currencies,
+    activeCurrency,
     stores,
     expenses,
     prevMonthTotal,
@@ -100,6 +121,7 @@ export function useDashboardData() {
     setStartDate,
     setEndDate,
     setSelectedStore,
+    setSelectedCurrency,
     syncEndDateToToday,
     loadExpenses,
   };

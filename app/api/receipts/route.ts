@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
       store_name: body.store_name,
       purchase_date: body.purchase_date,
       items: body.items,
+      currency: body.currency ?? currentUser.defaultCurrency,
       comment: body.comment,
       source: "web",
       userId: currentUser.id,

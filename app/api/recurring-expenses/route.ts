@@ -6,10 +6,12 @@ import {
 import {
   createRecurringExpenseInDb,
   deactivateRecurringExpenseInDb,
+  getRecurringExpenseCurrenciesInDb,
   getRecurringExpensePlansInDb,
   isRecurringExpenseValidationError,
   parseRecurringExpensePayload,
 } from "@/lib/server/recurring-expenses";
+import { normalizeCurrencyCode } from "@/lib/currency";
 import {
   getDatabaseSchemaMissingMessage,
   isDatabaseSchemaMissingError,
@@ -19,11 +21,16 @@ function isInvalidJsonError(error: unknown): boolean {
   return error instanceof SyntaxError;
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const currentUser = await requireCurrentUser();
-    const plans = await getRecurringExpensePlansInDb({ activeOnly: true, userId: currentUser.id });
-    return NextResponse.json({ plans });
+    const { searchParams } = new URL(request.url);
+    const activeCurrency = normalizeCurrencyCode(searchParams.get("currency") ?? currentUser.defaultCurrency);
+    const [plans, currencies] = await Promise.all([
+      getRecurringExpensePlansInDb({ activeOnly: true, userId: currentUser.id, currency: activeCurrency }),
+      getRecurringExpenseCurrenciesInDb(currentUser.id),
+    ]);
+    return NextResponse.json({ plans, activeCurrency, currencies });
   } catch (error) {
     if (isAuthenticationRequiredError(error)) {
       return NextResponse.json({ error: error.message }, { status: 401 });
@@ -45,8 +52,12 @@ export async function POST(request: NextRequest) {
     const currentUser = await requireCurrentUser();
     const payload = parseRecurringExpensePayload(await request.json());
     await createRecurringExpenseInDb(payload, { userId: currentUser.id });
-    const plans = await getRecurringExpensePlansInDb({ activeOnly: true, userId: currentUser.id });
-    return NextResponse.json({ plans });
+    const activeCurrency = normalizeCurrencyCode(payload.currency ?? currentUser.defaultCurrency);
+    const [plans, currencies] = await Promise.all([
+      getRecurringExpensePlansInDb({ activeOnly: true, userId: currentUser.id, currency: activeCurrency }),
+      getRecurringExpenseCurrenciesInDb(currentUser.id),
+    ]);
+    return NextResponse.json({ plans, activeCurrency, currencies });
   } catch (error) {
     if (isInvalidJsonError(error)) {
       return NextResponse.json({ error: "Request body must be valid JSON" }, { status: 400 });
@@ -74,6 +85,8 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const currentUser = await requireCurrentUser();
+    const { searchParams } = new URL(request.url);
+    const activeCurrency = normalizeCurrencyCode(searchParams.get("currency") ?? currentUser.defaultCurrency);
     const payload = (await request.json()) as { id?: unknown };
     const id = Number(payload?.id);
     if (!Number.isInteger(id) || id <= 0) {
@@ -85,8 +98,11 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Recurring expense not found" }, { status: 404 });
     }
 
-    const plans = await getRecurringExpensePlansInDb({ activeOnly: true, userId: currentUser.id });
-    return NextResponse.json({ plans });
+    const [plans, currencies] = await Promise.all([
+      getRecurringExpensePlansInDb({ activeOnly: true, userId: currentUser.id, currency: activeCurrency }),
+      getRecurringExpenseCurrenciesInDb(currentUser.id),
+    ]);
+    return NextResponse.json({ plans, activeCurrency, currencies });
   } catch (error) {
     if (isInvalidJsonError(error)) {
       return NextResponse.json({ error: "Request body must be valid JSON" }, { status: 400 });

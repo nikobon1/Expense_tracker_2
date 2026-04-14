@@ -9,20 +9,23 @@ import { useDashboardData } from '@/features/expenses/hooks/useDashboardData';
 import { useRecurringExpenses } from '@/features/expenses/hooks/useRecurringExpenses';
 import { useReceiptFlow } from '@/features/expenses/hooks/useReceiptFlow';
 import { getAccountSettings } from '@/lib/account-api';
-import { DEFAULT_CURRENCY } from '@/lib/currency';
+import { DEFAULT_CURRENCY, normalizeCurrencyCode } from '@/lib/currency';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'scan' | 'dashboard'>('scan');
   const [manualEntryRequest, setManualEntryRequest] = useState(0);
   const [defaultCurrency, setDefaultCurrency] = useState(DEFAULT_CURRENCY);
-  const receiptFlow = useReceiptFlow();
+  const receiptFlow = useReceiptFlow(defaultCurrency);
   const categoryOptions = useCategoryOptions();
-  const dashboardData = useDashboardData();
-  const recurringExpenses = useRecurringExpenses();
+  const dashboardData = useDashboardData(defaultCurrency);
+  const recurringExpenses = useRecurringExpenses(defaultCurrency);
   const {
     startDate,
     endDate,
     selectedStore,
+    selectedCurrency,
+    currencies,
+    activeCurrency,
     stores,
     expenses,
     prevMonthTotal,
@@ -31,6 +34,7 @@ export default function Home() {
     setStartDate,
     setEndDate,
     setSelectedStore,
+    setSelectedCurrency,
     loadExpenses,
   } = dashboardData;
 
@@ -134,7 +138,7 @@ export default function Home() {
             onAddCategory={categoryOptions.addCategory}
             onDeleteCategory={categoryOptions.removeCategory}
             onCreateRecurring={recurringExpenses.createPlan}
-            onDeleteRecurring={recurringExpenses.deletePlan}
+            onDeleteRecurring={(id) => recurringExpenses.deletePlan(id, defaultCurrency)}
             fileInputRef={receiptFlow.fileInputRef}
             onDrop={receiptFlow.handleDrop}
             onFileSelect={receiptFlow.handleFile}
@@ -167,15 +171,18 @@ export default function Home() {
             prevMonthTotal={prevMonthTotal}
             prevPeriodCategoryTotals={prevPeriodCategoryTotals}
             analyzeCost={analyzeCost}
+            currencies={currencies}
+            selectedCurrency={selectedCurrency}
             isLoading={dashboardData.isLoading}
             onAddCategory={categoryOptions.addCategory}
             onDeleteCategory={categoryOptions.removeCategory}
             onStartDateChange={setStartDate}
             onEndDateChange={setEndDate}
             onStoreChange={setSelectedStore}
+            onCurrencyChange={(value) => setSelectedCurrency(normalizeCurrencyCode(value))}
             onRefresh={() => void loadExpenses()}
             onOpenScan={openManualReceiptEntry}
-            currencyCode={defaultCurrency}
+            currencyCode={activeCurrency}
           />
         )}
       </main>

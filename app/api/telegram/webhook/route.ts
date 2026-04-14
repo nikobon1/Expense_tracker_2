@@ -1,6 +1,7 @@
 ﻿import { NextRequest, NextResponse } from "next/server";
 import type { ReceiptData, ReceiptItem } from "@/features/expenses/types";
 import { parseFlexibleAmount } from "@/lib/amount";
+import { DEFAULT_CURRENCY, formatCurrencyAmount, normalizeCurrencyCode } from "@/lib/currency";
 import { analyzeReceiptImageDataUrl } from "@/lib/server/analyze-receipt";
 import { getReceiptDateWarning } from "@/lib/receipt-date-warning";
 import {
@@ -141,6 +142,7 @@ function createManualDraft(seed?: {
   return {
     store_name: seed?.storeName?.trim() || "Ручной ввод",
     purchase_date: seed?.purchaseDate || todayIsoDate(),
+    currency: DEFAULT_CURRENCY,
     items: [
       {
         name: seed?.itemName?.trim() || "Покупка без чека",
@@ -308,6 +310,23 @@ function sumItems(items: ReceiptItem[]): number {
   return items.reduce((sum, item) => sum + Number(item.price || 0), 0);
 }
 
+function getReceiptCurrency(receipt: ReceiptData | null | undefined): string {
+  return normalizeCurrencyCode(receipt?.currency ?? DEFAULT_CURRENCY);
+}
+
+function formatTelegramMoney(value: number, currencyCode: string): string {
+  return formatCurrencyAmount(value, currencyCode, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function applyTelegramCurrencyLabels(text: string, currencyCode: string): string {
+  return text.replace(/(\d+(?:\.\d{2})?) EUR\b/g, (_, amount: string) =>
+    formatTelegramMoney(Number(amount), currencyCode)
+  );
+}
+
 function formatDateHuman(isoDate: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
   if (!m) return isoDate;
@@ -356,33 +375,34 @@ function ensureManualDraftItem(draft: ReceiptData): ReceiptItem {
 
 function getManualFlowPrompt(step: ManualFlowStep, draft: ReceiptData): string {
   const total = sumItems(draft.items ?? []);
+  const currencyCode = getReceiptCurrency(draft);
   const storeName = draft.store_name?.trim() || "Ручной ввод";
 
   if (step === "amount") {
-    return [
+    return applyTelegramCurrencyLabels([
       "<b>Ручной режим</b>",
       "",
       "Отправьте сумму покупки одним сообщением.",
       "Примеры: <code>12.49</code>, <code>12,49</code>, <code>1 234,56</code>.",
       "Чтобы выйти, отправьте <code>Отмена</code>.",
-    ].join("\n");
+    ].join("\n"), currencyCode);
   }
 
   if (step === "store") {
-    return [
+    return applyTelegramCurrencyLabels([
       `Сумма: <b>${total.toFixed(2)} EUR</b>`,
       "Теперь отправьте название магазина.",
       `Можно написать <code>Пропустить</code> — тогда оставлю <b>${escapeHtml(storeName)}</b>.`,
-    ].join("\n");
+    ].join("\n"), currencyCode);
   }
 
-  return [
+  return applyTelegramCurrencyLabels([
     `Сумма: <b>${total.toFixed(2)} EUR</b>`,
     `Магазин: <b>${escapeHtml(storeName)}</b>`,
     "Теперь отправьте дату покупки.",
     "Поддерживаются: <code>14/02/26</code>, <code>14-02-2026</code>, <code>2026-02-14</code> или <code>Сегодня</code>.",
     "Можно написать <code>Пропустить</code> — тогда оставлю сегодняшнюю дату.",
-  ].join("\n");
+  ].join("\n"), currencyCode);
 }
 
 function getTelegramDateWarningThresholdDays(): number {
@@ -420,6 +440,7 @@ function getDraftDateWarningLines(purchaseDate: string): string[] {
 function formatDraftPreview(receipt: ReceiptData, note?: string): string {
   const items = receipt.items ?? [];
   const total = sumItems(items);
+  const currencyCode = getReceiptCurrency(receipt);
   const lines: string[] = [];
 
   if (note) {
@@ -464,7 +485,7 @@ function formatDraftPreview(receipt: ReceiptData, note?: string): string {
   lines.push("- <code>Категория 2 Фрукты</code>");
   lines.push("- <code>Удалить 5</code>");
 
-  return lines.join("\n");
+  return applyTelegramCurrencyLabels(lines.join("\n"), currencyCode);
 }
 
 async function sendDraftPreviewMessage(chatId: number, receipt: ReceiptData, note?: string) {
@@ -554,14 +575,15 @@ function getDraftEditHelpText(): string {
 
 function formatSavedSummary(receipt: ReceiptData, totalAmount: number, receiptId: number): string {
   const itemsCount = receipt.items?.length || 0;
-  return [
+  const currencyCode = getReceiptCurrency(receipt);
+  return applyTelegramCurrencyLabels([
     "<b>Чек сохранен</b>",
     `Магазин: <b>${escapeHtml(receipt.store_name || "Неизвестный магазин")}</b>`,
     `Дата: <b>${escapeHtml(formatDateHuman(receipt.purchase_date || "Не указана"))}</b>`,
     `Позиций: <b>${itemsCount}</b>`,
     `Сумма: <b>${totalAmount.toFixed(2)} EUR</b>`,
     `#${receiptId}`,
-  ].join("\n");
+  ].join("\n"), currencyCode);
 }
 
 function getHelpText() {
@@ -773,6 +795,7 @@ async function handleDraftCommand(params: {
       store_name: draft.store_name,
       purchase_date: draft.purchase_date,
       items: draft.items,
+      currency: draft.currency,
       source: "telegram",
       telegram_file_id: draftWithMeta._telegram_file_id ?? null,
     });

@@ -1,6 +1,9 @@
 import type { CreateRecurringExpensePayload, RecurringExpensePlan } from "@/features/expenses/types";
+import { DEFAULT_CURRENCY, normalizeCurrencyCode } from "@/lib/currency";
 
-interface RecurringExpensesResponse {
+export interface RecurringExpensesResponse {
+  activeCurrency: string;
+  currencies: string[];
   plans: RecurringExpensePlan[];
 }
 
@@ -29,8 +32,41 @@ function getErrorMessage(response: Response, payload: unknown, fallback: string)
   return fallback;
 }
 
-export async function getRecurringExpenses(): Promise<RecurringExpensePlan[]> {
-  const response = await fetch("/api/recurring-expenses");
+function uniqueCurrencies(values: string[], fallback: string): string[] {
+  const normalizedFallback = normalizeCurrencyCode(fallback);
+  const normalizedValues = values
+    .map((value) => normalizeCurrencyCode(value))
+    .filter((value, index, list) => list.indexOf(value) === index);
+
+  return normalizedValues.length > 0 ? normalizedValues : [normalizedFallback];
+}
+
+function normalizePlan(plan: RecurringExpensePlan): RecurringExpensePlan {
+  return {
+    ...plan,
+    currency: normalizeCurrencyCode(plan.currency ?? DEFAULT_CURRENCY),
+  };
+}
+
+function normalizeRecurringExpensesResponse(
+  payload: RecurringExpensesResponse,
+  fallbackCurrency: string
+): RecurringExpensesResponse {
+  return {
+    ...payload,
+    activeCurrency: normalizeCurrencyCode(payload.activeCurrency ?? fallbackCurrency),
+    currencies: uniqueCurrencies(payload.currencies ?? [], fallbackCurrency),
+    plans: payload.plans.map(normalizePlan),
+  };
+}
+
+export async function getRecurringExpenses(currency?: string): Promise<RecurringExpensesResponse> {
+  const params = new URLSearchParams();
+  if (currency) {
+    params.set("currency", currency);
+  }
+
+  const response = await fetch(`/api/recurring-expenses${params.size > 0 ? `?${params.toString()}` : ""}`);
   const payload = await readJsonOrText(response);
 
   if (!response.ok) {
@@ -41,10 +77,13 @@ export async function getRecurringExpenses(): Promise<RecurringExpensePlan[]> {
     throw new Error("Сервер вернул некорректный ответ по автосписаниям.");
   }
 
-  return (payload as RecurringExpensesResponse).plans;
+  return normalizeRecurringExpensesResponse(
+    payload as RecurringExpensesResponse,
+    currency ?? DEFAULT_CURRENCY
+  );
 }
 
-export async function createRecurringExpense(payload: CreateRecurringExpensePayload): Promise<RecurringExpensePlan[]> {
+export async function createRecurringExpense(payload: CreateRecurringExpensePayload): Promise<RecurringExpensesResponse> {
   const response = await fetch("/api/recurring-expenses", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -60,11 +99,19 @@ export async function createRecurringExpense(payload: CreateRecurringExpensePayl
     throw new Error("Сервер вернул некорректный ответ после сохранения автосписания.");
   }
 
-  return (parsed as RecurringExpensesResponse).plans;
+  return normalizeRecurringExpensesResponse(
+    parsed as RecurringExpensesResponse,
+    payload.currency ?? DEFAULT_CURRENCY
+  );
 }
 
-export async function deleteRecurringExpense(id: number): Promise<RecurringExpensePlan[]> {
-  const response = await fetch("/api/recurring-expenses", {
+export async function deleteRecurringExpense(id: number, currency?: string): Promise<RecurringExpensesResponse> {
+  const params = new URLSearchParams();
+  if (currency) {
+    params.set("currency", currency);
+  }
+
+  const response = await fetch(`/api/recurring-expenses${params.size > 0 ? `?${params.toString()}` : ""}`, {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ id }),
@@ -79,5 +126,8 @@ export async function deleteRecurringExpense(id: number): Promise<RecurringExpen
     throw new Error("Сервер вернул некорректный ответ после остановки автосписания.");
   }
 
-  return (parsed as RecurringExpensesResponse).plans;
+  return normalizeRecurringExpensesResponse(
+    parsed as RecurringExpensesResponse,
+    currency ?? DEFAULT_CURRENCY
+  );
 }

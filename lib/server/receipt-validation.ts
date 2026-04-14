@@ -1,6 +1,7 @@
 import { z, ZodError } from "zod";
 import type { ReceiptItem } from "@/features/expenses/types";
 import { normalizeCategory } from "@/lib/category-normalization";
+import { normalizeCurrencyCode } from "@/lib/currency";
 import { normalizeStoreName } from "@/lib/store-normalization";
 
 const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
@@ -31,6 +32,9 @@ const receiptPayloadSchema = z.object({
   purchase_date: z.string()
     .trim()
     .refine(isValidIsoDate, "purchase_date must be a valid YYYY-MM-DD date"),
+  currency: z.string()
+    .optional()
+    .transform((value) => (typeof value === "string" && value.trim() ? normalizeCurrencyCode(value) : undefined)),
   items: z.array(receiptItemSchema)
     .min(1, "At least one item is required"),
   comment: z.preprocess(
@@ -42,6 +46,7 @@ const receiptPayloadSchema = z.object({
 export type ReceiptPayload = {
   store_name: string;
   purchase_date: string;
+  currency?: string;
   items: ReceiptItem[];
   comment?: string;
 };
@@ -51,6 +56,7 @@ export function parseReceiptPayload(payload: unknown): ReceiptPayload {
   return {
     store_name: parsed.store_name,
     purchase_date: parsed.purchase_date,
+    currency: parsed.currency,
     items: parsed.items as ReceiptItem[],
     comment: parsed.comment,
   };
