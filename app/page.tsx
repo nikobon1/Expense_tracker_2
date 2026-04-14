@@ -1,5 +1,6 @@
-'use client';
+﻿'use client';
 
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import DashboardTab from '@/features/expenses/components/DashboardTab';
 import ScanTab from '@/features/expenses/components/ScanTab';
@@ -7,10 +8,13 @@ import { useCategoryOptions } from '@/features/expenses/hooks/useCategoryOptions
 import { useDashboardData } from '@/features/expenses/hooks/useDashboardData';
 import { useRecurringExpenses } from '@/features/expenses/hooks/useRecurringExpenses';
 import { useReceiptFlow } from '@/features/expenses/hooks/useReceiptFlow';
+import { getAccountSettings } from '@/lib/account-api';
+import { DEFAULT_CURRENCY } from '@/lib/currency';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'scan' | 'dashboard'>('scan');
   const [manualEntryRequest, setManualEntryRequest] = useState(0);
+  const [defaultCurrency, setDefaultCurrency] = useState(DEFAULT_CURRENCY);
   const receiptFlow = useReceiptFlow();
   const categoryOptions = useCategoryOptions();
   const dashboardData = useDashboardData();
@@ -48,6 +52,25 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [activeTab, loadExpenses]);
 
+  useEffect(() => {
+    let isActive = true;
+
+    void (async () => {
+      try {
+        const account = await getAccountSettings();
+        if (isActive) {
+          setDefaultCurrency(account.defaultCurrency);
+        }
+      } catch (error) {
+        console.error('Failed to load account settings:', error);
+      }
+    })();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
   const openManualReceiptEntry = () => {
     setActiveTab('scan');
     setManualEntryRequest((value) => value + 1);
@@ -81,6 +104,9 @@ export default function Home() {
           >
             📊 Дашборд
           </button>
+          <Link className="tab" href="/account">
+            Account
+          </Link>
         </div>
           </>
         )}
@@ -127,6 +153,7 @@ export default function Home() {
             onItemDelete={receiptFlow.deleteItem}
             currentTotal={receiptFlow.currentTotal}
             focusManualEntrySignal={manualEntryRequest}
+            currencyCode={defaultCurrency}
           />
         ) : (
           <DashboardTab
@@ -148,6 +175,7 @@ export default function Home() {
             onStoreChange={setSelectedStore}
             onRefresh={() => void loadExpenses()}
             onOpenScan={openManualReceiptEntry}
+            currencyCode={defaultCurrency}
           />
         )}
       </main>

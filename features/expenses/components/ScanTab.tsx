@@ -11,6 +11,7 @@ import type {
   RecurringExpensePlan,
   RecurringFrequency,
 } from "@/features/expenses/types";
+import { formatCurrencyAmount } from "@/lib/currency";
 
 interface ScanTabProps {
   uploadedImage: string | null;
@@ -53,6 +54,7 @@ interface ScanTabProps {
   onItemDelete: (index: number) => void;
   currentTotal: number;
   focusManualEntrySignal?: number;
+  currencyCode?: string;
 }
 
 function getLocalTodayIso() {
@@ -114,6 +116,7 @@ export default function ScanTab({
   onItemDelete,
   currentTotal,
   focusManualEntrySignal = 0,
+  currencyCode = "EUR",
 }: ScanTabProps) {
   const manualSectionRef = useRef<HTMLDivElement | null>(null);
   const manualStoreInputRef = useRef<HTMLInputElement | null>(null);
@@ -132,6 +135,11 @@ export default function ScanTab({
   const resolvedRecurringCategory = categoryOptions.includes(recurringCategory)
     ? recurringCategory
     : recurringCategoryFallback;
+  const formatCurrency = (value: number, maximumFractionDigits = 2) =>
+    formatCurrencyAmount(value, currencyCode, {
+      minimumFractionDigits: maximumFractionDigits,
+      maximumFractionDigits,
+    });
 
   useEffect(() => {
     if (!focusManualEntrySignal || uploadedImage) return;
@@ -243,7 +251,7 @@ export default function ScanTab({
             </div>
 
             <div>
-              <label className="scan-field-label">Общая сумма (EUR)</label>
+              <label className="scan-field-label">{`Общая сумма (${currencyCode})`}</label>
               <input
                 type="text"
                 inputMode="decimal"
@@ -306,7 +314,7 @@ export default function ScanTab({
             </div>
 
             <div>
-              <label className="scan-field-label">Сумма (EUR)</label>
+              <label className="scan-field-label">{`Сумма (${currencyCode})`}</label>
               <input
                 type="text"
                 inputMode="decimal"
@@ -392,7 +400,7 @@ export default function ScanTab({
                       <span>{plan.store_name}</span>
                     </div>
                     <div>
-                      <strong>{plan.amount.toFixed(2)} EUR</strong>
+                      <strong>{formatCurrency(plan.amount)}</strong>
                       <span>{plan.category}</span>
                       <span>
                         {getFrequencyLabel(plan.frequency)}
@@ -516,7 +524,7 @@ export default function ScanTab({
                 <thead>
                   <tr>
                     <th>Название</th>
-                    <th className="scan-col-price">Цена (EUR)</th>
+                    <th className="scan-col-price">{`Цена (${currencyCode})`}</th>
                     <th className="scan-col-category">Категория</th>
                     <th className="scan-col-delete"></th>
                   </tr>
@@ -564,7 +572,7 @@ export default function ScanTab({
 
             <div className="total-row">
               <span className="total-label">Итого:</span>
-              <span className="total-value">{currentTotal.toFixed(2)} EUR</span>
+              <span className="total-value">{formatCurrency(currentTotal)}</span>
             </div>
 
             <button className="btn btn-primary btn-full mt-16" onClick={onSave} disabled={isSaving}>

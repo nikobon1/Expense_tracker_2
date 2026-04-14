@@ -165,6 +165,7 @@ export default function DemoPage() {
             onEndDateChange={setEndDate}
             onStoreChange={setSelectedStore}
             onRefresh={() => undefined}
+            currencyCode="EUR"
             isReadOnly
             readOnlyNotice={DEMO_READ_ONLY_NOTICE}
           />

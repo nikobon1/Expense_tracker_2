@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import Link from "next/link";
 import Image from "next/image";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -21,6 +22,7 @@ import CategoryManager from "@/features/expenses/components/CategoryManager";
 import { CHART_COLORS } from "@/features/expenses/constants";
 import type { AddCategoryResult, DeleteCategoryResult } from "@/features/expenses/hooks/useCategoryOptions";
 import { analyzeReceipt, deleteReceipt, getReceipt, getReceiptImageFromTelegram, updateReceipt } from "@/lib/api";
+import { formatCurrencyAmount } from "@/lib/currency";
 import { buildCategoryData, buildDailyData } from "@/features/expenses/utils";
 import type { DailyPoint, DailyReceiptSegment } from "@/features/expenses/utils";
 import type { Expense, ReceiptData, ReceiptItem } from "@/features/expenses/types";
@@ -58,6 +60,7 @@ interface DashboardTabProps {
   onStoreChange: (value: string) => void;
   onRefresh?: () => void;
   onOpenScan?: () => void;
+  currencyCode?: string;
   isReadOnly?: boolean;
   readOnlyNotice?: string;
 }
@@ -120,8 +123,8 @@ type DailyChartPoint = DailyPoint & {
 
 const MAX_UPLOAD_DIMENSION = 1600;
 const MAX_ANALYZE_PAYLOAD_CHARS = 3_500_000;
-const DAILY_CHART_STEP_EUR = 20;
-const DAILY_CHART_CLIP_LIMIT_EUR = 120;
+const DAILY_CHART_STEP = 20;
+const DAILY_CHART_CLIP_LIMIT = 120;
 const DASHBOARD_RANGE_PRESET_OPTIONS: Array<{ value: DashboardRangePreset; label: string }> = [
   { value: "custom", label: "Свой период" },
   { value: "yesterday", label: "Вчера" },
@@ -309,8 +312,9 @@ function buildExpensesExcelXml(params: {
   endDate: string;
   selectedStore: string;
   expenses: Expense[];
+  currencyCode: string;
 }): string {
-  const { startDate, endDate, selectedStore, expenses } = params;
+  const { startDate, endDate, selectedStore, expenses, currencyCode } = params;
   const storeLabel = selectedStore === "all" ? "Все магазины" : selectedStore;
   const generatedAt = new Date().toISOString();
 
@@ -320,7 +324,7 @@ function buildExpensesExcelXml(params: {
     ["Магазин", storeLabel],
     ["Сгенерировано", generatedAt],
     ["", ""],
-    ["Дата", "Магазин", "Товар", "Категория", "Цена (€)", "Чек ID"],
+    ["Дата", "Магазин", "Товар", "Категория", `Цена (${currencyCode})`, "Чек ID"],
   ];
 
   const dataRows = expenses.map((expense) => [
@@ -353,9 +357,14 @@ function buildExpensesExcelXml(params: {
 </Workbook>`;
 }
 
-function buildComparisonSummary(current: EditableReceipt, analyzed: ReceiptData): ComparisonSummary {
+function buildComparisonSummary(
+  current: EditableReceipt,
+  analyzed: ReceiptData,
+  currencyCode: string
+): ComparisonSummary {
   const currentItems = sanitizeItems(current.items);
   const analyzedItems = sanitizeItems(analyzed.items ?? []);
+  const formatAmount = (value: number) => formatCurrencyAmount(value, currencyCode);
 
   const changes: string[] = [];
 
@@ -388,7 +397,7 @@ function buildComparisonSummary(current: EditableReceipt, analyzed: ReceiptData)
   const currentTotal = currentItems.reduce((sum, item) => sum + Number(item.price || 0), 0);
   const analyzedTotal = analyzedItems.reduce((sum, item) => sum + Number(item.price || 0), 0);
   if (Math.abs(currentTotal - analyzedTotal) >= 0.01) {
-    changes.push(`Сумма: ${currentTotal.toFixed(2)} € -> ${analyzedTotal.toFixed(2)} €`);
+    changes.push(`Сумма: ${formatAmount(currentTotal)} -> ${formatAmount(analyzedTotal)}`);
   }
 
   return {
@@ -417,6 +426,7 @@ export default function DashboardTab({
   onStoreChange,
   onRefresh,
   onOpenScan,
+  currencyCode = "EUR",
   isReadOnly = false,
   readOnlyNotice = "Это демо-режим. В этой версии редактирование и сохранение отключены.",
 }: DashboardTabProps) {
@@ -782,8 +792,8 @@ export default function DashboardTab({
     () =>
       dailyData.map((point) => ({
         ...point,
-        chartAmount: Math.min(point.amount, DAILY_CHART_CLIP_LIMIT_EUR),
-        isClipped: point.amount > DAILY_CHART_CLIP_LIMIT_EUR,
+        chartAmount: Math.min(point.amount, DAILY_CHART_CLIP_LIMIT),
+        isClipped: point.amount > DAILY_CHART_CLIP_LIMIT,
       })),
     [dailyData]
   );
@@ -956,12 +966,19 @@ export default function DashboardTab({
     () => sortLedgerExpenses(categoryFilteredExpenses).slice(0, 5),
     [categoryFilteredExpenses, ledgerSortDirection, ledgerSortField]
   );
-  const formatCurrency = (value: number) => `${value.toFixed(2)} EUR`;
+  const priceColumnLabel = `Цена (${currencyCode})`;
+  const formatCurrency = (value: number, minimumFractionDigits = 2, maximumFractionDigits = minimumFractionDigits) =>
+    formatCurrencyAmount(value, currencyCode, {
+      minimumFractionDigits,
+      maximumFractionDigits,
+    });
+  const formatCurrencyChange = (value: number) =>
+    `${value >= 0 ? "+" : "-"}${formatCurrency(Math.abs(value))}`;
   const strongestDayDateLabel = strongestDay ? formatDashboardDate(strongestDay.date) : "Нет данных";
   const strongestDayAmountLabel = strongestDay ? formatCurrency(strongestDay.amount) : "Ждем данные";
   const deltaLabel =
     prevMonthTotal > 0
-      ? `${amountChange >= 0 ? "+" : "-"}${Math.abs(amountChange).toFixed(2)} EUR`
+      ? formatCurrencyChange(amountChange)
       : "Нет данных за прошлый период";
 
   const dashboardMonthLabel = useMemo(() => {
@@ -977,20 +994,20 @@ export default function DashboardTab({
   }, [currentPeriodLabel, endDate]);
   const activityChartData = useMemo(() => dailyChartData, [dailyChartData]);
   const activityChartYAxisTicks = useMemo(
-    () => buildAxisTicks(Math.max(...activityChartData.map((point) => point.chartAmount), 0), DAILY_CHART_STEP_EUR),
+    () => buildAxisTicks(Math.max(...activityChartData.map((point) => point.chartAmount), 0), DAILY_CHART_STEP),
     [activityChartData]
   );
   const activityChartYAxisDomain: [number, number] = [
     0,
-    activityChartYAxisTicks[activityChartYAxisTicks.length - 1] ?? DAILY_CHART_STEP_EUR,
+    activityChartYAxisTicks[activityChartYAxisTicks.length - 1] ?? DAILY_CHART_STEP,
   ];
   const desktopDailyChartYAxisTicks = useMemo(
-    () => buildAxisTicks(Math.max(...dailyChartData.map((point) => point.chartAmount), 0), DAILY_CHART_STEP_EUR),
+    () => buildAxisTicks(Math.max(...dailyChartData.map((point) => point.chartAmount), 0), DAILY_CHART_STEP),
     [dailyChartData]
   );
   const desktopDailyChartYAxisDomain: [number, number] = [
     0,
-    desktopDailyChartYAxisTicks[desktopDailyChartYAxisTicks.length - 1] ?? DAILY_CHART_STEP_EUR,
+    desktopDailyChartYAxisTicks[desktopDailyChartYAxisTicks.length - 1] ?? DAILY_CHART_STEP,
   ];
   const activeStoreLabel = activeStore === "all" ? "Все магазины" : activeStore;
   const ledgerStoreFilterLabel = ledgerStoreFilter === "all" ? "Все магазины" : ledgerStoreFilter;
@@ -1027,8 +1044,8 @@ export default function DashboardTab({
 
   const comparisonSummary = useMemo(() => {
     if (!editorReceipt || !comparisonData) return null;
-    return buildComparisonSummary(editorReceipt, comparisonData);
-  }, [editorReceipt, comparisonData]);
+    return buildComparisonSummary(editorReceipt, comparisonData, currencyCode);
+  }, [editorReceipt, comparisonData, currencyCode]);
 
   const openEditor = async (receiptId: number) => {
     if (isReadOnly) {
@@ -1260,7 +1277,7 @@ export default function DashboardTab({
         <div style={{ color: "#e4e4e7", fontWeight: 600, marginBottom: 6 }}>
           {formatDashboardDate(String(label ?? point.date))}
         </div>
-        <div style={{ color: "#fafafa", fontWeight: 700, marginBottom: 2 }}>{point.amount.toFixed(2)} €</div>
+        <div style={{ color: "#fafafa", fontWeight: 700, marginBottom: 2 }}>{formatCurrency(point.amount)}</div>
         <div style={{ color: "#a1a1aa", fontSize: 12, marginBottom: point.receiptSegments.length ? 8 : 0 }}>
           {count} {receiptLabel}
         </div>
@@ -1284,7 +1301,7 @@ export default function DashboardTab({
                 <span style={{ color: "#d4d4d8", fontSize: 12, lineHeight: 1.2 }}>
                   {segment.store || "Без магазина"} #{segment.receiptId}
                 </span>
-                <span style={{ color: "#f4f4f5", fontSize: 12, fontWeight: 600 }}>{segment.amount.toFixed(2)} €</span>
+                <span style={{ color: "#f4f4f5", fontSize: 12, fontWeight: 600 }}>{formatCurrency(segment.amount)}</span>
               </div>
             ))}
 
@@ -1311,7 +1328,7 @@ export default function DashboardTab({
                 <span style={{ color: "#a1a1aa", fontSize: 12, lineHeight: 1.2 }}>
                   И ещё {hiddenCount} {hiddenCount === 1 ? "чек" : hiddenCount >= 2 && hiddenCount <= 4 ? "чека" : "чеков"}
                 </span>
-                <span style={{ color: "#d4d4d8", fontSize: 12, fontWeight: 600 }}>{hiddenTotal.toFixed(2)} €</span>
+                <span style={{ color: "#d4d4d8", fontSize: 12, fontWeight: 600 }}>{formatCurrency(hiddenTotal)}</span>
               </div>
             )}
           </div>
@@ -1422,7 +1439,7 @@ export default function DashboardTab({
   const formatDailyBarLabel = (value: unknown) => {
     const numericValue = typeof value === "number" ? value : Number(value);
     if (!Number.isFinite(numericValue) || numericValue <= 0) return "";
-    return `${Number.isInteger(numericValue) ? numericValue.toFixed(0) : numericValue.toFixed(2)}€`;
+    return formatCurrency(numericValue, Number.isInteger(numericValue) ? 0 : 2);
   };
 
   const renderDailyBarLabel = ({ x, y, width, payload }: DailyBarLabelProps) => {
@@ -1461,6 +1478,7 @@ export default function DashboardTab({
       endDate,
       selectedStore: activeStore,
       expenses,
+      currencyCode,
     });
 
     const blob = new Blob([`\uFEFF${xml}`], {
@@ -1491,6 +1509,9 @@ export default function DashboardTab({
                 Добавить чек
               </button>
             ) : null}
+            <Link href="/account" className="dashboard-desktop-top-action">
+              Account
+            </Link>
             <div className="dashboard-mobile-avatar" aria-hidden="true">
               ТР
             </div>
@@ -1591,7 +1612,7 @@ export default function DashboardTab({
           <div className="dashboard-mobile-summary-main">
             <div className="dashboard-mobile-summary-head">
               <span>Общие расходы</span>
-              <strong>{expensesTotal.toFixed(2)} €</strong>
+              <strong>{formatCurrency(expensesTotal)}</strong>
               <p>
                 {currentPeriodLabel} • {activeStoreLabel}
               </p>
@@ -1604,7 +1625,7 @@ export default function DashboardTab({
               </div>
               <div className="dashboard-mobile-summary-pill">
                 <span>Средний чек</span>
-                <strong>{averageTransactionValue.toFixed(2)} €</strong>
+                <strong>{formatCurrency(averageTransactionValue)}</strong>
               </div>
               <div className="dashboard-mobile-summary-pill">
                 <span>Активных дней</span>
@@ -1627,14 +1648,14 @@ export default function DashboardTab({
                 <div className="dashboard-mobile-summary-track">
                   <div className="dashboard-mobile-summary-fill current" style={{ width: `${currentPeriodLineWidth}%` }} />
                 </div>
-                <strong>{expensesTotal.toFixed(2)} €</strong>
+                <strong>{formatCurrency(expensesTotal)}</strong>
               </div>
               <div className="dashboard-mobile-summary-row">
                 <span>Прошлый</span>
                 <div className="dashboard-mobile-summary-track">
                   <div className="dashboard-mobile-summary-fill previous" style={{ width: `${previousPeriodLineWidth}%` }} />
                 </div>
-                <strong>{prevMonthTotal.toFixed(2)} €</strong>
+                <strong>{formatCurrency(prevMonthTotal)}</strong>
               </div>
             </div>
           </div>
@@ -1779,12 +1800,12 @@ export default function DashboardTab({
                               />
                             ))}
                           </Pie>
-                          <Tooltip formatter={(value) => `${Number(value).toFixed(2)} €`} />
+                          <Tooltip formatter={(value) => formatCurrency(Number(value))} />
                         </PieChart>
                       </ResponsiveContainer>
                       <div className="dashboard-mobile-donut-center">
                         <span>{activeCategoryLabel}</span>
-                        <strong>{filteredCategoryTotal.toFixed(0)} €</strong>
+                        <strong>{formatCurrency(filteredCategoryTotal, 0)}</strong>
                       </div>
                     </div>
 
@@ -1811,7 +1832,7 @@ export default function DashboardTab({
                               <strong>{entry.name}</strong>
                               <span>{entry.share.toFixed(0)}%</span>
                             </div>
-                            <b>{entry.value.toFixed(2)} €</b>
+                            <b>{formatCurrency(entry.value)}</b>
                           </button>
                         );
                       })}
@@ -1878,7 +1899,7 @@ export default function DashboardTab({
                           width={44}
                           domain={activityChartYAxisDomain}
                           ticks={activityChartYAxisTicks}
-                          tickFormatter={(value) => `${Number(value).toFixed(0)}€`}
+                          tickFormatter={(value) => formatCurrency(Number(value), 0)}
                           tick={{ fill: "#94a3b8", fontSize: 10 }}
                           axisLine={false}
                           tickLine={false}
@@ -2040,10 +2061,10 @@ export default function DashboardTab({
                                 axisLine={false}
                                 tickLine={false}
                                 width={52}
-                                tickFormatter={(value) => `${Number(value).toFixed(0)}€`}
+                                tickFormatter={(value) => formatCurrency(Number(value), 0)}
                               />
                               <Tooltip
-                                formatter={(value) => `${Number(value).toFixed(2)} €`}
+                                formatter={(value) => formatCurrency(Number(value))}
                                 labelFormatter={(label) => `Категория: ${label}`}
                                 contentStyle={{
                                   background: "#12151f",
@@ -2088,14 +2109,14 @@ export default function DashboardTab({
                               {activeComparisonRows.map((row) => (
                                 <tr key={`dashboard-mobile-compare-${row.category}`}>
                                   <td>{row.category}</td>
-                                  <td style={{ textAlign: "right" }}>{row.currentTotal.toFixed(2)} €</td>
-                                  <td style={{ textAlign: "right" }}>{row.previousTotal.toFixed(2)} €</td>
+                                  <td style={{ textAlign: "right" }}>{formatCurrency(row.currentTotal)}</td>
+                                  <td style={{ textAlign: "right" }}>{formatCurrency(row.previousTotal)}</td>
                                   <td
                                     style={{ textAlign: "right" }}
                                     className={row.delta > 0 ? "compare-negative" : row.delta < 0 ? "compare-positive" : "compare-neutral"}
                                   >
                                     {row.delta > 0 ? "↑ " : row.delta < 0 ? "↓ " : ""}
-                                    {Math.abs(row.delta).toFixed(2)} €
+                                    {formatCurrency(Math.abs(row.delta))}
                                   </td>
                                   <td
                                     style={{ textAlign: "right" }}
@@ -2168,7 +2189,7 @@ export default function DashboardTab({
                     aria-pressed={ledgerSortField === "price"}
                     onClick={() => setLedgerSortField("price")}
                   >
-                    €
+                    {currencyCode}
                   </button>
                   <button
                     type="button"
@@ -2291,7 +2312,7 @@ export default function DashboardTab({
                               </div>
                             </td>
                             <td>{categorySummary}</td>
-                            <td style={{ textAlign: "right" }}>{receipt.total.toFixed(2)} €</td>
+                            <td style={{ textAlign: "right" }}>{formatCurrency(receipt.total)}</td>
                           </tr>
                           {isExpanded ? (
                             <tr className="dashboard-mobile-ledger-expanded-row">
@@ -2306,7 +2327,7 @@ export default function DashboardTab({
                                         <strong>{item.item}</strong>
                                         <span>{item.category}</span>
                                       </div>
-                                      <strong>{item.price.toFixed(2)} €</strong>
+                                      <strong>{formatCurrency(item.price)}</strong>
                                     </div>
                                   ))}
                                 </div>
@@ -2345,6 +2366,9 @@ export default function DashboardTab({
             Добавить
           </button>
         ) : null}
+        <Link href="/account">
+          Account
+        </Link>
         <button type="button" onClick={onRefresh} disabled={isLoading}>
           Обновить
         </button>
@@ -2448,7 +2472,7 @@ export default function DashboardTab({
           />
         </div>
         <div>
-          <label>⚡ Быстрый период</label>
+          <label>Быстрый период</label>
           <select
             className="metric-filter-select dashboard-date-preset-select"
             value={activeRangePreset}
@@ -2461,13 +2485,19 @@ export default function DashboardTab({
             ))}
           </select>
         </div>
+        <div>
+          <label>&nbsp;</label>
+          <Link href="/account" className="btn btn-secondary">
+            Account
+          </Link>
+        </div>
       </div>
 
       <div className="metrics-grid">
         <div className="metric-card primary">
           <div className="metric-label">💰 Общие расходы</div>
-          <div className="metric-value">{expensesTotal.toFixed(2)} €</div>
-          <div className="metric-secondary">Тот же период: {prevMonthTotal.toFixed(2)} €</div>
+          <div className="metric-value">{formatCurrency(expensesTotal)}</div>
+          <div className="metric-secondary">Тот же период: {formatCurrency(prevMonthTotal)}</div>
             <div className="metric-period-compare" aria-hidden="true">
               <div className="metric-period-row">
               <span className="metric-period-name">Текущий</span>
@@ -2484,7 +2514,7 @@ export default function DashboardTab({
           </div>
           {prevMonthTotal > 0 ? (
             <div className={`metric-delta ${amountChange >= 0 ? "negative" : "positive"}`}>
-              {amountChange >= 0 ? "↑" : "↓"} {Math.abs(amountChange).toFixed(2)} € ({Math.abs(percentChange).toFixed(1)}%)
+              {amountChange >= 0 ? "↑" : "↓"} {formatCurrency(Math.abs(amountChange))} ({Math.abs(percentChange).toFixed(1)}%)
             </div>
           ) : (
             <div className="metric-delta neutral">Нет данных для сравнения</div>
@@ -2522,7 +2552,7 @@ export default function DashboardTab({
             </div>
             <div className="metric-breakdown-row">
               <span>Средний чек</span>
-              <strong>{averageTransactionValue.toFixed(2)} €</strong>
+              <strong>{formatCurrency(averageTransactionValue)}</strong>
             </div>
           </div>
         </div>
@@ -2761,7 +2791,7 @@ export default function DashboardTab({
                       />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(value) => `${Number(value).toFixed(2)} €`} />
+                  <Tooltip formatter={(value) => formatCurrency(Number(value))} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="category-legend" aria-label="Легенда категорий">
@@ -2784,7 +2814,7 @@ export default function DashboardTab({
                         <span className="category-legend-name">{entry.name}</span>
                       </div>
                       <span className="category-legend-value">
-                        {entry.value.toFixed(2)} € ({percent.toFixed(0)}%)
+                        {formatCurrency(entry.value)} ({percent.toFixed(0)}%)
                       </span>
                     </button>
                   );
@@ -2859,7 +2889,7 @@ export default function DashboardTab({
                     width={52}
                     domain={desktopDailyChartYAxisDomain}
                     ticks={desktopDailyChartYAxisTicks}
-                    tickFormatter={(value) => `${Number(value).toFixed(0)}€`}
+                    tickFormatter={(value) => formatCurrency(Number(value), 0)}
                     tick={{ fill: "#a1a1aa", fontSize: 12 }}
                     axisLine={false}
                     tickLine={false}
@@ -2970,14 +3000,14 @@ export default function DashboardTab({
                         {activeComparisonRows.map((row) => (
                           <tr key={`compare-${row.category}`}>
                             <td>{row.category}</td>
-                            <td style={{ textAlign: "right" }}>{row.currentTotal.toFixed(2)} €</td>
-                            <td style={{ textAlign: "right" }}>{row.previousTotal.toFixed(2)} €</td>
+                            <td style={{ textAlign: "right" }}>{formatCurrency(row.currentTotal)}</td>
+                            <td style={{ textAlign: "right" }}>{formatCurrency(row.previousTotal)}</td>
                             <td
                               style={{ textAlign: "right" }}
                               className={row.delta > 0 ? "compare-negative" : row.delta < 0 ? "compare-positive" : "compare-neutral"}
                             >
                               {row.delta > 0 ? "↑ " : row.delta < 0 ? "↓ " : ""}
-                              {Math.abs(row.delta).toFixed(2)} €
+                              {formatCurrency(Math.abs(row.delta))}
                             </td>
                             <td
                               style={{ textAlign: "right" }}
@@ -3062,7 +3092,7 @@ export default function DashboardTab({
                         </td>
                         <td>{exp.item}</td>
                         <td>{exp.category}</td>
-                        <td style={{ textAlign: "right" }}>{exp.price.toFixed(2)} €</td>
+                        <td style={{ textAlign: "right" }}>{formatCurrency(exp.price)}</td>
                       </tr>
                     );
                   })}
@@ -3236,8 +3266,8 @@ export default function DashboardTab({
                       )}
 
                       <div className="receipt-editor-summary-totals">
-                        <span>В дашборде: {comparisonSummary.currentTotal.toFixed(2)} €</span>
-                        <span>По фото: {comparisonSummary.analyzedTotal.toFixed(2)} €</span>
+                        <span>В дашборде: {formatCurrency(comparisonSummary.currentTotal)}</span>
+                        <span>По фото: {formatCurrency(comparisonSummary.analyzedTotal)}</span>
                       </div>
 
                       <button type="button" className="btn btn-secondary" onClick={handleApplyComparison}>
@@ -3266,7 +3296,7 @@ export default function DashboardTab({
                     <thead>
                       <tr>
                         <th>Название</th>
-                        <th className="scan-col-price">Цена (€)</th>
+                        <th className="scan-col-price">{priceColumnLabel}</th>
                         <th className="scan-col-category">Категория</th>
                         <th className="scan-col-delete"></th>
                       </tr>
@@ -3317,7 +3347,7 @@ export default function DashboardTab({
 
                 <div className="total-row">
                   <span className="total-label">💰 Итого:</span>
-                  <span className="total-value">{currentEditorTotal.toFixed(2)} €</span>
+                  <span className="total-value">{formatCurrency(currentEditorTotal)}</span>
                 </div>
 
                 <div className="receipt-editor-actions">
