@@ -3,21 +3,50 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { DEFAULT_CURRENCY, SUPPORTED_CURRENCIES } from "@/lib/currency";
-import { getAccountSettings, updateAccountSettings, type AccountUser } from "@/lib/account-api";
+import {
+  getAccountSettings,
+  getAnalyzeUsage,
+  updateAccountSettings,
+  type AccountUser,
+} from "@/lib/account-api";
 
 type SaveState = {
   type: "success" | "error";
   message: string;
 } | null;
 
+type AnalyzeUsageState = {
+  dailyLimit: number;
+  countToday: number;
+  cooldownSeconds: number;
+  latestCreatedAt: string | null;
+  retryAfterSeconds: number | null;
+  canAnalyzeNow: boolean;
+} | null;
+
+function formatSeconds(value: number): string {
+  if (!Number.isFinite(value) || value <= 0) return "0s";
+
+  const minutes = Math.floor(value / 60);
+  const seconds = value % 60;
+  if (minutes <= 0) return `${seconds}s`;
+  if (seconds === 0) return `${minutes}m`;
+  return `${minutes}m ${seconds}s`;
+}
+
 export default function AccountPage() {
   const [user, setUser] = useState<AccountUser | null>(null);
   const [name, setName] = useState("");
   const [defaultCurrency, setDefaultCurrency] = useState(DEFAULT_CURRENCY);
   const [timezone, setTimezone] = useState("Europe/London");
+  const [usage, setUsage] = useState<AnalyzeUsageState>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isUsageLoading, setIsUsageLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>(null);
+  const [usageError, setUsageError] = useState<string | null>(null);
+  const usageBadgeLabel = isUsageLoading ? "Loading" : usage?.canAnalyzeNow ? "Available" : "Cooling down";
+  const usageBadgeClass = isUsageLoading ? "neutral" : usage?.canAnalyzeNow ? "ok" : "warn";
 
   useEffect(() => {
     let isActive = true;
@@ -40,6 +69,30 @@ export default function AccountPage() {
       } finally {
         if (isActive) {
           setIsLoading(false);
+        }
+      }
+    })();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isActive = true;
+
+    void (async () => {
+      try {
+        const currentUsage = await getAnalyzeUsage();
+        if (!isActive) return;
+
+        setUsage(currentUsage);
+      } catch (error) {
+        if (!isActive) return;
+        setUsageError(error instanceof Error ? error.message : "Failed to load analyze usage");
+      } finally {
+        if (isActive) {
+          setIsUsageLoading(false);
         }
       }
     })();
@@ -151,6 +204,51 @@ export default function AccountPage() {
                     placeholder="Europe/London"
                   />
                 </div>
+              </div>
+
+              <div className="account-usage-card">
+                <div className="account-usage-head">
+                  <div>
+                    <div className="scan-field-label">Analyze quota</div>
+                    <p>Current usage is tracked per account and resets every UTC day.</p>
+                  </div>
+                  <div className={`account-usage-badge ${usageBadgeClass}`}>
+                    {usageBadgeLabel}
+                  </div>
+                </div>
+
+                {isUsageLoading ? (
+                  <div className="account-usage-loading">
+                    <div className="spinner"></div>
+                    <span>Loading quota usage...</span>
+                  </div>
+                ) : usage ? (
+                  <div className="account-usage-grid">
+                    <div className="account-usage-metric">
+                      <span>Today</span>
+                      <strong>
+                        {usage.countToday} / {usage.dailyLimit > 0 ? usage.dailyLimit : "∞"}
+                      </strong>
+                    </div>
+                    <div className="account-usage-metric">
+                      <span>Cooldown</span>
+                      <strong>{formatSeconds(usage.cooldownSeconds)}</strong>
+                    </div>
+                    <div className="account-usage-metric">
+                      <span>Next scan</span>
+                      <strong>{usage.canAnalyzeNow ? "Now" : `In ${formatSeconds(usage.retryAfterSeconds ?? 0)}`}</strong>
+                    </div>
+                    <div className="account-usage-metric">
+                      <span>Last analyze</span>
+                      <strong>{usage.latestCreatedAt ? new Date(usage.latestCreatedAt).toLocaleString("ru-RU") : "None yet"}</strong>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="account-usage-loading">
+                    <span>Quota usage is unavailable right now.</span>
+                  </div>
+                )}
+                {usageError ? <p className="account-usage-error">{usageError}</p> : null}
               </div>
 
               <div className="receipt-editor-actions" style={{ marginTop: "1.5rem" }}>
