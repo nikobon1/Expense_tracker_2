@@ -8,13 +8,15 @@ import { useCategoryOptions } from '@/features/expenses/hooks/useCategoryOptions
 import { useDashboardData } from '@/features/expenses/hooks/useDashboardData';
 import { useRecurringExpenses } from '@/features/expenses/hooks/useRecurringExpenses';
 import { useReceiptFlow } from '@/features/expenses/hooks/useReceiptFlow';
-import { getAccountSettings } from '@/lib/account-api';
+import { getAccountSettings, getAnalyzeUsage, type AnalyzeUsage } from '@/lib/account-api';
 import { DEFAULT_CURRENCY, normalizeCurrencyCode } from '@/lib/currency';
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<'scan' | 'dashboard'>('scan');
   const [manualEntryRequest, setManualEntryRequest] = useState(0);
   const [defaultCurrency, setDefaultCurrency] = useState(DEFAULT_CURRENCY);
+  const [analyzeUsage, setAnalyzeUsage] = useState<AnalyzeUsage | null>(null);
+  const [isAnalyzeUsageLoading, setIsAnalyzeUsageLoading] = useState(true);
   const receiptFlow = useReceiptFlow(defaultCurrency);
   const categoryOptions = useCategoryOptions();
   const dashboardData = useDashboardData(defaultCurrency);
@@ -74,6 +76,40 @@ export default function Home() {
       isActive = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (activeTab !== 'dashboard') return;
+
+    let isActive = true;
+
+    const loadAnalyzeUsage = async () => {
+      try {
+        const usage = await getAnalyzeUsage();
+        if (!isActive) return;
+
+        setAnalyzeUsage(usage);
+      } catch (error) {
+        if (!isActive) return;
+        console.error('Failed to load analyze usage:', error);
+      } finally {
+        if (isActive) {
+          setIsAnalyzeUsageLoading(false);
+        }
+      }
+    };
+
+    void loadAnalyzeUsage();
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        void loadAnalyzeUsage();
+      }
+    }, 20000);
+
+    return () => {
+      isActive = false;
+      clearInterval(interval);
+    };
+  }, [activeTab]);
 
   const openManualReceiptEntry = () => {
     setActiveTab('scan');
@@ -183,6 +219,8 @@ export default function Home() {
             onRefresh={() => void loadExpenses()}
             onOpenScan={openManualReceiptEntry}
             currencyCode={activeCurrency}
+            analyzeUsage={analyzeUsage}
+            isAnalyzeUsageLoading={isAnalyzeUsageLoading}
           />
         )}
       </main>

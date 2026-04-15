@@ -22,6 +22,7 @@ import CategoryManager from "@/features/expenses/components/CategoryManager";
 import { CHART_COLORS } from "@/features/expenses/constants";
 import type { AddCategoryResult, DeleteCategoryResult } from "@/features/expenses/hooks/useCategoryOptions";
 import { analyzeReceipt, deleteReceipt, getReceipt, getReceiptImageFromTelegram, updateReceipt } from "@/lib/api";
+import type { AnalyzeUsage } from "@/lib/account-api";
 import { formatCurrencyAmount } from "@/lib/currency";
 import { buildCategoryData, buildDailyData } from "@/features/expenses/utils";
 import type { DailyPoint, DailyReceiptSegment } from "@/features/expenses/utils";
@@ -64,6 +65,8 @@ interface DashboardTabProps {
   onRefresh?: () => void;
   onOpenScan?: () => void;
   currencyCode?: string;
+  analyzeUsage?: AnalyzeUsage | null;
+  isAnalyzeUsageLoading?: boolean;
   isReadOnly?: boolean;
   readOnlyNotice?: string;
 }
@@ -433,6 +436,8 @@ export default function DashboardTab({
   onRefresh,
   onOpenScan,
   currencyCode = "EUR",
+  analyzeUsage = null,
+  isAnalyzeUsageLoading = false,
   isReadOnly = false,
   readOnlyNotice = "Это демо-режим. В этой версии редактирование и сохранение отключены.",
 }: DashboardTabProps) {
@@ -468,6 +473,34 @@ export default function DashboardTab({
   const [comparisonImage, setComparisonImage] = useState<string | null>(null);
   const [comparisonData, setComparisonData] = useState<ReceiptData | null>(null);
   const compareFileInputRef = useRef<HTMLInputElement | null>(null);
+  const formatSeconds = (value: number) => {
+    if (!Number.isFinite(value) || value <= 0) return "0s";
+
+    const minutes = Math.floor(value / 60);
+    const seconds = value % 60;
+    if (minutes <= 0) return `${seconds}s`;
+    if (seconds === 0) return `${minutes}m`;
+    return `${minutes}m ${seconds}s`;
+  };
+  const analyzeUsageLabel = isAnalyzeUsageLoading
+    ? "Loading"
+    : analyzeUsage
+      ? analyzeUsage.canAnalyzeNow
+        ? "Available"
+        : "Cooling down"
+      : "Unavailable";
+  const analyzeUsageBadgeClass = isAnalyzeUsageLoading
+    ? "neutral"
+    : analyzeUsage
+      ? analyzeUsage.canAnalyzeNow
+        ? "ok"
+        : "warn"
+      : "neutral";
+  const analyzeUsageText = analyzeUsage
+    ? analyzeUsage.canAnalyzeNow
+      ? `Today ${analyzeUsage.countToday} / ${analyzeUsage.dailyLimit > 0 ? analyzeUsage.dailyLimit : "∞"}`
+      : `Today ${analyzeUsage.countToday} / ${analyzeUsage.dailyLimit > 0 ? analyzeUsage.dailyLimit : "∞"} · Next scan in ${formatSeconds(analyzeUsage.retryAfterSeconds ?? 0)}`
+    : "Quota usage is unavailable right now.";
 
   const getReceiptSegmentColor = (segment: DailyReceiptSegment, index: number) =>
     CHART_COLORS[(segment.receiptId + index) % CHART_COLORS.length];
@@ -1542,6 +1575,22 @@ export default function DashboardTab({
             </div>
           </div>
         </header>
+
+        <div className="dashboard-usage-banner">
+          <div className="dashboard-usage-banner-copy">
+            <div className="dashboard-usage-banner-kicker">Analyze quota</div>
+            <div className="dashboard-usage-banner-main">
+              <strong>{analyzeUsageText}</strong>
+              <span>
+                Cooldown {analyzeUsage ? formatSeconds(analyzeUsage.cooldownSeconds) : "—"}
+                {analyzeUsage?.latestCreatedAt ? ` · Last ${new Date(analyzeUsage.latestCreatedAt).toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}` : ""}
+              </span>
+            </div>
+          </div>
+          <div className={`dashboard-usage-banner-badge ${analyzeUsageBadgeClass}`}>
+            {analyzeUsageLabel}
+          </div>
+        </div>
 
         <section className="dashboard-mobile-controls">
           <div className="dashboard-mobile-date-row">

@@ -2562,6 +2562,81 @@ td select:focus {
   gap: 0.8rem;
 }
 
+.dashboard-usage-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.95rem 1rem;
+  border: 1px solid rgba(59, 130, 246, 0.22);
+  border-radius: 1.25rem;
+  background:
+    radial-gradient(circle at top right, rgba(59, 130, 246, 0.16), transparent 28%),
+    linear-gradient(180deg, rgba(21, 25, 36, 0.95), rgba(14, 18, 28, 0.95));
+  box-shadow: var(--dashboard-mobile-card-shadow);
+}
+
+.dashboard-usage-banner-copy {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.dashboard-usage-banner-kicker {
+  color: var(--dashboard-mobile-muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.dashboard-usage-banner-main {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.dashboard-usage-banner-main strong {
+  color: var(--dashboard-mobile-heading);
+  font-size: 0.92rem;
+  line-height: 1.35;
+}
+
+.dashboard-usage-banner-main span {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.dashboard-usage-banner-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.34rem 0.7rem;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.dashboard-usage-banner-badge.ok {
+  background: rgba(34, 197, 94, 0.14);
+  color: var(--success);
+  border: 1px solid rgba(34, 197, 94, 0.28);
+}
+
+.dashboard-usage-banner-badge.warn {
+  background: rgba(245, 158, 11, 0.14);
+  color: var(--warning);
+  border: 1px solid rgba(245, 158, 11, 0.28);
+}
+
+.dashboard-usage-banner-badge.neutral {
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--text-secondary);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+}
+
 .dashboard-mobile-kicker {
   margin-bottom: 0.35rem;
   color: var(--dashboard-mobile-muted);
@@ -3488,6 +3563,11 @@ td select:focus {
     margin-bottom: 0.15rem;
   }
 
+  .dashboard-usage-banner {
+    padding: 1rem 1.15rem;
+    border-radius: 1.5rem;
+  }
+
   .dashboard-mobile-kicker {
     font-size: 0.82rem;
     letter-spacing: 0.16em;
@@ -3862,6 +3942,11 @@ td select:focus {
 
   .dashboard-mobile-frame {
     width: 100%;
+  }
+
+  .dashboard-usage-banner {
+    align-items: flex-start;
+    padding: 0.9rem 0.95rem;
   }
 
 .dashboard-mobile-summary-pills,

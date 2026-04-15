@@ -15,7 +15,7 @@ type AccountResponse = {
   user: AccountUser;
 };
 
-type AnalyzeUsage = {
+export type AnalyzeUsage = {
   dailyLimit: number;
   countToday: number;
   cooldownSeconds: number;
