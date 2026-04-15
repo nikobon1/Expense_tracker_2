@@ -54,6 +54,16 @@ type TelegramDraft = ReceiptData & {
   _telegram_file_id?: string | null;
   _manual_flow_step?: ManualFlowStep | null;
 };
+type TelegramDeploymentMode = "disabled" | "owner-only" | "internal-beta";
+
+function getTelegramDeploymentMode(): TelegramDeploymentMode {
+  const raw = process.env.TELEGRAM_DEPLOYMENT_MODE?.trim().toLowerCase();
+  if (raw === "disabled" || raw === "owner-only" || raw === "internal-beta") {
+    return raw;
+  }
+
+  return "owner-only";
+}
 
 function getBotToken(): string {
   const token = process.env.TELEGRAM_BOT_TOKEN?.trim();
@@ -1110,6 +1120,7 @@ export async function GET() {
   return NextResponse.json({
     ok: true,
     service: "telegram-webhook",
+    deploymentMode: getTelegramDeploymentMode(),
     hint: "POST updates from Telegram here",
   });
 }
@@ -1118,6 +1129,18 @@ export async function POST(request: NextRequest) {
   let update: TelegramUpdate | null = null;
 
   try {
+    const deploymentMode = getTelegramDeploymentMode();
+    if (deploymentMode === "disabled") {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Telegram is disabled in this environment",
+          deploymentMode,
+        },
+        { status: 503 }
+      );
+    }
+
     assertWebhookSecret(request);
     update = (await request.json()) as TelegramUpdate;
 

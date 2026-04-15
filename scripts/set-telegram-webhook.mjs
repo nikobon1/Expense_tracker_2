@@ -1,6 +1,7 @@
 const token = process.env.TELEGRAM_BOT_TOKEN;
 const baseUrl = process.env.WEBHOOK_BASE_URL;
 const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
+const deploymentMode = String(process.env.TELEGRAM_DEPLOYMENT_MODE ?? "owner-only").trim().toLowerCase();
 
 if (!token) {
   console.error("Missing TELEGRAM_BOT_TOKEN");
@@ -9,6 +10,13 @@ if (!token) {
 
 if (!baseUrl) {
   console.error("Missing WEBHOOK_BASE_URL (e.g. https://your-app.up.railway.app)");
+  process.exit(1);
+}
+
+if (deploymentMode === "disabled") {
+  console.error(
+    "Telegram deployment mode is disabled. Do not set a webhook in public environments."
+  );
   process.exit(1);
 }
 
@@ -30,7 +38,7 @@ const response = await fetch(`https://api.telegram.org/bot${token}/setWebhook`, 
 });
 
 const json = await response.json();
-console.log(JSON.stringify({ webhookUrl, response: json }, null, 2));
+console.log(JSON.stringify({ deploymentMode, webhookUrl, response: json }, null, 2));
 
 if (!response.ok || !json.ok) {
   process.exit(1);
