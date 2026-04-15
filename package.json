@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "db:migrate": "node scripts/db-migrate.mjs",
+    "db:backfill-owner": "node scripts/backfill-owner-data.mjs",
     "telegram:set-webhook": "node scripts/set-telegram-webhook.mjs"
   },
   "dependencies": {
