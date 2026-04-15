@@ -12,11 +12,14 @@ import { getAccountSettings, getAnalyzeUsage, type AnalyzeUsage } from '@/lib/ac
 import { DEFAULT_CURRENCY, normalizeCurrencyCode } from '@/lib/currency';
 
 export default function Home() {
+  const isOnboardingPreview = process.env.NODE_ENV !== 'production';
   const [activeTab, setActiveTab] = useState<'scan' | 'dashboard'>('scan');
   const [manualEntryRequest, setManualEntryRequest] = useState(0);
   const [defaultCurrency, setDefaultCurrency] = useState(DEFAULT_CURRENCY);
   const [analyzeUsage, setAnalyzeUsage] = useState<AnalyzeUsage | null>(null);
   const [isAnalyzeUsageLoading, setIsAnalyzeUsageLoading] = useState(true);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [hasLoadedOnboardingPreference, setHasLoadedOnboardingPreference] = useState(false);
   const receiptFlow = useReceiptFlow(defaultCurrency);
   const categoryOptions = useCategoryOptions();
   const dashboardData = useDashboardData(defaultCurrency);
@@ -78,6 +81,31 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    try {
+      if (isOnboardingPreview) {
+        setShowOnboarding(true);
+        return;
+      }
+
+      const dismissed = window.localStorage.getItem('expense-tracker:onboarding-dismissed') === '1';
+      setShowOnboarding(!dismissed);
+    } catch (error) {
+      console.error('Failed to read onboarding preference:', error);
+    } finally {
+      setHasLoadedOnboardingPreference(true);
+    }
+  }, [isOnboardingPreview]);
+
+  useEffect(() => {
+    if (isOnboardingPreview) return;
+    if (!hasLoadedOnboardingPreference) return;
+    if (dashboardData.isLoading) return;
+    if (dashboardData.expenses.length > 0) {
+      setShowOnboarding(false);
+    }
+  }, [dashboardData.expenses.length, dashboardData.isLoading, hasLoadedOnboardingPreference, isOnboardingPreview]);
+
+  useEffect(() => {
     if (activeTab !== 'dashboard') return;
 
     let isActive = true;
@@ -116,6 +144,16 @@ export default function Home() {
     setManualEntryRequest((value) => value + 1);
   };
 
+  const dismissOnboarding = () => {
+    if (isOnboardingPreview) return;
+    setShowOnboarding(false);
+    try {
+      window.localStorage.setItem('expense-tracker:onboarding-dismissed', '1');
+    } catch (error) {
+      console.error('Failed to store onboarding preference:', error);
+    }
+  };
+
   return (
     <div className="app-container">
       <main className="main-full">
@@ -123,6 +161,50 @@ export default function Home() {
           <div className={`alert ${receiptFlow.alert.type}`}>
             {receiptFlow.alert.type === 'success' ? '✅' : '❌'} {receiptFlow.alert.message}
           </div>
+        )}
+
+        {activeTab === 'scan' && showOnboarding && hasLoadedOnboardingPreference && (isOnboardingPreview || (!dashboardData.isLoading && dashboardData.expenses.length === 0)) && (
+          <section className="onboarding-card" aria-label="Короткий онбординг">
+            <div className="onboarding-copy">
+              <span className="onboarding-kicker">Короткий старт</span>
+              <h2>Сохраните первый расход за 30 секунд</h2>
+              <p>
+                Загрузите фото чека или введите сумму вручную, проверьте данные и сохраните.
+                После этого запись сразу появится в дашборде.
+              </p>
+            </div>
+
+            <div className="onboarding-steps">
+              <div className="onboarding-step">
+                <strong>1</strong>
+                <span>Добавьте чек или сумму.</span>
+              </div>
+              <div className="onboarding-step">
+                <strong>2</strong>
+                <span>Проверьте магазин, дату и позиции.</span>
+              </div>
+              <div className="onboarding-step">
+                <strong>3</strong>
+                <span>Сохраните и откройте дашборд.</span>
+              </div>
+            </div>
+
+            <div className="onboarding-actions">
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  dismissOnboarding();
+                  openManualReceiptEntry();
+                }}
+              >
+                Начать ввод
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={dismissOnboarding}>
+                Скрыть
+              </button>
+            </div>
+          </section>
         )}
 
         {activeTab === 'scan' && (
