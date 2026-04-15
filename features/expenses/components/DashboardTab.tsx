@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   PieChart,
   Pie,
@@ -447,7 +447,9 @@ export default function DashboardTab({
   const desktopStartDateInputRef = useRef<HTMLInputElement | null>(null);
   const desktopEndDateInputRef = useRef<HTMLInputElement | null>(null);
   const tooltipReceiptLimit: number | "all" = 7;
-  const setTooltipReceiptLimit = (_value: number | "all") => undefined;
+  const setTooltipReceiptLimit = (value: number | "all") => {
+    void value;
+  };
   const [isCategoryComparisonOpen, setIsCategoryComparisonOpen] = useState(false);
   const [isCategoryExcludeOpen, setIsCategoryExcludeOpen] = useState(false);
   const [comparisonMode, setComparisonMode] = useState<"periods" | "stores">("periods");
@@ -692,15 +694,6 @@ export default function DashboardTab({
 
     return scope.join(" • ");
   }, [categoryFilter, selectedStore]);
-  const categoryComparisonChartData = useMemo(
-    () =>
-      categoryComparisonRows.map((row) => ({
-        category: row.category,
-        current: Number(row.currentTotal.toFixed(2)),
-        previous: Number(row.previousTotal.toFixed(2)),
-      })),
-    [categoryComparisonRows]
-  );
   const storeComparisonRows = useMemo(() => {
     if (!comparisonStoreA || !comparisonStoreB || comparisonStoreA === comparisonStoreB) {
       return [];
@@ -946,26 +939,29 @@ export default function DashboardTab({
     if (ledgerStoreFilter === "all") return categoryFilteredExpenses;
     return categoryFilteredExpenses.filter((expense) => expense.store === ledgerStoreFilter);
   }, [categoryFilteredExpenses, ledgerStoreFilter]);
-  const sortLedgerExpenses = (items: Expense[]) => {
-    return [...items].sort((a, b) => {
-      if (ledgerSortField === "date") {
-        if (ledgerSortDirection === "asc") {
-          return a.date.localeCompare(b.date) || a.price - b.price || a.id - b.id;
+  const sortLedgerExpenses = useCallback(
+    (items: Expense[]) => {
+      return [...items].sort((a, b) => {
+        if (ledgerSortField === "date") {
+          if (ledgerSortDirection === "asc") {
+            return a.date.localeCompare(b.date) || a.price - b.price || a.id - b.id;
+          }
+
+          return b.date.localeCompare(a.date) || b.price - a.price || b.id - a.id;
         }
 
-        return b.date.localeCompare(a.date) || b.price - a.price || b.id - a.id;
-      }
+        if (ledgerSortDirection === "asc") {
+          return a.price - b.price || b.date.localeCompare(a.date) || b.id - a.id;
+        }
 
-      if (ledgerSortDirection === "asc") {
-        return a.price - b.price || b.date.localeCompare(a.date) || b.id - a.id;
-      }
-
-      return b.price - a.price || b.date.localeCompare(a.date) || b.id - a.id;
-    });
-  };
+        return b.price - a.price || b.date.localeCompare(a.date) || b.id - a.id;
+      });
+    },
+    [ledgerSortDirection, ledgerSortField]
+  );
   const sortedLedgerExpenses = useMemo(
     () => sortLedgerExpenses(ledgerDetailExpenses),
-    [ledgerDetailExpenses, ledgerSortDirection, ledgerSortField]
+    [ledgerDetailExpenses, sortLedgerExpenses]
   );
   const ledgerReceiptGroups = useMemo(() => {
     const groups = new Map<number, LedgerReceiptGroup>();
@@ -998,30 +994,33 @@ export default function DashboardTab({
       total: Number(group.total.toFixed(2)),
     }));
   }, [ledgerDetailExpenses]);
-  const sortLedgerReceipts = (items: LedgerReceiptGroup[]) => {
-    return [...items].sort((a, b) => {
-      if (ledgerSortField === "date") {
-        if (ledgerSortDirection === "asc") {
-          return a.date.localeCompare(b.date) || a.total - b.total || a.receiptId - b.receiptId;
+  const sortLedgerReceipts = useCallback(
+    (items: LedgerReceiptGroup[]) => {
+      return [...items].sort((a, b) => {
+        if (ledgerSortField === "date") {
+          if (ledgerSortDirection === "asc") {
+            return a.date.localeCompare(b.date) || a.total - b.total || a.receiptId - b.receiptId;
+          }
+
+          return b.date.localeCompare(a.date) || b.total - a.total || b.receiptId - a.receiptId;
         }
 
-        return b.date.localeCompare(a.date) || b.total - a.total || b.receiptId - a.receiptId;
-      }
+        if (ledgerSortDirection === "asc") {
+          return a.total - b.total || b.date.localeCompare(a.date) || b.receiptId - a.receiptId;
+        }
 
-      if (ledgerSortDirection === "asc") {
-        return a.total - b.total || b.date.localeCompare(a.date) || b.receiptId - a.receiptId;
-      }
-
-      return b.total - a.total || b.date.localeCompare(a.date) || b.receiptId - a.receiptId;
-    });
-  };
+        return b.total - a.total || b.date.localeCompare(a.date) || b.receiptId - a.receiptId;
+      });
+    },
+    [ledgerSortDirection, ledgerSortField]
+  );
   const sortedLedgerReceipts = useMemo(
     () => sortLedgerReceipts(ledgerReceiptGroups),
-    [ledgerReceiptGroups, ledgerSortDirection, ledgerSortField]
+    [ledgerReceiptGroups, sortLedgerReceipts]
   );
   const recentExpenses = useMemo(
     () => sortLedgerExpenses(categoryFilteredExpenses).slice(0, 5),
-    [categoryFilteredExpenses, ledgerSortDirection, ledgerSortField]
+    [categoryFilteredExpenses, sortLedgerExpenses]
   );
   const priceColumnLabel = `Цена (${currencyCode})`;
   const formatCurrency = (value: number, minimumFractionDigits = 2, maximumFractionDigits = minimumFractionDigits) =>
