@@ -151,6 +151,18 @@ export default function ScanTab({
     }, 150);
   }, [focusManualEntrySignal, uploadedImage]);
 
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleOpenManualEntry = () => {
+    manualSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    window.setTimeout(() => {
+      manualStoreInputRef.current?.focus();
+      manualStoreInputRef.current?.select();
+    }, 150);
+  };
+
   const handleRecurringSave = async () => {
     setRecurringFeedback(null);
     setRecurringFeedbackType(null);
@@ -194,13 +206,48 @@ export default function ScanTab({
   if (!uploadedImage) {
     return (
       <div className="scan-empty-state">
-        <div className="card" ref={manualSectionRef}>
+        <div className="card scan-empty-hero">
+          <div className="scan-empty-hero-copy">
+            <div className="scan-empty-kicker">Первые шаги</div>
+            <h3>Добавьте первый чек за пару действий</h3>
+            <p>
+              Загрузите фото или введите сумму вручную. После сохранения данные сразу попадут в ваш дашборд и
+              останутся привязанными только к вашему аккаунту.
+            </p>
+          </div>
+
+          <div className="scan-empty-steps">
+            <div className="scan-empty-step">
+              <strong>1</strong>
+              <span>Загрузите фото или откройте быстрый ввод.</span>
+            </div>
+            <div className="scan-empty-step">
+              <strong>2</strong>
+              <span>Проверьте магазин, дату, позиции и категории.</span>
+            </div>
+            <div className="scan-empty-step">
+              <strong>3</strong>
+              <span>Сохраните чек и посмотрите аналитику в дашборде.</span>
+            </div>
+          </div>
+
+          <div className="scan-empty-actions">
+            <button type="button" className="btn btn-primary" onClick={handleUploadClick}>
+              Загрузить фото
+            </button>
+            <button type="button" className="btn btn-secondary" onClick={handleOpenManualEntry}>
+              Ввести вручную
+            </button>
+          </div>
+        </div>
+
+        <div className="card">
           <h3>Загрузите фото чека</h3>
           <div
             className="upload-area"
             onDrop={onDrop}
             onDragOver={(e) => e.preventDefault()}
-            onClick={() => fileInputRef.current?.click()}
+            onClick={handleUploadClick}
           >
             <div className="upload-icon">Загрузить</div>
             <p>Перетащите изображение сюда или нажмите для выбора файла</p>

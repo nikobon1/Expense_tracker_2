@@ -489,6 +489,13 @@ export default function DashboardTab({
   };
 
   const expensesTotal = expenses.reduce((sum, exp) => sum + exp.price, 0);
+  const isFirstRun =
+    !isLoading &&
+    expenses.length === 0 &&
+    stores.length === 0 &&
+    customCategories.length === 0 &&
+    prevMonthTotal === 0 &&
+    analyzeCost.count === 0;
   const amountChange = expensesTotal - prevMonthTotal;
   const percentChange =
     prevMonthTotal > 0 ? (amountChange / prevMonthTotal) * 100 : 0;
@@ -3154,13 +3161,45 @@ export default function DashboardTab({
             </div>
           </div>
         </>
+      ) : isFirstRun ? (
+        <div className="card dashboard-empty-card">
+          <div className="empty-state dashboard-empty-state">
+            <div className="icon">👋</div>
+            <p>Дашборд пока пуст</p>
+            <p className="dashboard-empty-copy">
+              Добавьте первый чек, чтобы здесь появились расходы, категории и сравнение периодов.
+            </p>
+            <div className="dashboard-empty-steps">
+              <div className="dashboard-empty-step">
+                <strong>1. Сканируйте чек</strong>
+                <span>Откройте вкладку сканирования и загрузите фото или введите сумму вручную.</span>
+              </div>
+              <div className="dashboard-empty-step">
+                <strong>2. Проверьте данные</strong>
+                <span>Исправьте магазин, дату, категории и позиции перед сохранением.</span>
+              </div>
+              <div className="dashboard-empty-step">
+                <strong>3. Вернитесь сюда</strong>
+                <span>После сохранения дашборд сразу покажет расходы и сравнение периодов.</span>
+              </div>
+            </div>
+            <div className="dashboard-empty-actions">
+              <button type="button" className="btn btn-primary" onClick={onOpenScan}>
+                Добавить первый чек
+              </button>
+              <Link className="btn btn-secondary" href="/account">
+                Настроить профиль
+              </Link>
+            </div>
+          </div>
+        </div>
       ) : (
         <div className="card">
           <div className="empty-state">
             <div className="icon">📭</div>
             <p>Нет данных за выбранный период</p>
             <p style={{ fontSize: "0.875rem", marginTop: "0.5rem" }}>
-              Загрузите чеки во вкладке &quot;Сканирование&quot;
+              Загрузите чеки во вкладке &quot;Сканирование&quot; или смените период/валюту фильтра
             </p>
           </div>
         </div>
