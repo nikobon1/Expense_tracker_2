@@ -2,42 +2,41 @@
 
 Date: April 15, 2026
 
-## Scope
+## Кратко
 
-Short Phase 1 QA pass focused on the highest-risk public-launch items:
+Это короткий QA-проход по самым рискованным частям Phase 1:
 
-- auth and user scoping
-- receipt and dashboard ownership
-- category and recurring-expense isolation
-- analyze quota visibility and enforcement
-- onboarding and empty states
-- Telegram public-mode guardrails
+- auth и изоляция пользователей
+- права на receipts и dashboard
+- изоляция categories и recurring expenses
+- видимость и enforcement analyze quota
+- onboarding и empty states
+- Telegram guardrails для public-режима
 
-## Verified
+## Подтверждено
 
-- `npm.cmd run build` passes.
-- `npm.cmd run lint` passes.
-- Receipt read/update/delete routes require the current user and pass `userId` into DB access.
-- Dashboard expense reads are scoped to the current user and current currency.
-- Categories are user-scoped.
-- Recurring expenses are user-scoped.
-- Analyze endpoint requires auth and enforces cooldown and daily quota.
-- Analyze quota is visible on account and dashboard surfaces.
-- First-run onboarding and empty states are present for scan and dashboard.
-- Telegram webhook has an explicit deployment mode guard and can be disabled in public environments.
+- `npm.cmd run build` проходит.
+- `npm.cmd run lint` проходит.
+- Маршруты чтения/обновления/удаления receipts проверяют текущего пользователя и передают `userId` в DB.
+- Dashboard читает расходы в рамках текущего пользователя и текущей валюты.
+- Категории user-scoped.
+- Recurring expenses user-scoped.
+- Analyze endpoint требует auth и ограничивает частоту и дневную квоту.
+- Analyze quota видна на account и dashboard.
+- Onboarding и empty states добавлены для scan и dashboard.
+- Telegram webhook имеет явный deployment mode и может быть отключен в public-среде.
 
-## Manual
+## Ручная проверка
 
-- Full two-account cross-user verification still needs to be run manually.
-- Legacy owner backfill still needs to be executed against the real database.
-- Telegram private-flow behavior still needs a live bot check after any env change.
+- Полный двухаккаунтный cross-user test еще нужно прогнать вручную.
+- Legacy owner backfill уже выполнен на реальной базе.
+- Поведение Telegram private flow нужно перепроверять при любых изменениях env.
 
-## Risks
+## Риски
 
-- The repo still has a Next.js workspace-root warning during build until the config is pinned.
-- Telegram public rollout remains intentionally disabled until account linking exists.
-- Phase 1 QA is not complete until a real two-account test proves there is no cross-user leakage.
+- Telegram public rollout остается сознательно отключенным, пока нет account linking.
+- Phase 1 нельзя считать окончательно signed off без реального двухаккаунтного теста.
 
-## Conclusion
+## Вывод
 
-The codebase is in a good state for Phase 1 verification, but it is not fully signed off until the manual two-account pass and owner backfill are completed.
+Кодовая база готова к Phase 1 verification, но финальный sign-off все еще требует ручного двухаккаунтного QA и live-подтверждения поведения Telegram.
