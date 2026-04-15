@@ -120,48 +120,57 @@ async function run() {
   const dryRun = cliFlags.has("dry-run") || isTruthy(process.env.BACKFILL_DRY_RUN);
 
   const owner = await ensureOwnerUser(sql);
+  const before = {};
+  for (const tableName of TARGET_TABLES) {
+    before[tableName] = await countMissingUserIds(sql, tableName);
+  }
 
-  await sql.transaction(async (tx) => {
-    const before = {};
-    for (const tableName of TARGET_TABLES) {
-      before[tableName] = await countMissingUserIds(tx, tableName);
-    }
-
-    console.log("Backfill owner user:", {
-      id: Number(owner.id),
-      email: owner.email,
-      currency: owner.default_currency,
-      timezone: owner.timezone,
-    });
-    console.log("Rows missing user_id before backfill:", before);
-
-    if (dryRun) {
-      console.log("Dry run requested. No rows were updated.");
-      return;
-    }
-
-    for (const tableName of TARGET_TABLES) {
-      await tx.query(`UPDATE ${tableName} SET user_id = ${owner.id} WHERE user_id IS NULL`);
-    }
-
-    const after = {};
-    for (const tableName of TARGET_TABLES) {
-      after[tableName] = await countMissingUserIds(tx, tableName);
-    }
-
-    console.log("Rows missing user_id after backfill:", after);
-
-    const stillMissing = Object.entries(after).filter(([, count]) => count > 0);
-    if (stillMissing.length > 0) {
-      throw new Error(
-        `Backfill incomplete: ${stillMissing
-          .map(([tableName, count]) => `${tableName}=${count}`)
-          .join(", ")}`
-      );
-    }
-
-    console.log("Backfill completed successfully.");
+  console.log("Backfill owner user:", {
+    id: Number(owner.id),
+    email: owner.email,
+    currency: owner.default_currency,
+    timezone: owner.timezone,
   });
+  console.log("Rows missing user_id before backfill:", before);
+
+  if (dryRun) {
+    console.log("Dry run requested. No rows were updated.");
+    return;
+  }
+
+  await sql`BEGIN`;
+  try {
+    for (const tableName of TARGET_TABLES) {
+      await sql.query(`UPDATE ${tableName} SET user_id = ${owner.id} WHERE user_id IS NULL`);
+    }
+
+    await sql`COMMIT`;
+  } catch (error) {
+    try {
+      await sql`ROLLBACK`;
+    } catch {
+      // best effort rollback
+    }
+    throw error;
+  }
+
+  const after = {};
+  for (const tableName of TARGET_TABLES) {
+    after[tableName] = await countMissingUserIds(sql, tableName);
+  }
+
+  console.log("Rows missing user_id after backfill:", after);
+
+  const stillMissing = Object.entries(after).filter(([, count]) => count > 0);
+  if (stillMissing.length > 0) {
+    throw new Error(
+      `Backfill incomplete: ${stillMissing
+        .map(([tableName, count]) => `${tableName}=${count}`)
+        .join(", ")}`
+    );
+  }
+
+  console.log("Backfill completed successfully.");
 }
 
 run().catch((error) => {
