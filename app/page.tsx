@@ -178,7 +178,7 @@ export default function Home() {
           </div>
         )}
 
-        {showOnboarding && hasLoadedOnboardingPreference && (isOnboardingPreview || (activeTab === 'scan' && !dashboardData.isLoading && dashboardData.expenses.length === 0)) && (
+        {!isOnboardingPreview && showOnboarding && hasLoadedOnboardingPreference && activeTab === 'scan' && !dashboardData.isLoading && dashboardData.expenses.length === 0 && (
           <section className="onboarding-card" aria-label="Короткий онбординг">
             <div className="onboarding-copy">
               <span className="onboarding-kicker">Короткий старт</span>
