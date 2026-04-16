@@ -853,10 +853,10 @@ body {
 .dev-preview-banner {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+  justify-content: flex-start;
+  gap: 0.75rem;
   margin-bottom: 1rem;
-  padding: 1rem 1.1rem;
+  padding: 0.9rem 1rem;
   border: 1px solid rgba(245, 158, 11, 0.25);
   border-radius: 1.2rem;
   background:
@@ -872,32 +872,21 @@ body {
 
 .dev-preview-banner-copy {
   display: grid;
-  gap: 0.2rem;
+  gap: 0;
 }
 
 .dev-preview-banner-copy strong {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   text-transform: uppercase;
   letter-spacing: 0.18em;
   color: #fde68a;
 }
 
-.dev-preview-banner-copy span {
-  font-size: 0.9rem;
-  line-height: 1.4;
-  color: rgba(255, 250, 240, 0.88);
-}
-
 .dev-preview-banner-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.55rem;
-}
-
-.dev-preview-banner .btn-secondary {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.16);
-  color: #fffaf0;
+  gap: 0;
+  margin-left: auto;
 }
 
 .onboarding-card {

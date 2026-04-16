@@ -160,14 +160,10 @@ export default function Home() {
           <div className="dev-preview-banner" role="status" aria-live="polite">
             <div className="dev-preview-banner-copy">
               <strong>Preview mode</strong>
-              <span>Короткий онбординг включен всегда, чтобы его было проще оценить в dev.</span>
             </div>
             <div className="dev-preview-banner-actions">
               <button type="button" className="btn btn-primary" onClick={openManualReceiptEntry}>
                 Открыть ввод
-              </button>
-              <button type="button" className="btn btn-secondary" onClick={() => setActiveTab('dashboard')}>
-                Показать дашборд
               </button>
             </div>
           </div>
