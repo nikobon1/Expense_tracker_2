@@ -84,11 +84,10 @@ export default function Home() {
     try {
       if (isOnboardingPreview) {
         setShowOnboarding(true);
-        return;
+      } else {
+        const dismissed = window.localStorage.getItem('expense-tracker:onboarding-dismissed') === '1';
+        setShowOnboarding(!dismissed);
       }
-
-      const dismissed = window.localStorage.getItem('expense-tracker:onboarding-dismissed') === '1';
-      setShowOnboarding(!dismissed);
     } catch (error) {
       console.error('Failed to read onboarding preference:', error);
     } finally {
@@ -157,13 +156,29 @@ export default function Home() {
   return (
     <div className="app-container">
       <main className="main-full">
+        {isOnboardingPreview && (
+          <div className="dev-preview-banner" role="status" aria-live="polite">
+            <div className="dev-preview-banner-copy">
+              <strong>Preview mode</strong>
+              <span>Короткий онбординг включен всегда, чтобы его было проще оценить в dev.</span>
+            </div>
+            <div className="dev-preview-banner-actions">
+              <button type="button" className="btn btn-primary" onClick={openManualReceiptEntry}>
+                Открыть ввод
+              </button>
+              <button type="button" className="btn btn-secondary" onClick={() => setActiveTab('dashboard')}>
+                Показать дашборд
+              </button>
+            </div>
+          </div>
+        )}
         {receiptFlow.alert && (
           <div className={`alert ${receiptFlow.alert.type}`}>
             {receiptFlow.alert.type === 'success' ? '✅' : '❌'} {receiptFlow.alert.message}
           </div>
         )}
 
-        {activeTab === 'scan' && showOnboarding && hasLoadedOnboardingPreference && (isOnboardingPreview || (!dashboardData.isLoading && dashboardData.expenses.length === 0)) && (
+        {showOnboarding && hasLoadedOnboardingPreference && (isOnboardingPreview || (activeTab === 'scan' && !dashboardData.isLoading && dashboardData.expenses.length === 0)) && (
           <section className="onboarding-card" aria-label="Короткий онбординг">
             <div className="onboarding-copy">
               <span className="onboarding-kicker">Короткий старт</span>
@@ -199,9 +214,6 @@ export default function Home() {
                 }}
               >
                 Начать ввод
-              </button>
-              <button type="button" className="btn btn-secondary" onClick={dismissOnboarding}>
-                Скрыть
               </button>
             </div>
           </section>
