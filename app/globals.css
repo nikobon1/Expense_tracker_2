@@ -811,6 +811,18 @@ body {
   margin-bottom: 0;
 }
 
+.scan-empty-panels {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.scan-empty-panels > .card {
+  height: 100%;
+  margin-bottom: 0;
+}
+
 .scan-empty-hero {
   grid-column: 1 / -1;
   display: grid;
@@ -4047,6 +4059,10 @@ td select:focus {
   }
 
   .scan-empty-state {
+    grid-template-columns: 1fr;
+  }
+
+  .scan-empty-panels {
     grid-template-columns: 1fr;
   }
 

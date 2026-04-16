@@ -241,7 +241,8 @@ export default function ScanTab({
           </div>
         </div>
 
-        <div className="card">
+        <div className="scan-empty-panels">
+          <div className="card">
           <h3>Загрузите фото чека</h3>
           <div
             className="upload-area"
@@ -262,7 +263,7 @@ export default function ScanTab({
           </div>
         </div>
 
-        <div className="card" ref={manualSectionRef}>
+          <div className="card" ref={manualSectionRef}>
           <h3>Быстрое добавление</h3>
           <p className="scan-field-hint">Сохраните общую сумму, если фото чека нет.</p>
 
@@ -334,7 +335,7 @@ export default function ScanTab({
           </div>
         </div>
 
-        <div className="card">
+          <div className="card">
           <h3>Автосписания</h3>
           <p className="scan-field-hint">Для подписок и других регулярных расходов. Они будут автоматически попадать в аналитику.</p>
 
@@ -467,6 +468,7 @@ export default function ScanTab({
                 ))}
               </div>
             )}
+          </div>
           </div>
         </div>
       </div>
