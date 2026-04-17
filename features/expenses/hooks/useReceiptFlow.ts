@@ -113,6 +113,11 @@ function getLocalTodayIso(): string {
   return local.toISOString().slice(0, 10);
 }
 
+function notifyExpensesChanged() {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event("expense-tracker:expenses-changed"));
+}
+
 function getDateWarningThresholdDays(): number {
   const raw = process.env.NEXT_PUBLIC_RECEIPT_DATE_WARNING_DAYS;
   const parsed = Number(raw);
@@ -254,6 +259,7 @@ export function useReceiptFlow(defaultCurrency: string = DEFAULT_CURRENCY) {
       setStoreName("");
       setPurchaseDate("");
       setPurchaseDateManual("");
+      notifyExpensesChanged();
     } catch {
       setAlert({ type: "error", message: "Ошибка сохранения в БД" });
     } finally {
@@ -302,6 +308,7 @@ export function useReceiptFlow(defaultCurrency: string = DEFAULT_CURRENCY) {
       setManualStoreName("");
       setManualPurchaseDate(getLocalTodayIso());
       setManualTotal("");
+      notifyExpensesChanged();
     } catch {
       setAlert({ type: "error", message: "Не удалось сохранить покупку." });
     } finally {

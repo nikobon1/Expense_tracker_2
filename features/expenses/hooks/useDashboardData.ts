@@ -105,6 +105,15 @@ export function useDashboardData(defaultCurrency: string = DEFAULT_CURRENCY) {
     }
   }, [endDate, isLocalDashboardDemoEnabled, selectedCurrency, selectedStore, startDate]);
 
+  useEffect(() => {
+    const handleExpensesChanged = () => {
+      void loadExpenses();
+    };
+
+    window.addEventListener("expense-tracker:expenses-changed", handleExpensesChanged);
+    return () => window.removeEventListener("expense-tracker:expenses-changed", handleExpensesChanged);
+  }, [loadExpenses]);
+
   return {
     startDate,
     endDate,
