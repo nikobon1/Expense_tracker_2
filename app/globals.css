@@ -656,8 +656,17 @@ body {
 }
 
 .upload-icon {
-  font-size: 3rem;
+  position: relative;
+  font-size: 0;
+  line-height: 1;
   margin-bottom: 1rem;
+}
+
+.upload-icon::before {
+  content: "↗";
+  display: inline-block;
+  font-size: 3rem;
+  color: var(--accent);
 }
 
 .upload-area p {
