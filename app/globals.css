@@ -852,6 +852,38 @@ body {
   border-color: rgba(99, 102, 241, 0.18);
 }
 
+.scan-panel-card {
+  align-content: start;
+  grid-auto-rows: min-content;
+}
+
+.scan-panel-card > h3 {
+  min-height: 2.4rem;
+  margin: 0;
+  display: flex;
+  align-items: flex-end;
+  letter-spacing: -0.02em;
+}
+
+.scan-panel-card > .scan-field-hint {
+  margin: 0;
+  min-height: 2.7rem;
+}
+
+.scan-panel-card--upload {
+  grid-template-rows: auto auto 1fr;
+}
+
+.scan-panel-card--manual,
+.scan-panel-card--recurring {
+  grid-template-rows: auto auto 1fr;
+}
+
+.scan-panel-card--manual .scan-form-grid,
+.scan-panel-card--recurring .scan-form-grid {
+  align-self: start;
+}
+
 .scan-empty-panels > .card:nth-child(2) {
   background:
     radial-gradient(circle at top right, rgba(16, 185, 129, 0.08), transparent 30%),
@@ -864,16 +896,8 @@ body {
     linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(250, 248, 243, 0.98));
 }
 
-.scan-empty-panels > .card h3 {
-  margin: 0;
-  letter-spacing: -0.02em;
-  min-height: 2.4rem;
-  display: flex;
-  align-items: flex-end;
-}
-
 .scan-empty-panels .upload-area {
-  min-height: 11rem;
+  min-height: 12rem;
   padding: 1.1rem;
   border-radius: 1.1rem;
 }
