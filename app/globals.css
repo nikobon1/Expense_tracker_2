@@ -867,6 +867,9 @@ body {
 .scan-empty-panels > .card h3 {
   margin: 0;
   letter-spacing: -0.02em;
+  min-height: 2.4rem;
+  display: flex;
+  align-items: flex-end;
 }
 
 .scan-empty-panels .upload-area {
