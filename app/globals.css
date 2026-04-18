@@ -884,6 +884,19 @@ body {
   align-self: start;
 }
 
+.scan-panel-card--manual .scan-form-grid {
+  margin-bottom: 0;
+}
+
+.scan-panel-card--recurring .scan-form-grid {
+  margin-bottom: -4.625rem;
+}
+
+.scan-panel-card--recurring .btn.btn-full {
+  position: relative;
+  top: -74px;
+}
+
 .scan-empty-panels > .card:nth-child(2) {
   background:
     radial-gradient(circle at top right, rgba(16, 185, 129, 0.08), transparent 30%),
@@ -4224,6 +4237,10 @@ td select:focus {
 
   .recurring-form-grid {
     grid-template-columns: 1fr;
+  }
+
+  .scan-panel-card--manual .scan-form-grid {
+    margin-bottom: 0;
   }
 
   .recurring-plan-card {
