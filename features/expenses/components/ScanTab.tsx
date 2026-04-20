@@ -597,7 +597,6 @@ export default function ScanTab({
       </div>
     );
   }
-
   return (
     <div className="preview-container">
       <div className="card">

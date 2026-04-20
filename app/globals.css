@@ -889,7 +889,7 @@ body {
 }
 
 .scan-panel-card--recurring .scan-form-grid {
-  margin-bottom: -4.625rem;
+  margin-bottom: 0;
 }
 
 .scan-panel-card--recurring .btn.btn-full {
