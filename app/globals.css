@@ -1280,10 +1280,101 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.recurring-plans-head-copy {
+  display: grid;
+  gap: 0.15rem;
 }
 
 .recurring-plans-head h4 {
   margin: 0;
+}
+
+.recurring-plans-head span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.9rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent-color) 10%, var(--bg-secondary));
+  color: var(--accent-color);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.recurring-preview-toggle {
+  border: 1px solid color-mix(in srgb, var(--accent-color) 24%, var(--border-color));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent-color) 8%, var(--bg-secondary));
+  color: var(--text-primary);
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 0.45rem 0.8rem;
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.recurring-preview-toggle:hover {
+  border-color: var(--accent-color);
+  background: color-mix(in srgb, var(--accent-color) 12%, var(--bg-secondary));
+  transform: translateY(-1px);
+}
+
+.recurring-future {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.8rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.95rem;
+  background: color-mix(in srgb, var(--accent-color) 4%, var(--bg-secondary));
+}
+
+.recurring-future-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.recurring-future-head h4 {
+  margin: 0;
+}
+
+.recurring-future-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.recurring-future-card {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.8rem;
+  background: var(--bg-primary);
+}
+
+.recurring-future-card div {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.recurring-future-card strong {
+  font-size: 0.92rem;
+}
+
+.recurring-future-card span {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
 }
 
 .recurring-plan-list {
@@ -4245,6 +4336,19 @@ td select:focus {
 
   .recurring-plan-card {
     grid-template-columns: 1fr;
+  }
+
+  .recurring-future-card {
+    grid-template-columns: 1fr;
+  }
+
+  .recurring-plans-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .recurring-preview-toggle {
+    width: 100%;
   }
 
   .charts-grid {

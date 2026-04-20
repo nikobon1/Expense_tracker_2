@@ -1,16 +1,18 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useRef, useState, type DragEvent, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent, type RefObject } from "react";
 import Image from "next/image";
 import CategoryManager from "@/features/expenses/components/CategoryManager";
 import type { AddCategoryResult, DeleteCategoryResult } from "@/features/expenses/hooks/useCategoryOptions";
 import type {
+  Expense,
   CreateRecurringExpensePayload,
   ReceiptData,
   ReceiptItem,
   RecurringExpensePlan,
   RecurringFrequency,
 } from "@/features/expenses/types";
+import { getExpenses } from "@/lib/api";
 import { formatCurrencyAmount } from "@/lib/currency";
 
 interface ScanTabProps {
@@ -61,6 +63,30 @@ function getLocalTodayIso() {
   const now = new Date();
   const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
   return local.toISOString().slice(0, 10);
+}
+
+function getLocalTodayIsoFromDate(date: Date) {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 10);
+}
+
+function getLocalMonthRange() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+  return {
+    start: getLocalTodayIsoFromDate(start),
+    end: getLocalTodayIsoFromDate(end),
+  };
+}
+
+function formatDisplayDate(isoDate: string) {
+  const [year, month, day] = isoDate.split("-");
+
+  if (!year || !month || !day) return isoDate;
+
+  return `${day}.${month}.${year.slice(-2)}`;
 }
 
 function getFrequencyLabel(value: RecurringFrequency): string {
@@ -124,6 +150,11 @@ export default function ScanTab({
     () => categoryOptions.find((option) => option === "Подписки") ?? categoryOptions[0] ?? "Подписки",
     [categoryOptions]
   );
+  const [futureRecurringExpenses, setFutureRecurringExpenses] = useState<Expense[]>([]);
+  const [isFutureRecurringLoading, setIsFutureRecurringLoading] = useState(false);
+  const [futureRecurringError, setFutureRecurringError] = useState<string | null>(null);
+  const [showFutureRecurring, setShowFutureRecurring] = useState(false);
+  const [futureRecurringLoadedCurrency, setFutureRecurringLoadedCurrency] = useState<string | null>(null);
   const [recurringTitle, setRecurringTitle] = useState("");
   const [recurringStoreName, setRecurringStoreName] = useState("");
   const [recurringAmount, setRecurringAmount] = useState("");
@@ -141,6 +172,46 @@ export default function ScanTab({
       maximumFractionDigits,
     });
 
+  const loadFutureRecurringExpenses = useCallback(async () => {
+    const monthRange = getLocalMonthRange();
+    const todayIso = getLocalTodayIso();
+    const rangeStart = todayIso > monthRange.start ? todayIso : monthRange.start;
+
+    setIsFutureRecurringLoading(true);
+    setFutureRecurringError(null);
+
+    try {
+      const response = await getExpenses(rangeStart, monthRange.end, "all", currencyCode);
+      const nextExpenses = response.expenses
+        .filter((expense) => expense.sourceType === "recurring" && expense.date >= todayIso)
+        .sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id);
+
+      setFutureRecurringExpenses(nextExpenses);
+      setFutureRecurringLoadedCurrency(currencyCode);
+      setShowFutureRecurring(true);
+    } catch (error) {
+      setFutureRecurringExpenses([]);
+      setShowFutureRecurring(true);
+      setFutureRecurringError(error instanceof Error ? error.message : "ÐÐµ ÑƒÐ´Ð°Ð»Ð¾ÑÑŒ Ð·Ð°Ð³Ñ€ÑƒÐ·Ð¸Ñ‚ÑŒ Ð±ÑƒÐ´ÑƒÑ‰Ð¸Ðµ ÑÐ¿Ð¸ÑÐ°Ð½Ð¸Ñ.");
+    } finally {
+      setIsFutureRecurringLoading(false);
+    }
+  }, [currencyCode]);
+
+  const toggleFutureRecurring = useCallback(() => {
+    if (showFutureRecurring) {
+      setShowFutureRecurring(false);
+      return;
+    }
+
+    if (futureRecurringLoadedCurrency === currencyCode) {
+      setShowFutureRecurring(true);
+      return;
+    }
+
+    void loadFutureRecurringExpenses();
+  }, [currencyCode, futureRecurringExpenses.length, futureRecurringLoadedCurrency, loadFutureRecurringExpenses, showFutureRecurring]);
+
   useEffect(() => {
     if (!focusManualEntrySignal || uploadedImage) return;
 
@@ -150,6 +221,13 @@ export default function ScanTab({
       manualStoreInputRef.current?.select();
     }, 150);
   }, [focusManualEntrySignal, uploadedImage]);
+
+  useEffect(() => {
+    setShowFutureRecurring(false);
+    setFutureRecurringExpenses([]);
+    setFutureRecurringLoadedCurrency(null);
+    setFutureRecurringError(null);
+  }, [currencyCode]);
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
@@ -184,6 +262,9 @@ export default function ScanTab({
       setRecurringFrequency("monthly");
       setRecurringStartDate(getLocalTodayIso());
       setRecurringCategory(recurringCategoryFallback);
+      setFutureRecurringExpenses([]);
+      setFutureRecurringLoadedCurrency(null);
+      setShowFutureRecurring(false);
       setRecurringFeedback("Автосписание сохранено.");
       setRecurringFeedbackType("success");
     } catch (error) {
@@ -195,6 +276,9 @@ export default function ScanTab({
   const handleRecurringDelete = async (id: number) => {
     try {
       await onDeleteRecurring(id);
+      setFutureRecurringExpenses([]);
+      setFutureRecurringLoadedCurrency(null);
+      setShowFutureRecurring(false);
       setRecurringFeedback("Автосписание остановлено.");
       setRecurringFeedbackType("success");
     } catch (error) {
@@ -434,6 +518,9 @@ export default function ScanTab({
             <div className="recurring-plans-head">
               <h4>Активные списания</h4>
               <span>{recurringPlans.length}</span>
+              <button type="button" className="recurring-preview-toggle" onClick={() => void toggleFutureRecurring()}>
+                {showFutureRecurring ? "Ð¡ÐºÑ€Ñ‹Ñ‚ÑŒ Ð±ÑƒÐ´ÑƒÑ‰Ð¸Ðµ ÑÐ¿Ð¸ÑÐ°Ð½Ð¸Ñ" : "ÐŸÐ¾ÐºÐ°Ð·Ð°Ñ‚ÑŒ Ð±ÑƒÐ´ÑƒÑ‰Ð¸Ðµ ÑÐ¿Ð¸ÑÐ°Ð½Ð¸Ñ"}
+              </button>
             </div>
 
             {isRecurringLoading ? (
@@ -468,6 +555,42 @@ export default function ScanTab({
                 ))}
               </div>
             )}
+
+            {showFutureRecurring ? (
+              <div className="recurring-future">
+                <div className="recurring-future-head">
+                  <h4>Ð‘ÑƒÐ´ÑƒÑ‰Ð¸Ðµ ÑÐ¿Ð¸ÑÐ°Ð½Ð¸Ñ Ð² Ñ‚ÐµÐºÑƒÑ‰ÐµÐ¼ Ð¼ÐµÑÑÑ†Ðµ</h4>
+                  <span>{futureRecurringExpenses.length}</span>
+                </div>
+
+                {isFutureRecurringLoading ? (
+                  <p className="recurring-empty">Ð—Ð°Ð³Ñ€ÑƒÐ·ÐºÐ°...</p>
+                ) : futureRecurringError ? (
+                  <p className="recurring-empty">{futureRecurringError}</p>
+                ) : futureRecurringExpenses.length === 0 ? (
+                  <p className="recurring-empty">ÐŸÐ¾ÐºÐ° Ð½ÐµÑ‚ Ð±ÑƒÐ´ÑƒÑ‰Ð¸Ñ… ÑÐ¿Ð¸ÑÐ°Ð½Ð¸Ð¹ Ð½Ð° ÑÑ‚Ð¾Ñ‚ Ð¼ÐµÑÑÑ†.</p>
+                ) : (
+                  <div className="recurring-future-list">
+                    {futureRecurringExpenses.map((expense) => (
+                      <div key={expense.id} className="recurring-future-card">
+                        <div>
+                          <strong>{expense.item}</strong>
+                          <span>{expense.store}</span>
+                        </div>
+                        <div>
+                          <strong>{formatCurrency(expense.price)}</strong>
+                          <span>{expense.category}</span>
+                          <span>
+                            {formatDisplayDate(expense.date)}
+                            {expense.recurringFrequency ? ` â€¢ ${getFrequencyLabel(expense.recurringFrequency)}` : ""}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : null}
           </div>
           </div>
         </div>
