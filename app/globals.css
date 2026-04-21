@@ -885,7 +885,7 @@ body {
 }
 
 .scan-panel-card--manual .scan-form-grid {
-  margin-bottom: 1.25rem;
+  margin-bottom: 0;
 }
 
 .scan-panel-card--recurring .scan-form-grid {
@@ -1204,7 +1204,7 @@ body {
 }
 
 .recurring-form-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .scan-field-label {
