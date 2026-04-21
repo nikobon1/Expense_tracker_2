@@ -531,7 +531,7 @@ export default function ScanTab({
             {isRecurringLoading ? (
               <p className="recurring-empty">{"Загрузка..."}</p>
             ) : recurringPlans.length === 0 ? (
-              <p className="recurring-empty">{"Пока нет активных автосписаний."}</p>
+              <div className="recurring-plan-list recurring-plan-list--empty"></div>
             ) : (
               <div className="recurring-plan-list">
                 {recurringPlans.map((plan) => (
