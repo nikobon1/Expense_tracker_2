@@ -886,6 +886,17 @@ body {
   min-height: 3.7rem;
 }
 
+.scan-panel-card-footer {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.scan-panel-card-footer .category-manager-panel,
+.scan-panel-card-footer .recurring-plans {
+  margin-top: 0;
+}
+
 .scan-panel-card--manual .scan-form-grid,
 .scan-panel-card--recurring .scan-form-grid {
   align-self: start;
@@ -1268,7 +1279,7 @@ body {
 }
 
 .recurring-feedback {
-  margin: 0.75rem 0 0;
+  margin: 0;
   font-size: 0.82rem;
 }
 

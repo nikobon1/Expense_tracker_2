@@ -404,13 +404,15 @@ export default function ScanTab({
             )}
           </button>
 
-          <div className="category-manager-panel">
-            <h4>Категории</h4>
-            <CategoryManager
-              customCategories={customCategories}
-              onAddCategory={onAddCategory}
-              onDeleteCategory={onDeleteCategory}
-            />
+          <div className="scan-panel-card-footer">
+            <div className="category-manager-panel">
+              <h4>Категории</h4>
+              <CategoryManager
+                customCategories={customCategories}
+                onAddCategory={onAddCategory}
+                onDeleteCategory={onDeleteCategory}
+              />
+            </div>
           </div>
         </div>
 
@@ -505,92 +507,94 @@ export default function ScanTab({
             )}
           </button>
 
-          {recurringFeedback ? (
-            <p className={`recurring-feedback ${recurringFeedbackType === "error" ? "error" : "success"}`}>
-              {recurringFeedback}
-            </p>
-          ) : null}
-
-          <div className="recurring-plans">
-            <div className="recurring-plans-head">
-              <div className="recurring-plans-head-copy">
-                <h4>{`Активные списания: ${recurringPlans.length}`}</h4>
-              </div>
-              <button type="button" className="btn btn-secondary recurring-preview-toggle" onClick={() => void toggleFutureRecurring()}>
-                {showFutureRecurring ? "Скрыть будущие списания" : "Показать будущие списания"}
-              </button>
-            </div>
-
-            {isRecurringLoading ? (
-              <p className="recurring-empty">{"Загрузка..."}</p>
-            ) : recurringPlans.length === 0 ? (
-              <div className="recurring-plan-list recurring-plan-list--empty"></div>
-            ) : (
-              <div className="recurring-plan-list">
-                {recurringPlans.map((plan) => (
-                  <div key={plan.id} className="recurring-plan-card">
-                    <div>
-                      <strong>{plan.title}</strong>
-                      <span>{plan.store_name}</span>
-                    </div>
-                    <div>
-                      <strong>{formatCurrency(plan.amount)}</strong>
-                      <span>{plan.category}</span>
-                      <span>
-                        {getFrequencyLabel(plan.frequency)}
-                        {plan.next_charge_date ? ` • следующее ${plan.next_charge_date}` : ""}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      className="category-manager-delete"
-                      onClick={() => void handleRecurringDelete(plan.id)}
-                      disabled={deletingRecurringId === plan.id}
-                    >
-                      {deletingRecurringId === plan.id ? "Остановка..." : "Остановить"}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {showFutureRecurring ? (
-              <div className="recurring-future">
-                <div className="recurring-future-head">
-                  <h4>{"Будущие списания в текущем месяце"}</h4>
-                  <span>{futureRecurringExpenses.length}</span>
-                </div>
-
-                {isFutureRecurringLoading ? (
-                  <p className="recurring-empty">{"Загрузка..."}</p>
-                ) : futureRecurringError ? (
-                  <p className="recurring-empty">{futureRecurringError}</p>
-                ) : futureRecurringExpenses.length === 0 ? (
-                  <p className="recurring-empty">{"Пока нет будущих списаний на этот месяц."}</p>
-                ) : (
-                  <div className="recurring-future-list">
-                    {futureRecurringExpenses.map((expense) => (
-                      <div key={expense.id} className="recurring-future-card">
-                        <div>
-                          <strong>{expense.item}</strong>
-                          <span>{expense.store}</span>
-                        </div>
-                        <div>
-                          <strong>{formatCurrency(expense.price)}</strong>
-                          <span>{expense.category}</span>
-                          <span>
-                            {formatDisplayDate(expense.date)}
-                            {expense.recurringFrequency ? ` • ${getFrequencyLabel(expense.recurringFrequency)}` : ""}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+          <div className="scan-panel-card-footer">
+            {recurringFeedback ? (
+              <p className={`recurring-feedback ${recurringFeedbackType === "error" ? "error" : "success"}`}>
+                {recurringFeedback}
+              </p>
             ) : null}
+
+            <div className="recurring-plans">
+              <div className="recurring-plans-head">
+                <div className="recurring-plans-head-copy">
+                  <h4>{`Активные списания: ${recurringPlans.length}`}</h4>
+                </div>
+                <button type="button" className="btn btn-secondary recurring-preview-toggle" onClick={() => void toggleFutureRecurring()}>
+                  {showFutureRecurring ? "Скрыть будущие списания" : "Показать будущие списания"}
+                </button>
+              </div>
+
+              {isRecurringLoading ? (
+                <p className="recurring-empty">{"Загрузка..."}</p>
+              ) : recurringPlans.length === 0 ? (
+                <div className="recurring-plan-list recurring-plan-list--empty"></div>
+              ) : (
+                <div className="recurring-plan-list">
+                  {recurringPlans.map((plan) => (
+                    <div key={plan.id} className="recurring-plan-card">
+                      <div>
+                        <strong>{plan.title}</strong>
+                        <span>{plan.store_name}</span>
+                      </div>
+                      <div>
+                        <strong>{formatCurrency(plan.amount)}</strong>
+                        <span>{plan.category}</span>
+                        <span>
+                          {getFrequencyLabel(plan.frequency)}
+                          {plan.next_charge_date ? ` • следующее ${plan.next_charge_date}` : ""}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        className="category-manager-delete"
+                        onClick={() => void handleRecurringDelete(plan.id)}
+                        disabled={deletingRecurringId === plan.id}
+                      >
+                        {deletingRecurringId === plan.id ? "Остановка..." : "Остановить"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {showFutureRecurring ? (
+                <div className="recurring-future">
+                  <div className="recurring-future-head">
+                    <h4>{"Будущие списания в текущем месяце"}</h4>
+                    <span>{futureRecurringExpenses.length}</span>
+                  </div>
+
+                  {isFutureRecurringLoading ? (
+                    <p className="recurring-empty">{"Загрузка..."}</p>
+                  ) : futureRecurringError ? (
+                    <p className="recurring-empty">{futureRecurringError}</p>
+                  ) : futureRecurringExpenses.length === 0 ? (
+                    <p className="recurring-empty">{"Пока нет будущих списаний на этот месяц."}</p>
+                  ) : (
+                    <div className="recurring-future-list">
+                      {futureRecurringExpenses.map((expense) => (
+                        <div key={expense.id} className="recurring-future-card">
+                          <div>
+                            <strong>{expense.item}</strong>
+                            <span>{expense.store}</span>
+                          </div>
+                          <div>
+                            <strong>{formatCurrency(expense.price)}</strong>
+                            <span>{expense.category}</span>
+                            <span>
+                              {formatDisplayDate(expense.date)}
+                              {expense.recurringFrequency ? ` • ${getFrequencyLabel(expense.recurringFrequency)}` : ""}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </div>
           </div>
-          </div>
+        </div>
         </div>
       </div>
     );
