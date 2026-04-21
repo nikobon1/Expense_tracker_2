@@ -896,6 +896,7 @@ body {
 .scan-panel-card--recurring .btn.btn-full {
   min-height: 3rem;
   align-self: start;
+  white-space: nowrap;
 }
 
 .scan-empty-panels > .card:nth-child(2) {
