@@ -876,7 +876,8 @@ body {
 
 .scan-panel-card--manual,
 .scan-panel-card--recurring {
-  grid-template-rows: auto auto 1fr;
+  display: flex;
+  flex-direction: column;
 }
 
 .scan-panel-card--manual .scan-form-grid,
@@ -895,7 +896,8 @@ body {
 .scan-panel-card--manual .btn.btn-full,
 .scan-panel-card--recurring .btn.btn-full {
   min-height: 3rem;
-  align-self: start;
+  margin-top: auto;
+  align-self: stretch;
   white-space: nowrap;
 }
 

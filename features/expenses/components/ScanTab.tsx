@@ -398,6 +398,15 @@ export default function ScanTab({
             </div>
           </div>
 
+          <div className="category-manager-panel">
+            <h4>Категории</h4>
+            <CategoryManager
+              customCategories={customCategories}
+              onAddCategory={onAddCategory}
+              onDeleteCategory={onDeleteCategory}
+            />
+          </div>
+
           <button className="btn btn-primary btn-full" onClick={onManualSave} disabled={isSaving}>
             {isSaving ? (
               <>
@@ -408,15 +417,6 @@ export default function ScanTab({
               <>Сохранить без чека</>
             )}
           </button>
-
-          <div className="category-manager-panel">
-            <h4>Категории</h4>
-            <CategoryManager
-              customCategories={customCategories}
-              onAddCategory={onAddCategory}
-              onDeleteCategory={onDeleteCategory}
-            />
-          </div>
         </div>
 
           <div className="card scan-panel-card scan-panel-card--recurring">
@@ -496,17 +496,6 @@ export default function ScanTab({
               </select>
             </div>
           </div>
-
-          <button className="btn btn-primary btn-full" onClick={() => void handleRecurringSave()} disabled={isRecurringSaving}>
-            {isRecurringSaving ? (
-              <>
-                <div className="spinner"></div>
-                Сохранение...
-              </>
-            ) : (
-              <>Создать автосписание</>
-            )}
-          </button>
 
           {recurringFeedback ? (
             <p className={`recurring-feedback ${recurringFeedbackType === "error" ? "error" : "success"}`}>
@@ -593,6 +582,17 @@ export default function ScanTab({
                 )}
               </div>
             ) : null}
+
+            <button className="btn btn-primary btn-full" onClick={() => void handleRecurringSave()} disabled={isRecurringSaving}>
+              {isRecurringSaving ? (
+                <>
+                  <div className="spinner"></div>
+                  Сохранение...
+                </>
+              ) : (
+                <>Создать автосписание</>
+              )}
+            </button>
           </div>
           </div>
         </div>
