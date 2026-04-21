@@ -223,9 +223,6 @@ export default function Home() {
         </header>
 
         <div className="tabs">
-          <button className={`tab ${activeTab === 'scan' ? 'active' : ''}`} onClick={() => setActiveTab('scan')}>
-            📷 Сканирование
-          </button>
           <button
             className="tab"
             onClick={() => {
