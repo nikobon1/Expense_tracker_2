@@ -865,11 +865,6 @@ body {
   letter-spacing: -0.02em;
 }
 
-.scan-panel-card > .scan-field-hint {
-  margin: 0;
-  min-height: 2.7rem;
-}
-
 .scan-panel-card--upload {
   grid-template-rows: auto auto 1fr;
 }
@@ -886,8 +881,9 @@ body {
   min-height: 16.5rem;
 }
 
-.scan-panel-card--recurring .scan-panel-card-main {
-  transform: translateY(-0.45rem);
+.scan-panel-card-main > .scan-field-hint {
+  margin: 0;
+  min-height: 2.7rem;
 }
 
 .scan-panel-card--manual .scan-form-grid,
