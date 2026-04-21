@@ -917,6 +917,10 @@ body {
   white-space: nowrap;
 }
 
+.scan-panel-card--recurring .btn.btn-full {
+  margin-top: 0.5rem;
+}
+
 .scan-empty-panels > .card:nth-child(2) {
   background:
     radial-gradient(circle at top right, rgba(16, 185, 129, 0.08), transparent 30%),
