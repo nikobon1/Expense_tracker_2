@@ -348,6 +348,7 @@ export default function ScanTab({
         </div>
 
           <div className="card scan-panel-card scan-panel-card--manual" ref={manualSectionRef}>
+          <div className="scan-panel-card-main">
           <h3>Быстрое добавление</h3>
           <p className="scan-field-hint">Сохраните общую сумму, если фото чека нет.</p>
 
@@ -397,6 +398,7 @@ export default function ScanTab({
               <p className="scan-field-hint">Поддерживаются точка, запятая, пробелы и символ валюты.</p>
             </div>
           </div>
+          </div>
 
           <button className="btn btn-primary btn-full" onClick={onManualSave} disabled={isSaving}>
             {isSaving ? (
@@ -420,6 +422,7 @@ export default function ScanTab({
         </div>
 
           <div className="card scan-panel-card scan-panel-card--recurring">
+          <div className="scan-panel-card-main">
           <h3>Автосписания</h3>
           <p className="scan-field-hint">Для подписок и других регулярных расходов. Они будут автоматически попадать в аналитику.</p>
 
@@ -495,6 +498,7 @@ export default function ScanTab({
                 ))}
               </select>
             </div>
+          </div>
           </div>
 
           <button className="btn btn-primary btn-full" onClick={() => void handleRecurringSave()} disabled={isRecurringSaving}>

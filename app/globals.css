@@ -880,6 +880,12 @@ body {
   flex-direction: column;
 }
 
+.scan-panel-card-main {
+  display: grid;
+  gap: 0.95rem;
+  min-height: 16.5rem;
+}
+
 .scan-panel-card--manual .scan-form-grid,
 .scan-panel-card--recurring .scan-form-grid {
   align-self: start;
