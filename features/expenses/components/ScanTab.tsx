@@ -368,13 +368,6 @@ export default function ScanTab({
             <div>
               <div className="scan-date-label-row">
                 <label className="scan-field-label">Дата покупки</label>
-                <button
-                  type="button"
-                  className="scan-date-today-btn"
-                  onClick={() => onManualPurchaseDateChange(getLocalTodayIso())}
-                >
-                  Сегодня
-                </button>
               </div>
               <input
                 type="date"
