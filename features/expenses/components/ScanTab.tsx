@@ -521,10 +521,9 @@ export default function ScanTab({
           <div className="recurring-plans">
             <div className="recurring-plans-head">
               <div className="recurring-plans-head-copy">
-                <h4>{"Активные списания"}</h4>
-                <span>{recurringPlans.length}</span>
+                <h4>{`Активные списания: ${recurringPlans.length}`}</h4>
               </div>
-              <button type="button" className="recurring-preview-toggle" onClick={() => void toggleFutureRecurring()}>
+              <button type="button" className="btn btn-secondary recurring-preview-toggle" onClick={() => void toggleFutureRecurring()}>
                 {showFutureRecurring ? "Скрыть будущие списания" : "Показать будущие списания"}
               </button>
             </div>
