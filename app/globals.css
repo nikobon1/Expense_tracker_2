@@ -892,9 +892,10 @@ body {
   margin-bottom: 0;
 }
 
+.scan-panel-card--manual .btn.btn-full,
 .scan-panel-card--recurring .btn.btn-full {
-  position: relative;
-  top: -74px;
+  min-height: 3rem;
+  align-self: start;
 }
 
 .scan-empty-panels > .card:nth-child(2) {
