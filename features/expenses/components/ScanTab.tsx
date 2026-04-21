@@ -210,7 +210,7 @@ export default function ScanTab({
     }
 
     void loadFutureRecurringExpenses();
-  }, [currencyCode, futureRecurringExpenses.length, futureRecurringLoadedCurrency, loadFutureRecurringExpenses, showFutureRecurring]);
+  }, [currencyCode, futureRecurringLoadedCurrency, loadFutureRecurringExpenses, showFutureRecurring]);
 
   useEffect(() => {
     if (!focusManualEntrySignal || uploadedImage) return;
@@ -517,18 +517,18 @@ export default function ScanTab({
           <div className="recurring-plans">
             <div className="recurring-plans-head">
               <div className="recurring-plans-head-copy">
-                <h4>???????? ????????</h4>
+                <h4>{"Активные списания"}</h4>
                 <span>{recurringPlans.length}</span>
               </div>
               <button type="button" className="recurring-preview-toggle" onClick={() => void toggleFutureRecurring()}>
-                {showFutureRecurring ? "?????? ??????? ????????" : "???????? ??????? ????????"}
+                {showFutureRecurring ? "Скрыть будущие списания" : "Показать будущие списания"}
               </button>
             </div>
 
             {isRecurringLoading ? (
-              <p className="recurring-empty">????????...</p>
+              <p className="recurring-empty">{"Загрузка..."}</p>
             ) : recurringPlans.length === 0 ? (
-              <p className="recurring-empty">???? ??? ???????? ????????????.</p>
+              <p className="recurring-empty">{"Пока нет активных автосписаний."}</p>
             ) : (
               <div className="recurring-plan-list">
                 {recurringPlans.map((plan) => (
@@ -542,7 +542,7 @@ export default function ScanTab({
                       <span>{plan.category}</span>
                       <span>
                         {getFrequencyLabel(plan.frequency)}
-                        {plan.next_charge_date ? ` ? ????????? ${plan.next_charge_date}` : ""}
+                        {plan.next_charge_date ? ` • следующее ${plan.next_charge_date}` : ""}
                       </span>
                     </div>
                     <button
@@ -551,7 +551,7 @@ export default function ScanTab({
                       onClick={() => void handleRecurringDelete(plan.id)}
                       disabled={deletingRecurringId === plan.id}
                     >
-                      {deletingRecurringId === plan.id ? "?????????..." : "??????????"}
+                      {deletingRecurringId === plan.id ? "Остановка..." : "Остановить"}
                     </button>
                   </div>
                 ))}
@@ -561,16 +561,16 @@ export default function ScanTab({
             {showFutureRecurring ? (
               <div className="recurring-future">
                 <div className="recurring-future-head">
-                  <h4>??????? ???????? ? ??????? ??????</h4>
+                  <h4>{"Будущие списания в текущем месяце"}</h4>
                   <span>{futureRecurringExpenses.length}</span>
                 </div>
 
                 {isFutureRecurringLoading ? (
-                  <p className="recurring-empty">????????...</p>
+                  <p className="recurring-empty">{"Загрузка..."}</p>
                 ) : futureRecurringError ? (
                   <p className="recurring-empty">{futureRecurringError}</p>
                 ) : futureRecurringExpenses.length === 0 ? (
-                  <p className="recurring-empty">???? ??? ??????? ???????? ?? ???? ?????.</p>
+                  <p className="recurring-empty">{"Пока нет будущих списаний на этот месяц."}</p>
                 ) : (
                   <div className="recurring-future-list">
                     {futureRecurringExpenses.map((expense) => (
@@ -584,7 +584,7 @@ export default function ScanTab({
                           <span>{expense.category}</span>
                           <span>
                             {formatDisplayDate(expense.date)}
-                            {expense.recurringFrequency ? ` ? ${getFrequencyLabel(expense.recurringFrequency)}` : ""}
+                            {expense.recurringFrequency ? ` • ${getFrequencyLabel(expense.recurringFrequency)}` : ""}
                           </span>
                         </div>
                       </div>
