@@ -887,7 +887,7 @@ body {
 }
 
 .scan-panel-card--recurring .scan-panel-card-main {
-  transform: translateY(-0.2rem);
+  transform: translateY(-0.45rem);
 }
 
 .scan-panel-card--manual .scan-form-grid,
