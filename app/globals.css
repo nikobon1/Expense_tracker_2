@@ -881,6 +881,10 @@ body {
   min-height: 16.5rem;
 }
 
+.scan-panel-card--recurring .scan-panel-card-main {
+  gap: 0.8rem;
+}
+
 .scan-panel-card-main > .scan-field-hint {
   margin: 0;
   min-height: 3.7rem;
@@ -890,6 +894,10 @@ body {
   margin-top: 1rem;
   display: grid;
   gap: 0.75rem;
+}
+
+.scan-panel-card--recurring .scan-panel-card-footer {
+  margin-top: 0.75rem;
 }
 
 .scan-panel-card-footer .category-manager-panel,
@@ -908,6 +916,7 @@ body {
 
 .scan-panel-card--recurring .scan-form-grid {
   margin-bottom: 0;
+  gap: 0.85rem;
 }
 
 .scan-panel-card--manual .btn.btn-full,
