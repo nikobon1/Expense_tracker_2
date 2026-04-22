@@ -420,6 +420,7 @@ export default function ScanTab({
           <div className="scan-panel-card-main">
           <h3>Автосписания</h3>
           <p className="scan-field-hint">Для подписок и других регулярных расходов. Они будут автоматически попадать в аналитику.</p>
+          <div className="scan-recurring-spacer" aria-hidden="true" />
 
           <div className="scan-form-grid recurring-form-grid">
             <div>
@@ -494,7 +495,6 @@ export default function ScanTab({
               </select>
             </div>
           </div>
-          <div className="scan-recurring-spacer" aria-hidden="true" />
           </div>
 
           <button className="btn btn-primary btn-full" onClick={() => void handleRecurringSave()} disabled={isRecurringSaving}>
