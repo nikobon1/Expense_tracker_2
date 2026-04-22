@@ -923,7 +923,7 @@ body {
 }
 
 .scan-panel-card--recurring .btn.btn-full {
-  margin-top: 0;
+  margin-top: -0.9rem;
 }
 
 .scan-empty-panels > .card:nth-child(2) {
