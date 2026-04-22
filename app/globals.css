@@ -883,6 +883,7 @@ body {
 
 .scan-panel-card--recurring .scan-panel-card-main {
   gap: 0.7rem;
+  transform: translateY(-2px);
 }
 
 .scan-panel-card-main > .scan-field-hint {
@@ -927,7 +928,7 @@ body {
 }
 
 .scan-panel-card--recurring .btn.btn-full {
-  margin-top: 0.5rem;
+  margin-top: 0.35rem;
 }
 
 .scan-empty-panels > .card:nth-child(2) {
