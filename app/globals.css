@@ -857,6 +857,12 @@ body {
   grid-auto-rows: min-content;
 }
 
+.scan-empty-panels > .card.scan-panel-card--manual,
+.scan-empty-panels > .card.scan-panel-card--recurring {
+  display: flex;
+  flex-direction: column;
+}
+
 .scan-panel-card > h3 {
   min-height: 2.4rem;
   margin: 0;
@@ -871,8 +877,7 @@ body {
 
 .scan-panel-card--manual,
 .scan-panel-card--recurring {
-  display: flex;
-  flex-direction: column;
+  flex: 1 1 auto;
 }
 
 .scan-panel-card-main {
