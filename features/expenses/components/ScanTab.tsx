@@ -391,6 +391,7 @@ export default function ScanTab({
               <p className="scan-field-hint">Поддерживаются точка, запятая, пробелы и символ валюты.</p>
             </div>
           </div>
+          <div className="scan-recurring-spacer" aria-hidden="true" />
           </div>
 
           <button className="btn btn-primary btn-full" onClick={onManualSave} disabled={isSaving}>
