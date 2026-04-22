@@ -879,6 +879,7 @@ body {
   display: grid;
   gap: 0.95rem;
   min-height: 16.5rem;
+  flex: 1 1 auto;
 }
 
 .scan-panel-card-main > .scan-field-hint {
@@ -887,7 +888,8 @@ body {
 }
 
 .scan-panel-card-footer {
-  margin-top: 1rem;
+  margin-top: auto;
+  padding-top: 1rem;
   display: grid;
   gap: 0.75rem;
 }
