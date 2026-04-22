@@ -917,7 +917,7 @@ body {
 .scan-panel-card--recurring .scan-form-grid {
   margin-bottom: 0;
   gap: 0.5rem 0.75rem;
-  transform: translateY(-2.75rem);
+  transform: translateY(-3.15rem);
 }
 
 .scan-panel-card--recurring .scan-field-label {
