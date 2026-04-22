@@ -908,7 +908,11 @@ body {
 
 .scan-panel-card--recurring .scan-form-grid {
   margin-bottom: 0;
-  margin-top: 1.5rem;
+}
+
+.scan-field-hint--ghost {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .scan-panel-card--manual .btn.btn-full,
@@ -919,7 +923,7 @@ body {
 }
 
 .scan-panel-card--recurring .btn.btn-full {
-  margin-top: 2.5rem;
+  margin-top: 0;
 }
 
 .scan-empty-panels > .card:nth-child(2) {

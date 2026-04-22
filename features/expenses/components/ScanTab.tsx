@@ -494,6 +494,7 @@ export default function ScanTab({
               </select>
             </div>
           </div>
+          <p className="scan-field-hint scan-field-hint--ghost" aria-hidden="true">placeholder</p>
           </div>
 
           <button className="btn btn-primary btn-full" onClick={() => void handleRecurringSave()} disabled={isRecurringSaving}>
