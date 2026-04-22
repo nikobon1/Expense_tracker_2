@@ -913,6 +913,7 @@ body {
 .scan-field-hint--ghost {
   visibility: hidden;
   pointer-events: none;
+  white-space: nowrap;
 }
 
 .scan-panel-card--manual .btn.btn-full,
@@ -923,7 +924,7 @@ body {
 }
 
 .scan-panel-card--recurring .btn.btn-full {
-  margin-top: -0.9rem;
+  margin-top: 0;
 }
 
 .scan-empty-panels > .card:nth-child(2) {
