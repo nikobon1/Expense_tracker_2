@@ -640,6 +640,10 @@ body {
   border: 2px dashed var(--border-color);
   border-radius: var(--radius);
   padding: 3rem 2rem;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.5rem;
   text-align: center;
   cursor: pointer;
   transition: all 0.2s;
@@ -659,7 +663,7 @@ body {
   position: relative;
   font-size: 0;
   line-height: 1;
-  margin-bottom: 1rem;
+  margin-bottom: 0;
 }
 
 .upload-icon::before {
@@ -671,12 +675,13 @@ body {
 
 .upload-area p {
   color: var(--text-secondary);
-  margin-bottom: 0.5rem;
+  margin: 0;
 }
 
 .upload-area span {
   font-size: 0.875rem;
   color: var(--text-secondary);
+  display: block;
 }
 
 .app-container {
