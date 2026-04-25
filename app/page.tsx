@@ -11,6 +11,12 @@ import { useReceiptFlow } from '@/features/expenses/hooks/useReceiptFlow';
 import { getAccountSettings, getAnalyzeUsage, type AnalyzeUsage } from '@/lib/account-api';
 import { DEFAULT_CURRENCY, normalizeCurrencyCode } from '@/lib/currency';
 
+function getLocalTodayIso() {
+  const now = new Date();
+  const local = new Date(now.getTime() - now.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 10);
+}
+
 export default function Home() {
   const isOnboardingPreview = process.env.NODE_ENV !== 'production';
   const [activeTab, setActiveTab] = useState<'scan' | 'dashboard'>('scan');
@@ -153,6 +159,11 @@ export default function Home() {
     }
   };
 
+  const openDashboard = () => {
+    setEndDate(getLocalTodayIso());
+    setActiveTab('dashboard');
+  };
+
   return (
     <div className="app-container">
       <main className="main-full">
@@ -225,9 +236,7 @@ export default function Home() {
         <div className="tabs">
           <button
             className="tab"
-            onClick={() => {
-              setActiveTab('dashboard');
-            }}
+            onClick={openDashboard}
           >
             📊 Дашборд
           </button>
