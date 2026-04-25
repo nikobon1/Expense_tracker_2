@@ -94,7 +94,7 @@ type DailyBarLabelProps = {
 
 type LedgerSortField = "price" | "date";
 type LedgerSortDirection = "desc" | "asc";
-type DashboardRangePreset = "custom" | "yesterday" | "last7" | "last14" | "last30" | "previousMonth";
+type DashboardRangePreset = "custom" | "today" | "yesterday" | "last7" | "last14" | "last30" | "previousMonth";
 
 type EditableReceipt = {
   id: number;
@@ -133,6 +133,7 @@ const DAILY_CHART_STEP = 20;
 const DAILY_CHART_CLIP_LIMIT = 120;
 const DASHBOARD_RANGE_PRESET_OPTIONS: Array<{ value: DashboardRangePreset; label: string }> = [
   { value: "custom", label: "Свой период" },
+  { value: "today", label: "Сегодня" },
   { value: "yesterday", label: "Вчера" },
   { value: "last7", label: "Последние 7 дней" },
   { value: "last14", label: "Последние 14 дней" },
@@ -171,6 +172,8 @@ function shiftDateByMonths(dateString: string, monthOffset: number): string {
 
 function getDashboardPresetRange(preset: Exclude<DashboardRangePreset, "custom">, anchorDate: string) {
   switch (preset) {
+    case "today":
+      return { start: anchorDate, end: anchorDate };
     case "yesterday": {
       const yesterday = shiftIsoDateByDays(anchorDate, -1);
       return { start: yesterday, end: yesterday };
