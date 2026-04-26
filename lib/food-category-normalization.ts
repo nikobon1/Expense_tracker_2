@@ -14,9 +14,15 @@ export function normalizeReceiptCategory(
   storeName: string | null | undefined,
   category: string | null | undefined
 ): string {
+  const normalizedCategory = normalizeCategory(category);
+
+  if (normalizedCategory === "Кофе") {
+    return "Еда";
+  }
+
   if (isFoodStore(storeName)) {
     return "Еда";
   }
 
-  return normalizeCategory(category);
+  return normalizedCategory;
 }
