@@ -43,14 +43,12 @@ const STORE_ALIAS_RULES: StoreAliasRule[] = [
     canonical: "Гастроном Славянский",
     matches: (lookupKey) => {
       const tokens = lookupKey.split(" ");
-      return tokens.some(
-        (token) =>
-          /\bславянск[а-яёa-z]*\b/u.test(token) ||
-          /^sl(?:a|o|ou)?v?y?ansk[a-z]*$/i.test(token) ||
-          /^slou?v?y?abskyy$/i.test(token) ||
-          token.includes("slavyansk") ||
-          token.includes("slovyansk") ||
-          token.includes("slouvyabskyy"),
+      return tokens.some((token) =>
+        /^(?:славянский|славянский|славянск[а-яё]*)$/u.test(token) ||
+        /^(?:slavyanskiy|slavyansky|slavyanskij|slavyanskyy|slavyansk|slovyansk|slouvyabskyy)$/i.test(token) ||
+        token.includes("slavyansk") ||
+        token.includes("slovyansk") ||
+        token.includes("slouvyabskyy")
       );
     },
   },

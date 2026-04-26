@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { normalizeCalendarDate } from "@/lib/calendar-date";
+import { normalizeCategory } from "@/lib/category-normalization";
 import { DEFAULT_CURRENCY, normalizeCurrencyCode } from "@/lib/currency";
 import { normalizeReceiptCategory } from "@/lib/food-category-normalization";
 import { normalizeStoreName } from "@/lib/store-normalization";
@@ -35,21 +36,6 @@ function shiftDateByMonths(dateString: string, monthOffset: number) {
 
 function normalizeIsoDate(value: string | Date | null | undefined): string {
   return normalizeCalendarDate(value);
-}
-
-function aggregateCategoryTotals(rows: Array<{ store_name?: unknown; category?: unknown; total?: unknown }>) {
-  const totals = new Map<string, number>();
-
-  for (const row of rows) {
-    const category = normalizeReceiptCategory(String(row.store_name ?? ""), String(row.category ?? ""));
-    const amount = Number(row.total ?? 0);
-    if (!Number.isFinite(amount) || amount <= 0) continue;
-    totals.set(category, (totals.get(category) ?? 0) + amount);
-  }
-
-  return Array.from(totals.entries())
-    .map(([category, total]) => ({ category, total }))
-    .sort((a, b) => b.total - a.total);
 }
 
 export async function GET(request: NextRequest) {
@@ -195,6 +181,7 @@ export async function GET(request: NextRequest) {
       item: string;
       price: number;
       category: string;
+      baseCategory: string;
       currency: string;
       sourceType: "receipt";
       recurringId: null;
@@ -208,6 +195,7 @@ export async function GET(request: NextRequest) {
         item: String(entry.item ?? ""),
         price: Number(entry.price ?? 0),
         category: normalizeReceiptCategory(String(entry.store ?? ""), String(entry.category ?? "")),
+        baseCategory: normalizeCategory(String(entry.category ?? "")),
         currency: normalizeCurrencyCode(entry.currency ?? DEFAULT_CURRENCY),
         sourceType: "receipt" as const,
         recurringId: null,
@@ -229,24 +217,26 @@ export async function GET(request: NextRequest) {
         return sum + Number(row.price ?? 0);
       }, 0);
 
-    const prevPeriodCategoryTotals = aggregateCategoryTotals(
-      prevPeriodCategoryRows
-        .filter((row) => matchesStoreFilter(row.store_name))
-        .map((row) => ({
-          store_name: row.store_name,
-          category: row.category,
-          total: row.total,
-        }))
-        .concat(
-          prevRecurringExpenses
-            .filter((row) => matchesStoreFilter(row.store))
-            .map((row) => ({
-              store_name: row.store,
-              category: row.category,
-              total: row.price,
-            }))
-        )
-    );
+    const prevPeriodCategoryTotals = prevPeriodCategoryRows
+      .filter((row) => matchesStoreFilter(row.store_name))
+      .map((row) => ({
+        store_name: row.store_name,
+        category: normalizeReceiptCategory(String(row.store_name ?? ""), String(row.category ?? "")),
+        baseCategory: normalizeCategory(String(row.category ?? "")),
+        total: Number(row.total ?? 0),
+      }))
+      .filter((row) => Number.isFinite(row.total) && row.total > 0)
+      .concat(
+        prevRecurringExpenses
+          .filter((row) => matchesStoreFilter(row.store))
+          .map((row) => ({
+            store_name: row.store,
+            category: row.category,
+            baseCategory: row.category,
+            total: Number(row.price ?? 0),
+          }))
+          .filter((row) => Number.isFinite(row.total) && row.total > 0)
+      );
 
     const filteredAnalyzeCostRows = analyzeCostRows.filter((row) => matchesStoreFilter(row.store_name));
     const analyzeCostTotal = filteredAnalyzeCostRows.reduce((sum, row) => sum + Number(row.estimated_cost_usd ?? 0), 0);

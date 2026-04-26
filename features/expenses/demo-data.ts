@@ -40,7 +40,7 @@ type DemoScenarioDefinition = {
 export type DashboardDemoData = {
   expenses: Expense[];
   prevMonthTotal: number;
-  prevPeriodCategoryTotals: Array<{ category: string; total: number }>;
+  prevPeriodCategoryTotals: Array<{ store_name?: string | null; category: string; baseCategory?: string; total: number }>;
   analyzeCost: {
     totalUsd: number;
     count: number;
@@ -112,7 +112,7 @@ function aggregateCategoryTotals(expenses: Expense[]) {
   }
 
   return Array.from(totals.entries())
-    .map(([category, total]) => ({ category, total: Number(total.toFixed(2)) }))
+    .map(([category, total]) => ({ store_name: null, category, baseCategory: category, total: Number(total.toFixed(2)) }))
     .sort((a, b) => b.total - a.total || a.category.localeCompare(b.category, "en"));
 }
 

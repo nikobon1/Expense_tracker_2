@@ -30,6 +30,7 @@ export interface Expense {
   item: string;
   price: number;
   category: string;
+  baseCategory?: string;
   currency?: string;
   sourceType?: ExpenseSourceType;
   recurringId?: number | null;

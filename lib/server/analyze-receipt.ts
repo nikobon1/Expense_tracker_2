@@ -1,7 +1,7 @@
 import OpenAI from "openai";
 import type { ReceiptData } from "@/features/expenses/types";
 import { CATEGORIES } from "@/features/expenses/constants";
-import { normalizeReceiptCategory } from "@/lib/food-category-normalization";
+import { normalizeCategory } from "@/lib/category-normalization";
 import { DEFAULT_CURRENCY, normalizeCurrencyCode } from "@/lib/currency";
 import { saveReceiptAnalyzeLog } from "@/lib/server/receipts";
 
@@ -233,7 +233,7 @@ function sanitizeAnalyzedReceipt(receipt: ReceiptData): ReceiptData {
       ? receipt.items.map((item) => ({
           name: String(item.name ?? "").trim(),
           price: Number(item.price || 0),
-          category: normalizeReceiptCategory(storeName, item.category),
+          category: normalizeCategory(item.category),
         }))
       : [],
     comment: typeof receipt.comment === "string" ? receipt.comment.trim() || undefined : undefined,

@@ -1,7 +1,7 @@
 import { neon } from "@neondatabase/serverless";
 import type { ReceiptData, ReceiptItem } from "@/features/expenses/types";
 import { normalizeCalendarDate } from "@/lib/calendar-date";
-import { normalizeReceiptCategory } from "@/lib/food-category-normalization";
+import { normalizeCategory } from "@/lib/category-normalization";
 import { DEFAULT_CURRENCY, normalizeCurrencyCode } from "@/lib/currency";
 import { normalizeStoreName } from "@/lib/store-normalization";
 
@@ -53,7 +53,7 @@ function normalizeReceiptItems(storeName: string, items: ReceiptItem[]): Array<{
   return items.map((item) => ({
     name: String(item.name ?? "").trim(),
     price: Number(item.price || 0),
-    category: normalizeReceiptCategory(storeName, item.category),
+    category: normalizeCategory(item.category),
   }));
 }
 
@@ -189,7 +189,7 @@ export async function getReceiptById(
     items: itemRows.map((item) => ({
       name: item.name ?? "",
       price: Number(item.price ?? 0),
-      category: normalizeReceiptCategory(receipt.store_name, item.category),
+      category: normalizeCategory(item.category),
     })),
   };
 }

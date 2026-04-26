@@ -5,7 +5,7 @@ import { DEFAULT_CURRENCY, normalizeCurrencyCode } from "@/lib/currency";
 interface ExpensesResponse {
   expenses: Expense[];
   prevMonthTotal: number;
-  prevPeriodCategoryTotals: Array<{ category: string; total: number }>;
+  prevPeriodCategoryTotals: Array<{ store_name?: string | null; category: string; baseCategory?: string; total: number }>;
   activeCurrency: string;
   currencies: string[];
   analyzeCost: {

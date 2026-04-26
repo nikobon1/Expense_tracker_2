@@ -24,7 +24,7 @@ import type { AddCategoryResult, DeleteCategoryResult } from "@/features/expense
 import { analyzeReceipt, deleteReceipt, getReceipt, getReceiptImageFromTelegram, updateReceipt } from "@/lib/api";
 import type { AnalyzeUsage } from "@/lib/account-api";
 import { formatCurrencyAmount } from "@/lib/currency";
-import { buildCategoryData, buildDailyData } from "@/features/expenses/utils";
+import { buildCategoryData, buildDailyData, buildSubcategoryData } from "@/features/expenses/utils";
 import type { DailyPoint, DailyReceiptSegment } from "@/features/expenses/utils";
 import type { Expense, ReceiptData, ReceiptItem } from "@/features/expenses/types";
 
@@ -39,7 +39,7 @@ interface DashboardTabProps {
   categoryOptions: string[];
   customCategories: string[];
   prevMonthTotal: number;
-  prevPeriodCategoryTotals: Array<{ category: string; total: number }>;
+  prevPeriodCategoryTotals: Array<{ store_name?: string | null; category: string; baseCategory?: string; total: number }>;
   analyzeCost: {
     totalUsd: number;
     count: number;
@@ -466,6 +466,7 @@ export default function DashboardTab({
   const [isEditorDeleting, setIsEditorDeleting] = useState(false);
   const [isComparing, setIsComparing] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  const [foodBreakdownMode, setFoodBreakdownMode] = useState<"combined" | "breakdown">("combined");
   const [excludedCategories, setExcludedCategories] = useState<string[]>([]);
   const [ledgerStoreFilter, setLedgerStoreFilter] = useState<string>("all");
   const [showAllCategories, setShowAllCategories] = useState(false);
@@ -546,25 +547,37 @@ export default function DashboardTab({
   const previousPeriodWidth = periodCompareMax > 0 ? (prevMonthTotal / periodCompareMax) * 100 : 0;
   const currentPeriodLineWidth = expensesTotal > 0 ? Math.max(currentPeriodWidth, 8) : 0;
   const previousPeriodLineWidth = prevMonthTotal > 0 ? Math.max(previousPeriodWidth, 8) : 0;
-  const categoryData = useMemo(
+  const allCategoryData = useMemo(
     () => buildCategoryData(expenses).sort((a, b) => b.value - a.value),
     [expenses]
   );
+  const categoryData = useMemo(() => {
+    const foodExpenses = expenses.filter((expense) => expense.category === "Еда");
+    const scopedExpenses =
+      categoryFilter === "all"
+        ? expenses
+        : categoryFilter === "Еда"
+          ? foodExpenses
+          : expenses.filter((expense) => expense.category === categoryFilter);
+
+    const grouped =
+      categoryFilter === "Еда" && foodBreakdownMode === "breakdown"
+        ? buildSubcategoryData(scopedExpenses)
+        : buildCategoryData(scopedExpenses);
+
+    return grouped.sort((a, b) => b.value - a.value);
+  }, [categoryFilter, expenses, foodBreakdownMode]);
   const categoryFilterOptions = useMemo(
-    () => [...categoryData.map((point) => point.name)].sort((a, b) => a.localeCompare(b, "ru")),
-    [categoryData]
+    () => [...allCategoryData.map((point) => point.name)].sort((a, b) => a.localeCompare(b, "ru")),
+    [allCategoryData]
   );
-  const filteredCategoryData = useMemo(() => {
-    if (categoryFilter === "all") return categoryData;
-    return categoryData.filter((point) => point.name === categoryFilter);
-  }, [categoryData, categoryFilter]);
   const categoryChartSource = useMemo(() => {
-    if (categoryFilter !== "all") return filteredCategoryData;
-    if (excludedCategories.length === 0) return filteredCategoryData;
+    if (categoryFilter !== "all") return categoryData;
+    if (excludedCategories.length === 0) return categoryData;
 
     const excludedSet = new Set(excludedCategories);
-    return filteredCategoryData.filter((point) => !excludedSet.has(point.name));
-  }, [categoryFilter, excludedCategories, filteredCategoryData]);
+    return categoryData.filter((point) => !excludedSet.has(point.name));
+  }, [categoryFilter, categoryData, excludedCategories]);
   const categoryChartData = useMemo(
     () => [...categoryChartSource].sort((a, b) => b.value - a.value || a.name.localeCompare(b.name, "ru")),
     [categoryChartSource]
@@ -643,22 +656,30 @@ export default function DashboardTab({
   const prevCategoryTotalMap = useMemo(() => {
     const totals = new Map<string, number>();
     for (const point of prevPeriodCategoryTotals) {
-      const category = String(point.category ?? "").trim();
+      const category =
+        categoryFilter === "Еда" && foodBreakdownMode === "breakdown"
+          ? String(point.baseCategory ?? point.category ?? "").trim()
+          : String(point.category ?? "").trim();
       const total = Number(point.total ?? 0);
       if (!category || !Number.isFinite(total)) continue;
       totals.set(category, (totals.get(category) ?? 0) + total);
     }
     return totals;
-  }, [prevPeriodCategoryTotals]);
+  }, [categoryFilter, foodBreakdownMode, prevPeriodCategoryTotals]);
   const categoryComparisonRows = useMemo(() => {
     const currentTotals = new Map<string, number>();
-    for (const point of categoryData) {
-      if (categoryFilter !== "all" && point.name !== categoryFilter) continue;
+    const comparisonCategoryData =
+      categoryFilter === "Еда" && foodBreakdownMode === "breakdown"
+        ? buildSubcategoryData(expenses.filter((expense) => expense.category === "Еда"))
+        : categoryData;
+
+    for (const point of comparisonCategoryData) {
+      if (categoryFilter !== "all" && categoryFilter !== "Еда" && point.name !== categoryFilter) continue;
       currentTotals.set(point.name, point.value);
     }
 
     const allCategories =
-      categoryFilter === "all"
+      categoryFilter === "all" || (categoryFilter === "Еда" && foodBreakdownMode === "breakdown")
         ? new Set<string>([
             ...currentTotals.keys(),
             ...prevCategoryTotalMap.keys(),
@@ -683,7 +704,7 @@ export default function DashboardTab({
       })
       .filter((row) => row.currentTotal > 0 || row.previousTotal > 0)
       .sort((a, b) => b.sortValue - a.sortValue);
-  }, [categoryData, categoryFilter, prevCategoryTotalMap]);
+  }, [categoryData, categoryFilter, expenses, foodBreakdownMode, prevCategoryTotalMap]);
   const comparisonScopeLabel = useMemo(() => {
     const scope: string[] = [];
 
@@ -1072,11 +1093,21 @@ export default function DashboardTab({
   const activeCurrencyLabel = selectedCurrency || currencyCode;
   const ledgerStoreFilterLabel = ledgerStoreFilter === "all" ? "Все магазины" : ledgerStoreFilter;
   const activeCategoryLabel = useMemo(() => {
+    if (categoryFilter === "Еда" && foodBreakdownMode === "breakdown") return "Еда · по категориям";
     if (categoryFilter !== "all") return categoryFilter;
     if (excludedCategories.length === 0) return "Все категории";
     if (excludedCategories.length === 1) return `Все, кроме ${excludedCategories[0]}`;
     return `Все, кроме ${excludedCategories.length}`;
-  }, [categoryFilter, excludedCategories]);
+  }, [categoryFilter, excludedCategories, foodBreakdownMode]);
+  const isFoodBreakdownAvailable = categoryFilter === "Еда";
+  const toggleFoodBreakdownMode = () => {
+    setFoodBreakdownMode((prev) => (prev === "combined" ? "breakdown" : "combined"));
+  };
+  useEffect(() => {
+    if (categoryFilter !== "Еда" && foodBreakdownMode !== "combined") {
+      setFoodBreakdownMode("combined");
+    }
+  }, [categoryFilter, foodBreakdownMode]);
   const visibleCategoryItems = showAllCategories ? categoryListItems : categoryListItems.slice(0, 4);
   const visibleLedgerReceipts = sortedLedgerReceipts;
   const receiptFirstExpenseId = useMemo(() => {
@@ -1821,6 +1852,11 @@ export default function DashboardTab({
                       </option>
                     ))}
                   </select>
+                  {isFoodBreakdownAvailable ? (
+                    <button type="button" className="btn btn-secondary dashboard-mobile-food-breakdown-btn" onClick={toggleFoodBreakdownMode}>
+                      {foodBreakdownMode === "combined" ? "Разбить по категориям" : "Показать Еду целиком"}
+                    </button>
+                  ) : null}
                   </div>
                 </div>
 
@@ -2836,6 +2872,11 @@ export default function DashboardTab({
                     </option>
                   ))}
                 </select>
+                {isFoodBreakdownAvailable ? (
+                  <button type="button" className="btn btn-secondary category-breakdown-btn" onClick={toggleFoodBreakdownMode}>
+                    {foodBreakdownMode === "combined" ? "Разбить по категориям" : "Показать Еду целиком"}
+                  </button>
+                ) : null}
               </div>
               {categoryFilter === "all" && categoryFilterOptions.length > 0 ? (
                 <div className="dashboard-category-exclude-box">

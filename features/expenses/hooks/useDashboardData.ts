@@ -33,7 +33,7 @@ export function useDashboardData(defaultCurrency: string = DEFAULT_CURRENCY) {
   const [stores, setStores] = useState<string[]>([]);
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [prevMonthTotal, setPrevMonthTotal] = useState(0);
-  const [prevPeriodCategoryTotals, setPrevPeriodCategoryTotals] = useState<Array<{ category: string; total: number }>>([]);
+  const [prevPeriodCategoryTotals, setPrevPeriodCategoryTotals] = useState<Array<{ store_name?: string | null; category: string; baseCategory?: string; total: number }>>([]);
   const [analyzeCost, setAnalyzeCost] = useState<{
     totalUsd: number;
     count: number;

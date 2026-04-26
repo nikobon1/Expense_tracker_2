@@ -50,16 +50,30 @@ function buildDateRange(startDate: string, endDate: string): string[] {
   return result;
 }
 
-export function buildCategoryData(expenses: Expense[]): CategoryPoint[] {
+function buildGroupedCategoryData(
+  expenses: Expense[],
+  getCategoryName: (expense: Expense) => string
+): CategoryPoint[] {
   return expenses.reduce<CategoryPoint[]>((acc, exp) => {
-    const existing = acc.find((d) => d.name === exp.category);
+    const category = getCategoryName(exp).trim();
+    if (!category) return acc;
+
+    const existing = acc.find((d) => d.name === category);
     if (existing) {
       existing.value += exp.price;
     } else {
-      acc.push({ name: exp.category, value: exp.price });
+      acc.push({ name: category, value: exp.price });
     }
     return acc;
   }, []);
+}
+
+export function buildCategoryData(expenses: Expense[]): CategoryPoint[] {
+  return buildGroupedCategoryData(expenses, (expense) => expense.category);
+}
+
+export function buildSubcategoryData(expenses: Expense[]): CategoryPoint[] {
+  return buildGroupedCategoryData(expenses, (expense) => expense.baseCategory ?? expense.category);
 }
 
 export function buildDailyData(expenses: Expense[], startDate?: string, endDate?: string): DailyPoint[] {
