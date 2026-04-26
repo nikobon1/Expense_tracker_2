@@ -23,6 +23,7 @@ interface ScanTabProps {
   purchaseDate: string;
   purchaseDateManual: string;
   purchaseDateWarningText: string | null;
+  purchaseDatePreviewText: string | null;
   manualStoreName: string;
   manualPurchaseDate: string;
   manualTotal: string;
@@ -109,6 +110,7 @@ export default function ScanTab({
   purchaseDate,
   purchaseDateManual,
   purchaseDateWarningText,
+  purchaseDatePreviewText,
   manualStoreName,
   manualPurchaseDate,
   manualTotal,
@@ -677,6 +679,11 @@ export default function ScanTab({
                   inputMode="numeric"
                   className="scan-field-input scan-date-manual-input"
                 />
+                {purchaseDatePreviewText ? (
+                  <div className="scan-date-preview" aria-live="polite">
+                    {purchaseDatePreviewText}
+                  </div>
+                ) : null}
                 {purchaseDateWarningText ? (
                   <div className="scan-date-warning" role="alert">
                     {purchaseDateWarningText}

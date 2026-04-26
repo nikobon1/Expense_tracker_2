@@ -17,6 +17,12 @@ function formatManualDate(isoDate: string): string {
   return `${match[3]}/${match[2]}/${match[1].slice(-2)}`;
 }
 
+function formatHumanDate(isoDate: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate);
+  if (!match) return isoDate;
+  return `${match[3]}.${match[2]}.${match[1]}`;
+}
+
 function toIsoDateIfValid(year: number, month: number, day: number): string | null {
   const dt = new Date(Date.UTC(year, month - 1, day));
   if (dt.getUTCFullYear() !== year || dt.getUTCMonth() !== month - 1 || dt.getUTCDate() !== day) {
@@ -156,6 +162,11 @@ export function useReceiptFlow(defaultCurrency: string = DEFAULT_CURRENCY) {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const purchaseDateWarningText = useMemo(() => getDateWarningText(purchaseDate), [purchaseDate]);
+  const purchaseDatePreviewText = useMemo(() => {
+    const parsed = parseManualDate(purchaseDateManual);
+    if (!parsed) return null;
+    return `Сохранится как: ${formatHumanDate(parsed)}`;
+  }, [purchaseDateManual]);
 
   useEffect(() => {
     if (!alert) return;
@@ -357,6 +368,7 @@ export function useReceiptFlow(defaultCurrency: string = DEFAULT_CURRENCY) {
     purchaseDate,
     purchaseDateManual,
     purchaseDateWarningText,
+    purchaseDatePreviewText,
     manualStoreName,
     manualPurchaseDate,
     manualTotal,

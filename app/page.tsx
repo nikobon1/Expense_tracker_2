@@ -256,6 +256,7 @@ export default function Home() {
             purchaseDate={receiptFlow.purchaseDate}
             purchaseDateManual={receiptFlow.purchaseDateManual}
             purchaseDateWarningText={receiptFlow.purchaseDateWarningText}
+            purchaseDatePreviewText={receiptFlow.purchaseDatePreviewText}
             manualStoreName={receiptFlow.manualStoreName}
             manualPurchaseDate={receiptFlow.manualPurchaseDate}
             manualTotal={receiptFlow.manualTotal}
