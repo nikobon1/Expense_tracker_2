@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { normalizeCalendarDate } from "@/lib/calendar-date";
-import { normalizeCategory } from "@/lib/category-normalization";
 import { DEFAULT_CURRENCY, normalizeCurrencyCode } from "@/lib/currency";
-import { normalizeReceiptCategory } from "@/lib/food-category-normalization";
+import { normalizeFoodSubcategory, normalizeReceiptCategory } from "@/lib/food-category-normalization";
 import { normalizeStoreName } from "@/lib/store-normalization";
 import {
   isAuthenticationRequiredError,
@@ -98,18 +97,18 @@ export async function GET(request: NextRequest) {
       total: number | string | null;
     }>;
 
-    const prevPeriodCategoryRows = (await sql`
-      SELECT r.store_name, i.category, COALESCE(SUM(i.price), 0) as total
+    const prevPeriodItemRows = (await sql`
+      SELECT r.store_name, i.name as item, i.category, i.price
       FROM receipts r
       JOIN items i ON r.id = i.receipt_id
       WHERE r.purchase_date BETWEEN ${prevPeriodStart} AND ${prevPeriodEnd}
         AND r.user_id = ${currentUser.id}
         AND COALESCE(r.currency, ${DEFAULT_CURRENCY}) = ${activeCurrency}
-      GROUP BY r.store_name, i.category
     `) as Array<{
       store_name: string | null;
+      item: string | null;
       category: string | null;
-      total: number | string | null;
+      price: number | string | null;
     }>;
 
     const stores = (await sql`
@@ -195,7 +194,7 @@ export async function GET(request: NextRequest) {
         item: String(entry.item ?? ""),
         price: Number(entry.price ?? 0),
         category: normalizeReceiptCategory(String(entry.store ?? ""), String(entry.category ?? "")),
-        baseCategory: normalizeCategory(String(entry.category ?? "")),
+        baseCategory: normalizeFoodSubcategory(String(entry.store ?? ""), String(entry.item ?? ""), String(entry.category ?? "")),
         currency: normalizeCurrencyCode(entry.currency ?? DEFAULT_CURRENCY),
         sourceType: "receipt" as const,
         recurringId: null,
@@ -217,13 +216,13 @@ export async function GET(request: NextRequest) {
         return sum + Number(row.price ?? 0);
       }, 0);
 
-    const prevPeriodCategoryTotals = prevPeriodCategoryRows
+    const prevPeriodCategoryTotals = prevPeriodItemRows
       .filter((row) => matchesStoreFilter(row.store_name))
       .map((row) => ({
         store_name: row.store_name,
         category: normalizeReceiptCategory(String(row.store_name ?? ""), String(row.category ?? "")),
-        baseCategory: normalizeCategory(String(row.category ?? "")),
-        total: Number(row.total ?? 0),
+        baseCategory: normalizeFoodSubcategory(String(row.store_name ?? ""), String(row.item ?? ""), String(row.category ?? "")),
+        total: Number(row.price ?? 0),
       }))
       .filter((row) => Number.isFinite(row.total) && row.total > 0)
       .concat(
