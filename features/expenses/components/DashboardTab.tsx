@@ -467,6 +467,7 @@ export default function DashboardTab({
   const [isComparing, setIsComparing] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [foodBreakdownMode, setFoodBreakdownMode] = useState<"combined" | "breakdown">("combined");
+  const [foodSubcategoryFilter, setFoodSubcategoryFilter] = useState<string>("all");
   const [excludedCategories, setExcludedCategories] = useState<string[]>([]);
   const [ledgerStoreFilter, setLedgerStoreFilter] = useState<string>("all");
   const [showAllCategories, setShowAllCategories] = useState(false);
@@ -582,10 +583,28 @@ export default function DashboardTab({
     () => [...categoryChartSource].sort((a, b) => b.value - a.value || a.name.localeCompare(b.name, "ru")),
     [categoryChartSource]
   );
-  const categoryFilteredExpenses = useMemo(() => {
+  const foodExpenses = useMemo(
+    () => expenses.filter((expense) => expense.category === "\u0415\u0434\u0430"),
+    [expenses]
+  );
+  const foodSubcategoryOptions = useMemo(
+    () =>
+      [...new Set(foodExpenses.map((expense) => String(expense.baseCategory ?? expense.category ?? "").trim()).filter(Boolean))].sort((a, b) =>
+        a.localeCompare(b, "ru")
+      ),
+    [foodExpenses]
+  );
+  const scopedCategoryExpenses = useMemo(() => {
     if (categoryFilter === "all") return expenses;
-    return expenses.filter((expense) => expense.category === categoryFilter);
-  }, [categoryFilter, expenses]);
+    if (categoryFilter !== "\u0415\u0434\u0430") return expenses.filter((expense) => expense.category === categoryFilter);
+    if (foodBreakdownMode === "breakdown" && foodSubcategoryFilter !== "all") {
+      return foodExpenses.filter((expense) => String(expense.baseCategory ?? expense.category ?? "").trim() === foodSubcategoryFilter);
+    }
+    return foodExpenses;
+  }, [categoryFilter, expenses, foodBreakdownMode, foodExpenses, foodSubcategoryFilter]);
+  const categoryFilteredExpenses = useMemo(() => {
+    return scopedCategoryExpenses;
+  }, [scopedCategoryExpenses]);
   const todayIso = getLocalTodayIso();
   const activeRangePreset = useMemo<DashboardRangePreset>(() => {
     for (const option of DASHBOARD_RANGE_PRESET_OPTIONS) {
@@ -1093,21 +1112,40 @@ export default function DashboardTab({
   const activeCurrencyLabel = selectedCurrency || currencyCode;
   const ledgerStoreFilterLabel = ledgerStoreFilter === "all" ? "Все магазины" : ledgerStoreFilter;
   const activeCategoryLabel = useMemo(() => {
+    if (categoryFilter === "Еда" && foodBreakdownMode === "breakdown" && foodSubcategoryFilter !== "all") {
+      return `Еда · ${foodSubcategoryFilter}`;
+    }
     if (categoryFilter === "Еда" && foodBreakdownMode === "breakdown") return "Еда · по категориям";
     if (categoryFilter !== "all") return categoryFilter;
     if (excludedCategories.length === 0) return "Все категории";
     if (excludedCategories.length === 1) return `Все, кроме ${excludedCategories[0]}`;
     return `Все, кроме ${excludedCategories.length}`;
-  }, [categoryFilter, excludedCategories, foodBreakdownMode]);
+  }, [categoryFilter, excludedCategories, foodBreakdownMode, foodSubcategoryFilter]);
   const isFoodBreakdownAvailable = categoryFilter === "Еда";
   const toggleFoodBreakdownMode = () => {
-    setFoodBreakdownMode((prev) => (prev === "combined" ? "breakdown" : "combined"));
+    setFoodBreakdownMode((prev) => {
+      const next = prev === "combined" ? "breakdown" : "combined";
+      if (next === "combined") {
+        setFoodSubcategoryFilter("all");
+      }
+      return next;
+    });
   };
   useEffect(() => {
     if (categoryFilter !== "Еда" && foodBreakdownMode !== "combined") {
       setFoodBreakdownMode("combined");
     }
   }, [categoryFilter, foodBreakdownMode]);
+  useEffect(() => {
+    if (categoryFilter !== "Еда" || foodBreakdownMode !== "breakdown") {
+      if (foodSubcategoryFilter !== "all") setFoodSubcategoryFilter("all");
+      return;
+    }
+
+    if (foodSubcategoryFilter !== "all" && !foodSubcategoryOptions.includes(foodSubcategoryFilter)) {
+      setFoodSubcategoryFilter("all");
+    }
+  }, [categoryFilter, foodBreakdownMode, foodSubcategoryFilter, foodSubcategoryOptions]);
   const visibleCategoryItems = showAllCategories ? categoryListItems : categoryListItems.slice(0, 4);
   const visibleLedgerReceipts = sortedLedgerReceipts;
   const receiptFirstExpenseId = useMemo(() => {
@@ -1842,15 +1880,35 @@ export default function DashboardTab({
                     className="dashboard-mobile-inline-select"
                     aria-label="Фильтр категории"
                     name="dashboardCategory"
-                    value={categoryFilter}
-                    onChange={(e) => setCategoryFilter(e.target.value)}
+                    value={isFoodBreakdownAvailable && foodBreakdownMode === "breakdown" ? foodSubcategoryFilter : categoryFilter}
+                    onChange={(e) => {
+                      if (isFoodBreakdownAvailable && foodBreakdownMode === "breakdown") {
+                        setFoodSubcategoryFilter(e.target.value);
+                        return;
+                      }
+
+                      setCategoryFilter(e.target.value);
+                    }}
                   >
-                    <option value="all">Все</option>
-                    {categoryFilterOptions.map((category) => (
-                      <option key={`mobile-category-filter-${category}`} value={category}>
-                        {category}
-                      </option>
-                    ))}
+                    {isFoodBreakdownAvailable && foodBreakdownMode === "breakdown" ? (
+                      <>
+                        <option value="all">Все подкатегории</option>
+                        {foodSubcategoryOptions.map((category) => (
+                          <option key={`mobile-food-subcategory-filter-${category}`} value={category}>
+                            {category}
+                          </option>
+                        ))}
+                      </>
+                    ) : (
+                      <>
+                        <option value="all">Все</option>
+                        {categoryFilterOptions.map((category) => (
+                          <option key={`mobile-category-filter-${category}`} value={category}>
+                            {category}
+                          </option>
+                        ))}
+                      </>
+                    )}
                   </select>
                   {isFoodBreakdownAvailable ? (
                     <button type="button" className="btn btn-secondary dashboard-mobile-food-breakdown-btn" onClick={toggleFoodBreakdownMode}>
@@ -2862,15 +2920,35 @@ export default function DashboardTab({
                 <select
                   id="dashboard-category-filter"
                   className="category-filter-select"
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  value={isFoodBreakdownAvailable && foodBreakdownMode === "breakdown" ? foodSubcategoryFilter : categoryFilter}
+                  onChange={(e) => {
+                    if (isFoodBreakdownAvailable && foodBreakdownMode === "breakdown") {
+                      setFoodSubcategoryFilter(e.target.value);
+                      return;
+                    }
+
+                    setCategoryFilter(e.target.value);
+                  }}
                 >
-                  <option value="all">{"\u0412\u0441\u0435 \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u0438"}</option>
-                  {categoryFilterOptions.map((category) => (
-                    <option key={`category-filter-${category}`} value={category}>
-                      {category}
-                    </option>
-                  ))}
+                  {isFoodBreakdownAvailable && foodBreakdownMode === "breakdown" ? (
+                    <>
+                      <option value="all">Все подкатегории</option>
+                      {foodSubcategoryOptions.map((category) => (
+                        <option key={`food-subcategory-filter-${category}`} value={category}>
+                          {category}
+                        </option>
+                      ))}
+                    </>
+                  ) : (
+                    <>
+                      <option value="all">{"\u0412\u0441\u0435 \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u0438"}</option>
+                      {categoryFilterOptions.map((category) => (
+                        <option key={`category-filter-${category}`} value={category}>
+                          {category}
+                        </option>
+                      ))}
+                    </>
+                  )}
                 </select>
                 {isFoodBreakdownAvailable ? (
                   <button type="button" className="btn btn-secondary category-breakdown-btn" onClick={toggleFoodBreakdownMode}>
