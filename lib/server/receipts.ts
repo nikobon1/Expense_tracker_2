@@ -1,7 +1,7 @@
 import { neon } from "@neondatabase/serverless";
 import type { ReceiptData, ReceiptItem } from "@/features/expenses/types";
 import { normalizeCalendarDate } from "@/lib/calendar-date";
-import { normalizeCategory } from "@/lib/category-normalization";
+import { normalizeReceiptCategory } from "@/lib/food-category-normalization";
 import { DEFAULT_CURRENCY, normalizeCurrencyCode } from "@/lib/currency";
 import { normalizeStoreName } from "@/lib/store-normalization";
 
@@ -45,7 +45,7 @@ function normalizePurchaseDate(value: string | Date | null): string {
   return normalizeCalendarDate(value);
 }
 
-function normalizeReceiptItems(items: ReceiptItem[]): Array<{
+function normalizeReceiptItems(storeName: string, items: ReceiptItem[]): Array<{
   name: string;
   price: number;
   category: string;
@@ -53,7 +53,7 @@ function normalizeReceiptItems(items: ReceiptItem[]): Array<{
   return items.map((item) => ({
     name: String(item.name ?? "").trim(),
     price: Number(item.price || 0),
-    category: normalizeCategory(item.category),
+    category: normalizeReceiptCategory(storeName, item.category),
   }));
 }
 
@@ -65,13 +65,14 @@ function normalizeReceiptComment(comment: string | null | undefined): string | n
 function normalizeTelegramDraft<T extends ReceiptData>(receipt: T): T {
   const normalizedPurchaseDate =
     normalizePurchaseDate(receipt.purchase_date) || String(receipt.purchase_date ?? "").trim();
+  const normalizedStoreName = normalizeStoreName(receipt.store_name ?? "");
 
   return {
     ...receipt,
-    store_name: normalizeStoreName(receipt.store_name ?? ""),
+    store_name: normalizedStoreName,
     purchase_date: normalizedPurchaseDate,
     currency: normalizeCurrencyCode(receipt.currency ?? DEFAULT_CURRENCY),
-    items: normalizeReceiptItems(Array.isArray(receipt.items) ? receipt.items : []),
+    items: normalizeReceiptItems(normalizedStoreName, Array.isArray(receipt.items) ? receipt.items : []),
     comment: normalizeReceiptComment(receipt.comment),
   };
 }
@@ -88,7 +89,7 @@ export async function saveReceiptToDb(payload: {
 }): Promise<{ receiptId: number; totalAmount: number }> {
   const { store_name, purchase_date, items, currency, comment, source, telegram_file_id, userId } = payload;
   const normalizedStoreName = normalizeStoreName(store_name);
-  const normalizedItems = normalizeReceiptItems(items);
+  const normalizedItems = normalizeReceiptItems(normalizedStoreName, items);
   const normalizedCurrency = normalizeCurrencyCode(currency ?? DEFAULT_CURRENCY);
   const normalizedComment = normalizeReceiptComment(comment);
 
@@ -188,7 +189,7 @@ export async function getReceiptById(
     items: itemRows.map((item) => ({
       name: item.name ?? "",
       price: Number(item.price ?? 0),
-      category: normalizeCategory(item.category),
+      category: normalizeReceiptCategory(receipt.store_name, item.category),
     })),
   };
 }
@@ -201,7 +202,7 @@ export async function updateReceiptInDb(
   const { store_name, purchase_date, items, currency, comment } = payload;
   const userId = options?.userId;
   const normalizedStoreName = normalizeStoreName(store_name);
-  const normalizedItems = normalizeReceiptItems(items);
+  const normalizedItems = normalizeReceiptItems(normalizedStoreName, items);
   const normalizedCurrency = currency == null ? null : normalizeCurrencyCode(currency);
   const normalizedComment = normalizeReceiptComment(comment);
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { normalizeCalendarDate } from "@/lib/calendar-date";
-import { normalizeCategory } from "@/lib/category-normalization";
 import { DEFAULT_CURRENCY, normalizeCurrencyCode } from "@/lib/currency";
+import { normalizeReceiptCategory } from "@/lib/food-category-normalization";
 import { normalizeStoreName } from "@/lib/store-normalization";
 import {
   isAuthenticationRequiredError,
@@ -37,11 +37,11 @@ function normalizeIsoDate(value: string | Date | null | undefined): string {
   return normalizeCalendarDate(value);
 }
 
-function aggregateCategoryTotals(rows: Array<{ category?: unknown; total?: unknown }>) {
+function aggregateCategoryTotals(rows: Array<{ store_name?: unknown; category?: unknown; total?: unknown }>) {
   const totals = new Map<string, number>();
 
   for (const row of rows) {
-    const category = normalizeCategory(String(row.category ?? ""));
+    const category = normalizeReceiptCategory(String(row.store_name ?? ""), String(row.category ?? ""));
     const amount = Number(row.total ?? 0);
     if (!Number.isFinite(amount) || amount <= 0) continue;
     totals.set(category, (totals.get(category) ?? 0) + amount);
@@ -207,7 +207,7 @@ export async function GET(request: NextRequest) {
         store: normalizeStoreName(String(entry.store ?? "")),
         item: String(entry.item ?? ""),
         price: Number(entry.price ?? 0),
-        category: normalizeCategory(String(entry.category ?? "")),
+        category: normalizeReceiptCategory(String(entry.store ?? ""), String(entry.category ?? "")),
         currency: normalizeCurrencyCode(entry.currency ?? DEFAULT_CURRENCY),
         sourceType: "receipt" as const,
         recurringId: null,
@@ -233,6 +233,7 @@ export async function GET(request: NextRequest) {
       prevPeriodCategoryRows
         .filter((row) => matchesStoreFilter(row.store_name))
         .map((row) => ({
+          store_name: row.store_name,
           category: row.category,
           total: row.total,
         }))
@@ -240,6 +241,7 @@ export async function GET(request: NextRequest) {
           prevRecurringExpenses
             .filter((row) => matchesStoreFilter(row.store))
             .map((row) => ({
+              store_name: row.store,
               category: row.category,
               total: row.price,
             }))
