@@ -2,16 +2,8 @@ import { z, ZodError } from "zod";
 import type { ReceiptItem } from "@/features/expenses/types";
 import { normalizeCategory } from "@/lib/category-normalization";
 import { normalizeCurrencyCode } from "@/lib/currency";
+import { normalizeCalendarDate } from "@/lib/calendar-date";
 import { normalizeStoreName } from "@/lib/store-normalization";
-
-const isoDateRegex = /^\d{4}-\d{2}-\d{2}$/;
-
-function isValidIsoDate(value: string): boolean {
-  if (!isoDateRegex.test(value)) return false;
-
-  const parsed = new Date(`${value}T00:00:00.000Z`);
-  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
-}
 
 const receiptItemSchema = z.object({
   name: z.string()
@@ -31,7 +23,8 @@ const receiptPayloadSchema = z.object({
     .refine((value) => value.length > 0, "Store name is required"),
   purchase_date: z.string()
     .trim()
-    .refine(isValidIsoDate, "purchase_date must be a valid YYYY-MM-DD date"),
+    .transform((value) => normalizeCalendarDate(value))
+    .refine((value) => value.length > 0, "purchase_date must be a valid date"),
   currency: z.string()
     .optional()
     .transform((value) => (typeof value === "string" && value.trim() ? normalizeCurrencyCode(value) : undefined)),
