@@ -617,7 +617,14 @@ export default function DashboardTab({
 
     return "custom";
   }, [endDate, startDate, todayIso]);
+  const isFoodBreakdownActive = categoryFilter === "Еда" && foodBreakdownMode === "breakdown";
+  const activeCategoryChartValue = isFoodBreakdownActive ? foodSubcategoryFilter : categoryFilter;
   const toggleCategoryFilter = (category: string) => {
+    if (isFoodBreakdownActive) {
+      setFoodSubcategoryFilter((prev) => (prev === category ? "all" : category));
+      return;
+    }
+
     setCategoryFilter((prev) => (prev === category ? "all" : category));
   };
   const toggleExcludedCategory = (category: string) => {
@@ -1112,15 +1119,15 @@ export default function DashboardTab({
   const activeCurrencyLabel = selectedCurrency || currencyCode;
   const ledgerStoreFilterLabel = ledgerStoreFilter === "all" ? "Все магазины" : ledgerStoreFilter;
   const activeCategoryLabel = useMemo(() => {
-    if (categoryFilter === "Еда" && foodBreakdownMode === "breakdown" && foodSubcategoryFilter !== "all") {
+    if (isFoodBreakdownActive && foodSubcategoryFilter !== "all") {
       return `Еда · ${foodSubcategoryFilter}`;
     }
-    if (categoryFilter === "Еда" && foodBreakdownMode === "breakdown") return "Еда · по категориям";
+    if (isFoodBreakdownActive) return "Еда · по категориям";
     if (categoryFilter !== "all") return categoryFilter;
     if (excludedCategories.length === 0) return "Все категории";
     if (excludedCategories.length === 1) return `Все, кроме ${excludedCategories[0]}`;
     return `Все, кроме ${excludedCategories.length}`;
-  }, [categoryFilter, excludedCategories, foodBreakdownMode, foodSubcategoryFilter]);
+  }, [categoryFilter, excludedCategories, foodSubcategoryFilter, isFoodBreakdownActive]);
   const isFoodBreakdownAvailable = categoryFilter === "Еда";
   const toggleFoodBreakdownMode = () => {
     setFoodBreakdownMode((prev) => {
@@ -2002,7 +2009,7 @@ export default function DashboardTab({
                       }`}
                     >
                       {visibleCategoryItems.map((entry, index) => {
-                        const isActiveCategory = categoryFilter === entry.name;
+                        const isActiveCategory = activeCategoryChartValue === entry.name;
 
                         return (
                           <button
@@ -2797,7 +2804,7 @@ export default function DashboardTab({
                 <button
                   key={`desktop-top-${entry.name}`}
                   type="button"
-                  className={`dashboard-desktop-rank-item ${categoryFilter === entry.name ? "active" : ""}`}
+                  className={`dashboard-desktop-rank-item ${activeCategoryChartValue === entry.name ? "active" : ""}`}
                   onClick={() => toggleCategoryFilter(entry.name)}
                 >
                   <div>
@@ -3027,7 +3034,7 @@ export default function DashboardTab({
               <div className="category-legend" aria-label="Легенда категорий">
                 {categoryChartData.map((entry, index) => {
                   const percent = filteredCategoryTotal > 0 ? (entry.value / filteredCategoryTotal) * 100 : 0;
-                  const isActiveCategory = categoryFilter === entry.name;
+                  const isActiveCategory = activeCategoryChartValue === entry.name;
                   return (
                     <button
                       key={`legend-${entry.name}`}
