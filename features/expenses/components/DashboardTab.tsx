@@ -1133,7 +1133,7 @@ export default function DashboardTab({
   const ledgerStoreFilterLabel = ledgerStoreFilter === "all" ? "Все магазины" : ledgerStoreFilter;
   const activeCategoryLabel = useMemo(() => {
     if (isFoodBreakdownActive && foodSubcategoryFilter !== "all") {
-      return `Еда · ${foodSubcategoryFilter}`;
+      return foodSubcategoryFilter;
     }
     if (isFoodBreakdownActive) return "Еда";
     if (categoryFilter !== "all") return categoryFilter;
@@ -1142,6 +1142,10 @@ export default function DashboardTab({
     return `Все, кроме ${excludedCategories.length}`;
   }, [categoryFilter, excludedCategories, foodSubcategoryFilter, isFoodBreakdownActive]);
   const isFoodBreakdownAvailable = categoryFilter === "Еда";
+  const isFoodSubcategorySelected = isFoodBreakdownActive && foodSubcategoryFilter !== "all";
+  const returnToFoodCategory = () => {
+    setFoodSubcategoryFilter("all");
+  };
   useEffect(() => {
     if (categoryFilter === "Еда" && foodBreakdownMode !== "breakdown") {
       setFoodBreakdownMode("breakdown");
@@ -1908,7 +1912,7 @@ export default function DashboardTab({
                   >
                     {isFoodBreakdownAvailable && foodBreakdownMode === "breakdown" ? (
                       <>
-                        <option value="all">Все подкатегории</option>
+                        <option value="all">Еда</option>
                         {foodSubcategoryOptions.map((category) => (
                           <option key={`mobile-food-subcategory-filter-${category}`} value={category}>
                             {category}
@@ -1926,6 +1930,15 @@ export default function DashboardTab({
                       </>
                     )}
                   </select>
+                  {isFoodSubcategorySelected ? (
+                    <button
+                      type="button"
+                      className="dashboard-mobile-link-btn"
+                      onClick={returnToFoodCategory}
+                    >
+                      {"< Еда"}
+                    </button>
+                  ) : null}
                   </div>
                 </div>
 
@@ -2943,7 +2956,7 @@ export default function DashboardTab({
                 >
                   {isFoodBreakdownAvailable && foodBreakdownMode === "breakdown" ? (
                     <>
-                      <option value="all">Все подкатегории</option>
+                      <option value="all">Еда</option>
                       {foodSubcategoryOptions.map((category) => (
                         <option key={`food-subcategory-filter-${category}`} value={category}>
                           {category}
@@ -2961,6 +2974,11 @@ export default function DashboardTab({
                     </>
                   )}
                 </select>
+                {isFoodSubcategorySelected ? (
+                  <button type="button" className="btn btn-secondary" onClick={returnToFoodCategory}>
+                    {"< Еда"}
+                  </button>
+                ) : null}
               </div>
               {categoryFilter === "all" && categoryFilterOptions.length > 0 ? (
                 <div className="dashboard-category-exclude-box">
