@@ -858,10 +858,23 @@ export default function DashboardTab({
     [activeComparisonRows]
   );
   useEffect(() => {
+    if (
+      foodBreakdownMode === "breakdown" &&
+      categoryFilter !== "all" &&
+      categoryFilter !== "Еда" &&
+      foodSubcategoryOptions.includes(categoryFilter)
+    ) {
+      if (foodSubcategoryFilter !== categoryFilter) {
+        setFoodSubcategoryFilter(categoryFilter);
+      }
+      setCategoryFilter("Еда");
+      return;
+    }
+
     if (categoryFilter !== "all" && !categoryFilterOptions.includes(categoryFilter)) {
       setCategoryFilter("all");
     }
-  }, [categoryFilter, categoryFilterOptions]);
+  }, [categoryFilter, categoryFilterOptions, foodBreakdownMode, foodSubcategoryFilter, foodSubcategoryOptions]);
   useEffect(() => {
     setExcludedCategories((prev) => prev.filter((category) => categoryFilterOptions.includes(category)));
   }, [categoryFilterOptions]);
