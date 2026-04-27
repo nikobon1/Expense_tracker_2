@@ -1135,23 +1135,19 @@ export default function DashboardTab({
     if (isFoodBreakdownActive && foodSubcategoryFilter !== "all") {
       return `Еда · ${foodSubcategoryFilter}`;
     }
-    if (isFoodBreakdownActive) return "Еда · по категориям";
+    if (isFoodBreakdownActive) return "Еда";
     if (categoryFilter !== "all") return categoryFilter;
     if (excludedCategories.length === 0) return "Все категории";
     if (excludedCategories.length === 1) return `Все, кроме ${excludedCategories[0]}`;
     return `Все, кроме ${excludedCategories.length}`;
   }, [categoryFilter, excludedCategories, foodSubcategoryFilter, isFoodBreakdownActive]);
   const isFoodBreakdownAvailable = categoryFilter === "Еда";
-  const toggleFoodBreakdownMode = () => {
-    setFoodBreakdownMode((prev) => {
-      const next = prev === "combined" ? "breakdown" : "combined";
-      if (next === "combined") {
-        setFoodSubcategoryFilter("all");
-      }
-      return next;
-    });
-  };
   useEffect(() => {
+    if (categoryFilter === "Еда" && foodBreakdownMode !== "breakdown") {
+      setFoodBreakdownMode("breakdown");
+      return;
+    }
+
     if (categoryFilter !== "Еда" && foodBreakdownMode !== "combined") {
       setFoodBreakdownMode("combined");
     }
@@ -1930,11 +1926,6 @@ export default function DashboardTab({
                       </>
                     )}
                   </select>
-                  {isFoodBreakdownAvailable ? (
-                    <button type="button" className="btn btn-secondary dashboard-mobile-food-breakdown-btn" onClick={toggleFoodBreakdownMode}>
-                      {foodBreakdownMode === "combined" ? "Разбить по категориям" : "Показать Еду целиком"}
-                    </button>
-                  ) : null}
                   </div>
                 </div>
 
@@ -2970,11 +2961,6 @@ export default function DashboardTab({
                     </>
                   )}
                 </select>
-                {isFoodBreakdownAvailable ? (
-                  <button type="button" className="btn btn-secondary category-breakdown-btn" onClick={toggleFoodBreakdownMode}>
-                    {foodBreakdownMode === "combined" ? "Разбить по категориям" : "Показать Еду целиком"}
-                  </button>
-                ) : null}
               </div>
               {categoryFilter === "all" && categoryFilterOptions.length > 0 ? (
                 <div className="dashboard-category-exclude-box">
