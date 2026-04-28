@@ -1142,9 +1142,9 @@ export default function DashboardTab({
     return `Все, кроме ${excludedCategories.length}`;
   }, [categoryFilter, excludedCategories, foodSubcategoryFilter, isFoodBreakdownActive]);
   const isFoodBreakdownAvailable = categoryFilter === "Еда";
-  const isFoodSubcategorySelected = isFoodBreakdownActive && foodSubcategoryFilter !== "all";
-  const returnToFoodCategory = () => {
+  const returnToMainCategoryMenu = () => {
     setFoodSubcategoryFilter("all");
+    setCategoryFilter("all");
   };
   useEffect(() => {
     if (categoryFilter === "Еда" && foodBreakdownMode !== "breakdown") {
@@ -1930,13 +1930,13 @@ export default function DashboardTab({
                       </>
                     )}
                   </select>
-                  {isFoodSubcategorySelected ? (
+                  {isFoodBreakdownAvailable ? (
                     <button
                       type="button"
                       className="dashboard-mobile-link-btn"
-                      onClick={returnToFoodCategory}
+                      onClick={returnToMainCategoryMenu}
                     >
-                      {"< Еда"}
+                      {"< Все категории"}
                     </button>
                   ) : null}
                   </div>
@@ -2974,9 +2974,9 @@ export default function DashboardTab({
                     </>
                   )}
                 </select>
-                {isFoodSubcategorySelected ? (
-                  <button type="button" className="btn btn-secondary" onClick={returnToFoodCategory}>
-                    {"< Еда"}
+                {isFoodBreakdownAvailable ? (
+                  <button type="button" className="btn btn-secondary" onClick={returnToMainCategoryMenu}>
+                    {"< Все категории"}
                   </button>
                 ) : null}
               </div>

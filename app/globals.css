@@ -55,8 +55,10 @@
   --dashboard-link: #15756f;
   --dashboard-rank-bg: rgba(255, 255, 255, 0.72);
   --dashboard-rank-border: rgba(106, 138, 169, 0.14);
-  --dashboard-rank-active-bg: rgba(20, 145, 126, 0.12);
-  --dashboard-rank-active-border: rgba(20, 145, 126, 0.32);
+  --dashboard-rank-active-bg: linear-gradient(135deg, #0f766e 0%, #14917e 100%);
+  --dashboard-rank-active-border: rgba(15, 118, 110, 0.62);
+  --dashboard-rank-active-color: #f8fffd;
+  --dashboard-rank-active-muted: rgba(232, 255, 249, 0.82);
   --dashboard-mobile-shell-bg:
     radial-gradient(circle at top, rgba(20, 145, 126, 0.12), transparent 28%),
     linear-gradient(180deg, #f3f7fb 0%, #e8eef5 100%);
@@ -93,8 +95,9 @@
   --dashboard-mobile-inline-border: rgba(125, 146, 167, 0.18);
   --dashboard-mobile-chip-bg: rgba(255, 255, 255, 0.76);
   --dashboard-mobile-chip-border: rgba(125, 146, 167, 0.16);
-  --dashboard-mobile-chip-active-bg: rgba(20, 145, 126, 0.14);
-  --dashboard-mobile-chip-active-border: rgba(20, 145, 126, 0.32);
+  --dashboard-mobile-chip-active-bg: linear-gradient(135deg, #0f766e 0%, #14917e 100%);
+  --dashboard-mobile-chip-active-border: rgba(15, 118, 110, 0.62);
+  --dashboard-mobile-chip-active-color: #f8fffd;
   --dashboard-mobile-chip-hover-bg: rgba(255, 255, 255, 0.94);
   --dashboard-mobile-table-bg: rgba(255, 255, 255, 0.72);
   --dashboard-mobile-table-border: rgba(125, 146, 167, 0.14);
@@ -159,8 +162,10 @@
   --dashboard-link: #7fcfc6;
   --dashboard-rank-bg: rgba(255, 255, 255, 0.04);
   --dashboard-rank-border: rgba(138, 164, 184, 0.12);
-  --dashboard-rank-active-bg: rgba(99, 213, 192, 0.1);
-  --dashboard-rank-active-border: rgba(99, 213, 192, 0.42);
+  --dashboard-rank-active-bg: linear-gradient(135deg, #6d28d9 0%, #7c3aed 100%);
+  --dashboard-rank-active-border: rgba(196, 181, 253, 0.72);
+  --dashboard-rank-active-color: #f8f5ff;
+  --dashboard-rank-active-muted: rgba(237, 233, 254, 0.82);
   --dashboard-mobile-shell-bg:
     radial-gradient(circle at top, rgba(124, 58, 237, 0.22), transparent 28%),
     linear-gradient(180deg, #05060a 0%, #0b0d12 100%);
@@ -197,8 +202,9 @@
   --dashboard-mobile-inline-border: rgba(148, 163, 184, 0.18);
   --dashboard-mobile-chip-bg: rgba(255, 255, 255, 0.03);
   --dashboard-mobile-chip-border: rgba(148, 163, 184, 0.14);
-  --dashboard-mobile-chip-active-bg: rgba(124, 58, 237, 0.16);
-  --dashboard-mobile-chip-active-border: rgba(167, 139, 250, 0.55);
+  --dashboard-mobile-chip-active-bg: linear-gradient(135deg, #6d28d9 0%, #7c3aed 100%);
+  --dashboard-mobile-chip-active-border: rgba(196, 181, 253, 0.72);
+  --dashboard-mobile-chip-active-color: #f8f5ff;
   --dashboard-mobile-chip-hover-bg: rgba(255, 255, 255, 0.045);
   --dashboard-mobile-table-bg: rgba(255, 255, 255, 0.03);
   --dashboard-mobile-table-border: rgba(148, 163, 184, 0.14);
@@ -1923,8 +1929,14 @@ td select:focus {
 }
 
 .category-legend-item.active {
-  background: rgba(99, 102, 241, 0.12);
-  border-color: rgba(99, 102, 241, 0.35);
+  background: var(--dashboard-rank-active-bg);
+  border-color: var(--dashboard-rank-active-border);
+  box-shadow: 0 14px 30px rgba(15, 23, 42, 0.14);
+}
+
+.category-legend-item.active .category-legend-name,
+.category-legend-item.active .category-legend-value {
+  color: var(--dashboard-rank-active-color);
 }
 
 .category-legend-left {
@@ -2378,6 +2390,12 @@ td select:focus {
 .dashboard-desktop-rank-item.active {
   border-color: var(--dashboard-rank-active-border);
   background: var(--dashboard-rank-active-bg);
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.16);
+}
+
+.dashboard-desktop-rank-item.active strong,
+.dashboard-desktop-rank-item.active span {
+  color: var(--dashboard-rank-active-color);
 }
 
 .dashboard-desktop-rank-item strong,
@@ -3818,6 +3836,7 @@ td select:focus {
 .dashboard-mobile-category-btn.active {
   border-color: var(--dashboard-mobile-chip-active-border);
   background: var(--dashboard-mobile-chip-active-bg);
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.16);
 }
 
 .dashboard-mobile-category-dot {
@@ -3846,7 +3865,7 @@ td select:focus {
 .dashboard-mobile-category-btn.active strong,
 .dashboard-mobile-category-btn.active b,
 .dashboard-mobile-category-btn.active span {
-  color: #ffffff;
+  color: var(--dashboard-mobile-chip-active-color);
 }
 
 .dashboard-mobile-category-btn b,
