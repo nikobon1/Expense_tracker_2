@@ -1142,10 +1142,75 @@ export default function DashboardTab({
     return `Все, кроме ${excludedCategories.length}`;
   }, [categoryFilter, excludedCategories, foodSubcategoryFilter, isFoodBreakdownActive]);
   const isFoodBreakdownAvailable = categoryFilter === "Еда";
+  const isFoodSubcategorySelected = isFoodBreakdownActive && foodSubcategoryFilter !== "all";
+  const returnToFoodCategory = () => {
+    setFoodSubcategoryFilter("all");
+  };
   const returnToMainCategoryMenu = () => {
     setFoodSubcategoryFilter("all");
     setCategoryFilter("all");
   };
+  const categoryBreadcrumbItems = useMemo<
+    Array<{ key: string; label: string; isCurrent: boolean; onClick?: () => void }>
+  >(() => {
+    const items: Array<{ key: string; label: string; isCurrent: boolean; onClick?: () => void }> = [
+      {
+        key: "all",
+        label: "Все категории",
+        isCurrent: categoryFilter === "all",
+        onClick: categoryFilter !== "all" ? returnToMainCategoryMenu : undefined,
+      },
+    ];
+
+    if (categoryFilter === "all") {
+      return items;
+    }
+
+    if (isFoodBreakdownAvailable) {
+      items.push({
+        key: "food",
+        label: "Еда",
+        isCurrent: !isFoodSubcategorySelected,
+        onClick: isFoodSubcategorySelected ? returnToFoodCategory : undefined,
+      });
+
+      if (isFoodSubcategorySelected) {
+        items.push({
+          key: `food-${foodSubcategoryFilter}`,
+          label: foodSubcategoryFilter,
+          isCurrent: true,
+        });
+      }
+
+      return items;
+    }
+
+    items.push({
+      key: `category-${categoryFilter}`,
+      label: categoryFilter,
+      isCurrent: true,
+    });
+
+    return items;
+  }, [categoryFilter, foodSubcategoryFilter, isFoodBreakdownAvailable, isFoodSubcategorySelected]);
+  const renderCategoryBreadcrumb = (className?: string) => (
+    <nav className={className ? `category-breadcrumb ${className}` : "category-breadcrumb"} aria-label="Навигация по категориям">
+      {categoryBreadcrumbItems.map((item, index) => (
+        <Fragment key={item.key}>
+          {index > 0 ? <span className="category-breadcrumb-separator">/</span> : null}
+          {item.onClick ? (
+            <button type="button" className="category-breadcrumb-item" onClick={item.onClick}>
+              {item.label}
+            </button>
+          ) : (
+            <span className="category-breadcrumb-current" aria-current="page">
+              {item.label}
+            </span>
+          )}
+        </Fragment>
+      ))}
+    </nav>
+  );
   useEffect(() => {
     if (categoryFilter === "Еда" && foodBreakdownMode !== "breakdown") {
       setFoodBreakdownMode("breakdown");
@@ -1896,51 +1961,9 @@ export default function DashboardTab({
                         {showAllCategories ? "Свернуть" : "Показать все"}
                       </button>
                     )}
-                  <select
-                    className="dashboard-mobile-inline-select"
-                    aria-label="Фильтр категории"
-                    name="dashboardCategory"
-                    value={isFoodBreakdownAvailable && foodBreakdownMode === "breakdown" ? foodSubcategoryFilter : categoryFilter}
-                    onChange={(e) => {
-                      if (isFoodBreakdownAvailable && foodBreakdownMode === "breakdown") {
-                        setFoodSubcategoryFilter(e.target.value);
-                        return;
-                      }
-
-                      setCategoryFilter(e.target.value);
-                    }}
-                  >
-                    {isFoodBreakdownAvailable && foodBreakdownMode === "breakdown" ? (
-                      <>
-                        <option value="all">Еда</option>
-                        {foodSubcategoryOptions.map((category) => (
-                          <option key={`mobile-food-subcategory-filter-${category}`} value={category}>
-                            {category}
-                          </option>
-                        ))}
-                      </>
-                    ) : (
-                      <>
-                        <option value="all">Все</option>
-                        {categoryFilterOptions.map((category) => (
-                          <option key={`mobile-category-filter-${category}`} value={category}>
-                            {category}
-                          </option>
-                        ))}
-                      </>
-                    )}
-                  </select>
-                  {isFoodBreakdownAvailable ? (
-                    <button
-                      type="button"
-                      className="dashboard-mobile-link-btn"
-                      onClick={returnToMainCategoryMenu}
-                    >
-                      {"< Все категории"}
-                    </button>
-                  ) : null}
                   </div>
                 </div>
+                {renderCategoryBreadcrumb("category-breadcrumb-mobile")}
 
                 {categoryFilter === "all" && categoryFilterOptions.length > 0 ? (
                   <div className="dashboard-category-exclude-box">
@@ -2938,47 +2961,10 @@ export default function DashboardTab({
             <div className="chart-card">
               <h4>🥧 Расходы по категориям</h4>
               <div className="category-filter-row">
-                <label htmlFor="dashboard-category-filter" className="metric-filter-label">
+                <span className="metric-filter-label">
                   {"\u041a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f"}
-                </label>
-                <select
-                  id="dashboard-category-filter"
-                  className="category-filter-select"
-                  value={isFoodBreakdownAvailable && foodBreakdownMode === "breakdown" ? foodSubcategoryFilter : categoryFilter}
-                  onChange={(e) => {
-                    if (isFoodBreakdownAvailable && foodBreakdownMode === "breakdown") {
-                      setFoodSubcategoryFilter(e.target.value);
-                      return;
-                    }
-
-                    setCategoryFilter(e.target.value);
-                  }}
-                >
-                  {isFoodBreakdownAvailable && foodBreakdownMode === "breakdown" ? (
-                    <>
-                      <option value="all">Еда</option>
-                      {foodSubcategoryOptions.map((category) => (
-                        <option key={`food-subcategory-filter-${category}`} value={category}>
-                          {category}
-                        </option>
-                      ))}
-                    </>
-                  ) : (
-                    <>
-                      <option value="all">{"\u0412\u0441\u0435 \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u0438"}</option>
-                      {categoryFilterOptions.map((category) => (
-                        <option key={`category-filter-${category}`} value={category}>
-                          {category}
-                        </option>
-                      ))}
-                    </>
-                  )}
-                </select>
-                {isFoodBreakdownAvailable ? (
-                  <button type="button" className="btn btn-secondary" onClick={returnToMainCategoryMenu}>
-                    {"< Все категории"}
-                  </button>
-                ) : null}
+                </span>
+                {renderCategoryBreadcrumb()}
               </div>
               {categoryFilter === "all" && categoryFilterOptions.length > 0 ? (
                 <div className="dashboard-category-exclude-box">

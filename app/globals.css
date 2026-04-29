@@ -1843,6 +1843,48 @@ td select:focus {
   margin-bottom: 0.7rem;
 }
 
+.category-breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.category-breadcrumb-item,
+.category-breadcrumb-current {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0.35rem 0.72rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  line-height: 1.1;
+}
+
+.category-breadcrumb-item {
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.category-breadcrumb-item:hover {
+  background: var(--bg-card);
+}
+
+.category-breadcrumb-current {
+  border: 1px solid var(--dashboard-rank-active-border);
+  background: var(--dashboard-rank-active-bg);
+  color: var(--dashboard-rank-active-color);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+}
+
+.category-breadcrumb-separator {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+}
+
 .category-filter-select {
   width: 100%;
   border: 1px solid var(--border-color);
@@ -2258,6 +2300,20 @@ td select:focus {
   background: var(--dashboard-form-bg);
   border: 1px solid var(--dashboard-form-border);
   color: var(--dashboard-form-text);
+}
+
+.dashboard-surface .category-breadcrumb-item {
+  background: var(--dashboard-form-bg);
+  border-color: var(--dashboard-form-border);
+  color: var(--dashboard-form-text);
+}
+
+.dashboard-surface .category-breadcrumb-item:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.dashboard-surface .category-breadcrumb-separator {
+  color: var(--dashboard-muted);
 }
 
 .dashboard-surface .metrics-grid {
@@ -3388,6 +3444,16 @@ td select:focus {
   display: grid;
   justify-items: end;
   gap: 0.45rem;
+}
+
+.category-breadcrumb-mobile {
+  margin-top: 0.1rem;
+  margin-bottom: 0.85rem;
+}
+
+.category-breadcrumb-mobile .category-breadcrumb-item,
+.category-breadcrumb-mobile .category-breadcrumb-current {
+  font-size: 0.78rem;
 }
 
 .dashboard-mobile-panel-head h3,
