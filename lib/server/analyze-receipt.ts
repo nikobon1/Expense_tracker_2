@@ -100,6 +100,10 @@ function isRetryableAnalyzeStatus(status: number): boolean {
   return status === 429 || status >= 500;
 }
 
+function isAnalyzeAuthStatus(status: number): boolean {
+  return status === 401 || status === 403;
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -493,7 +497,11 @@ export async function analyzeReceiptImageDataUrl(
         userId: options?.userId ?? null,
       });
     } catch (error) {
-      if (!googleKey || !isAnalyzeProviderError(error) || !isRetryableAnalyzeStatus(error.status)) {
+      if (
+        !googleKey ||
+        !isAnalyzeProviderError(error) ||
+        (!isRetryableAnalyzeStatus(error.status) && !isAnalyzeAuthStatus(error.status))
+      ) {
         throw error;
       }
     }
