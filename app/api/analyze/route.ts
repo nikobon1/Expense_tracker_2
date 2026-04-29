@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { analyzeReceiptImageDataUrl } from "@/lib/server/analyze-receipt";
+import { analyzeReceiptImageDataUrl, isAnalyzeProviderError } from "@/lib/server/analyze-receipt";
 import { assertAnalyzeAllowed, isAnalyzeLimitError } from "@/lib/server/analyze-limits";
 import {
   isAuthenticationRequiredError,
@@ -21,6 +21,18 @@ export async function POST(request: NextRequest) {
     }
 
     if (isAnalyzeLimitError(error)) {
+      return NextResponse.json(
+        { error: error.message },
+        {
+          status: error.status,
+          headers: error.retryAfterSeconds
+            ? { "Retry-After": String(error.retryAfterSeconds) }
+            : undefined,
+        }
+      );
+    }
+
+    if (isAnalyzeProviderError(error)) {
       return NextResponse.json(
         { error: error.message },
         {

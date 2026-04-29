@@ -56,6 +56,84 @@ type UsagePayload = {
   totalTokens: number;
 };
 
+export class AnalyzeProviderError extends Error {
+  status: number;
+  retryAfterSeconds: number | null;
+  provider: UsagePayload["provider"];
+
+  constructor(
+    message: string,
+    options: {
+      provider: UsagePayload["provider"];
+      status?: number;
+      retryAfterSeconds?: number | null;
+    }
+  ) {
+    super(message);
+    this.name = "AnalyzeProviderError";
+    this.provider = options.provider;
+    this.status = options.status ?? 500;
+    this.retryAfterSeconds = options.retryAfterSeconds ?? null;
+  }
+}
+
+export function isAnalyzeProviderError(error: unknown): error is AnalyzeProviderError {
+  return error instanceof AnalyzeProviderError;
+}
+
+function parseRetryAfterSeconds(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds > 0) {
+    return Math.ceil(seconds);
+  }
+
+  const retryAt = Date.parse(value);
+  if (!Number.isFinite(retryAt)) return null;
+
+  const diffMs = retryAt - Date.now();
+  if (diffMs <= 0) return null;
+  return Math.max(1, Math.ceil(diffMs / 1000));
+}
+
+function isRetryableAnalyzeStatus(status: number): boolean {
+  return status === 429 || status >= 500;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function withAnalyzeRetries<T>(
+  action: () => Promise<T>,
+  options: { provider: UsagePayload["provider"]; maxAttempts?: number }
+): Promise<T> {
+  const maxAttempts = options.maxAttempts ?? 3;
+  let attempt = 0;
+
+  while (true) {
+    attempt += 1;
+    try {
+      return await action();
+    } catch (error) {
+      if (!isAnalyzeProviderError(error) || error.provider !== options.provider || !isRetryableAnalyzeStatus(error.status) || attempt >= maxAttempts) {
+        throw error;
+      }
+
+      const retryAfterSeconds = error.retryAfterSeconds ?? Math.min(6, attempt * 2);
+      await sleep(retryAfterSeconds * 1000);
+    }
+  }
+}
+
+function buildAnalyzeUnavailableMessage(retryAfterSeconds: number | null): string {
+  if (retryAfterSeconds && retryAfterSeconds > 0) {
+    return `Сервис распознавания временно занят. Попробуйте снова через ${retryAfterSeconds} сек.`;
+  }
+
+  return "Сервис распознавания временно занят. Попробуйте снова чуть позже.";
+}
+
 function parsePositiveNumber(value: string | undefined): number | null {
   if (!value) return null;
   const parsed = Number(value);
@@ -240,6 +318,155 @@ function sanitizeAnalyzedReceipt(receipt: ReceiptData): ReceiptData {
   };
 }
 
+async function analyzeWithOpenAI(params: {
+  apiKey: string;
+  mimeType: string;
+  base64Data: string;
+  userId?: number | null;
+}): Promise<ReceiptData> {
+  const openai = new OpenAI({ apiKey: params.apiKey });
+
+  return withAnalyzeRetries(
+    async () => {
+      try {
+        const response = await openai.chat.completions.create({
+          model: "gpt-4o",
+          messages: [
+            { role: "system", content: EFFECTIVE_SYSTEM_PROMPT },
+            {
+              role: "user",
+              content: [
+                { type: "text", text: "Analyze this receipt and extract the data." },
+                {
+                  type: "image_url",
+                  image_url: { url: `data:${params.mimeType};base64,${params.base64Data}` },
+                },
+              ],
+            },
+          ],
+          max_tokens: 2000,
+        });
+
+        const promptTokens = Number(response.usage?.prompt_tokens ?? 0);
+        const completionTokens = Number(response.usage?.completion_tokens ?? 0);
+        const totalTokens = Number(response.usage?.total_tokens ?? promptTokens + completionTokens);
+
+        const content = response.choices[0]?.message?.content ?? "";
+        const parsed = sanitizeAnalyzedReceipt(JSON.parse(extractJson(content)) as ReceiptData);
+
+        await logAnalyzeUsage(
+          {
+            provider: "openai:gpt-4o",
+            model: "gpt-4o",
+            inputTokens: Number.isFinite(promptTokens) ? promptTokens : 0,
+            outputTokens: Number.isFinite(completionTokens) ? completionTokens : 0,
+            totalTokens: Number.isFinite(totalTokens) ? totalTokens : 0,
+          },
+          { storeName: parsed.store_name, userId: params.userId ?? null }
+        );
+
+        return parsed;
+      } catch (error) {
+        const status =
+          typeof error === "object" &&
+          error &&
+          "status" in error &&
+          typeof (error as { status?: unknown }).status === "number"
+            ? Number((error as { status?: number }).status)
+            : 500;
+        const message = error instanceof Error ? error.message : "OpenAI analyze error";
+
+        throw new AnalyzeProviderError(message, {
+          provider: "openai:gpt-4o",
+          status,
+        });
+      }
+    },
+    { provider: "openai:gpt-4o" }
+  );
+}
+
+async function analyzeWithGemini(params: {
+  apiKey: string;
+  mimeType: string;
+  base64Data: string;
+  userId?: number | null;
+}): Promise<ReceiptData> {
+  return withAnalyzeRetries(
+    async () => {
+      const geminiResponse = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${params.apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  { text: `${EFFECTIVE_SYSTEM_PROMPT}\n\nAnalyze this receipt and extract the data.` },
+                  {
+                    inline_data: {
+                      mime_type: params.mimeType,
+                      data: params.base64Data,
+                    },
+                  },
+                ],
+              },
+            ],
+          }),
+        }
+      );
+
+      if (!geminiResponse.ok) {
+        let message = "Gemini API error";
+        try {
+          const error = (await geminiResponse.json()) as { error?: { message?: string } };
+          message = error.error?.message || message;
+        } catch {
+          const text = await geminiResponse.text();
+          if (text) message = text;
+        }
+
+        throw new AnalyzeProviderError(message, {
+          provider: "google:gemini-2.0-flash",
+          status: geminiResponse.status,
+          retryAfterSeconds: parseRetryAfterSeconds(geminiResponse.headers.get("retry-after")),
+        });
+      }
+
+      const geminiData = (await geminiResponse.json()) as {
+        candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+        usageMetadata?: {
+          promptTokenCount?: number;
+          candidatesTokenCount?: number;
+          totalTokenCount?: number;
+        };
+      };
+
+      const promptTokens = Number(geminiData.usageMetadata?.promptTokenCount ?? 0);
+      const completionTokens = Number(geminiData.usageMetadata?.candidatesTokenCount ?? 0);
+      const totalTokens = Number(geminiData.usageMetadata?.totalTokenCount ?? promptTokens + completionTokens);
+
+      const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      const parsed = sanitizeAnalyzedReceipt(JSON.parse(extractJson(text)) as ReceiptData);
+
+      await logAnalyzeUsage(
+        {
+          provider: "google:gemini-2.0-flash",
+          model: "gemini-2.0-flash",
+          inputTokens: Number.isFinite(promptTokens) ? promptTokens : 0,
+          outputTokens: Number.isFinite(completionTokens) ? completionTokens : 0,
+          totalTokens: Number.isFinite(totalTokens) ? totalTokens : 0,
+        },
+        { storeName: parsed.store_name, userId: params.userId ?? null }
+      );
+
+      return parsed;
+    },
+    { provider: "google:gemini-2.0-flash" }
+  );
+}
+
 export async function analyzeReceiptImageDataUrl(
   image: string,
   options?: { userId?: number | null }
@@ -258,6 +485,40 @@ export async function analyzeReceiptImageDataUrl(
   const { mimeType, base64Data } = ensureSupportedImageDataUrl(image);
 
   if (openaiKey) {
+    try {
+      return await analyzeWithOpenAI({
+        apiKey: openaiKey,
+        mimeType,
+        base64Data,
+        userId: options?.userId ?? null,
+      });
+    } catch (error) {
+      if (!googleKey || !isAnalyzeProviderError(error) || !isRetryableAnalyzeStatus(error.status)) {
+        throw error;
+      }
+    }
+  }
+
+  try {
+    return await analyzeWithGemini({
+      apiKey: googleKey!,
+      mimeType,
+      base64Data,
+      userId: options?.userId ?? null,
+    });
+  } catch (error) {
+    if (isAnalyzeProviderError(error) && error.status === 429) {
+      throw new AnalyzeProviderError(buildAnalyzeUnavailableMessage(error.retryAfterSeconds), {
+        provider: error.provider,
+        status: 429,
+        retryAfterSeconds: error.retryAfterSeconds,
+      });
+    }
+
+    throw error;
+  }
+
+  if (openaiKey && false) {
     const openai = new OpenAI({ apiKey: openaiKey });
     const response = await openai.chat.completions.create({
       model: "gpt-4o",

@@ -48,6 +48,17 @@ async function readJsonOrText(response: Response): Promise<unknown> {
 }
 
 function getErrorMessage(response: Response, payload: unknown, fallback: string): string {
+  const retryAfterHeader = response.headers.get("Retry-After");
+  const retryAfterSeconds = retryAfterHeader ? Number(retryAfterHeader) : NaN;
+
+  if (response.status === 429) {
+    if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) {
+      return `Сервис распознавания временно занят. Попробуйте снова через ${Math.ceil(retryAfterSeconds)} сек.`;
+    }
+
+    return "Сервис распознавания временно занят. Попробуйте снова чуть позже.";
+  }
+
   if (payload && typeof payload === "object" && "error" in payload) {
     const error = (payload as { error?: unknown }).error;
     if (typeof error === "string" && error.trim()) return error;
