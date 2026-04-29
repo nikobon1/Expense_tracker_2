@@ -1,7 +1,7 @@
 ﻿'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import DashboardTab from '@/features/expenses/components/DashboardTab';
 import ScanTab from '@/features/expenses/components/ScanTab';
 import { useCategoryOptions } from '@/features/expenses/hooks/useCategoryOptions';
@@ -26,7 +26,6 @@ export default function Home() {
   const [isAnalyzeUsageLoading, setIsAnalyzeUsageLoading] = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [hasLoadedOnboardingPreference, setHasLoadedOnboardingPreference] = useState(false);
-  const receiptFlow = useReceiptFlow(defaultCurrency);
   const categoryOptions = useCategoryOptions();
   const dashboardData = useDashboardData(defaultCurrency);
   const recurringExpenses = useRecurringExpenses(defaultCurrency);
@@ -48,6 +47,26 @@ export default function Home() {
     setSelectedCurrency,
     loadExpenses,
   } = dashboardData;
+  const handleReceiptSaved = useCallback(
+    ({ purchaseDate, currency }: { purchaseDate: string; currency: string }) => {
+      const fallbackDate = getLocalTodayIso();
+      const normalizedPurchaseDate = purchaseDate || fallbackDate;
+
+      setSelectedStore('all');
+      setSelectedCurrency(normalizeCurrencyCode(currency || defaultCurrency));
+
+      if (normalizedPurchaseDate < startDate || normalizedPurchaseDate > endDate) {
+        setStartDate(normalizedPurchaseDate);
+        setEndDate(normalizedPurchaseDate);
+      } else if (normalizedPurchaseDate === fallbackDate && endDate < fallbackDate) {
+        setEndDate(fallbackDate);
+      }
+
+      setActiveTab('dashboard');
+    },
+    [defaultCurrency, endDate, setEndDate, setSelectedCurrency, setSelectedStore, setStartDate, startDate]
+  );
+  const receiptFlow = useReceiptFlow(defaultCurrency, { onSaved: handleReceiptSaved });
 
   useEffect(() => {
     if (activeTab === 'dashboard') {

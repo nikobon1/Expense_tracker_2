@@ -146,7 +146,16 @@ function getDateWarningText(purchaseDate: string): string | null {
   return null;
 }
 
-export function useReceiptFlow(defaultCurrency: string = DEFAULT_CURRENCY) {
+type ReceiptSavedPayload = {
+  purchaseDate: string;
+  currency: string;
+};
+
+type UseReceiptFlowOptions = {
+  onSaved?: (payload: ReceiptSavedPayload) => void;
+};
+
+export function useReceiptFlow(defaultCurrency: string = DEFAULT_CURRENCY, options?: UseReceiptFlowOptions) {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [receiptData, setReceiptData] = useState<ReceiptData | null>(null);
@@ -218,7 +227,7 @@ export function useReceiptFlow(defaultCurrency: string = DEFAULT_CURRENCY) {
       setStoreName(normalizedData.store_name);
       setPurchaseDate(normalizedData.purchase_date);
       setPurchaseDateManual(formatManualDate(normalizedData.purchase_date));
-      setAlert({ type: "success", message: "Чек успешно распознан!" });
+      setAlert({ type: "success", message: 'Чек распознан. Проверьте дату и нажмите "Сохранить в базу".' });
     } catch (error) {
       setAlert({
         type: "error",
@@ -271,12 +280,16 @@ export function useReceiptFlow(defaultCurrency: string = DEFAULT_CURRENCY) {
       setPurchaseDate("");
       setPurchaseDateManual("");
       notifyExpensesChanged();
+      options?.onSaved?.({
+        purchaseDate,
+        currency: normalizeCurrencyCode(defaultCurrency),
+      });
     } catch {
       setAlert({ type: "error", message: "Ошибка сохранения в БД" });
     } finally {
       setIsSaving(false);
     }
-  }, [defaultCurrency, editedItems, purchaseDate, storeName]);
+  }, [defaultCurrency, editedItems, options, purchaseDate, storeName]);
 
   const handleManualSave = useCallback(async () => {
     const normalizedStoreName = manualStoreName.trim();
@@ -320,12 +333,16 @@ export function useReceiptFlow(defaultCurrency: string = DEFAULT_CURRENCY) {
       setManualPurchaseDate(getLocalTodayIso());
       setManualTotal("");
       notifyExpensesChanged();
+      options?.onSaved?.({
+        purchaseDate: manualPurchaseDate,
+        currency: normalizeCurrencyCode(defaultCurrency),
+      });
     } catch {
       setAlert({ type: "error", message: "Не удалось сохранить покупку." });
     } finally {
       setIsSaving(false);
     }
-  }, [defaultCurrency, manualPurchaseDate, manualStoreName, manualTotal]);
+  }, [defaultCurrency, manualPurchaseDate, manualStoreName, manualTotal, options]);
 
   const normalizeManualTotal = useCallback(() => {
     const parsed = parseFlexibleAmount(manualTotal);
