@@ -472,7 +472,7 @@ export default function DashboardTab({
   const [ledgerStoreFilter, setLedgerStoreFilter] = useState<string>("all");
   const [showAllCategories, setShowAllCategories] = useState(false);
   const [showAllLedger, setShowAllLedger] = useState(false);
-  const [ledgerSortField, setLedgerSortField] = useState<LedgerSortField>("price");
+  const [ledgerSortField, setLedgerSortField] = useState<LedgerSortField>("date");
   const [ledgerSortDirection, setLedgerSortDirection] = useState<LedgerSortDirection>("desc");
   const [expandedLedgerReceipts, setExpandedLedgerReceipts] = useState<number[]>([]);
   const [editorError, setEditorError] = useState<string | null>(null);
