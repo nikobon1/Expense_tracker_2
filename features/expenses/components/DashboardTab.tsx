@@ -625,6 +625,13 @@ export default function DashboardTab({
       return;
     }
 
+    if (category === "\u0415\u0434\u0430") {
+      setFoodSubcategoryFilter("all");
+      setFoodBreakdownMode("breakdown");
+      setCategoryFilter((prev) => (prev === category ? "all" : category));
+      return;
+    }
+
     setCategoryFilter((prev) => (prev === category ? "all" : category));
   };
   const toggleExcludedCategory = (category: string) => {
@@ -1149,6 +1156,18 @@ export default function DashboardTab({
   const returnToMainCategoryMenu = () => {
     setFoodSubcategoryFilter("all");
     setCategoryFilter("all");
+  };
+  const showFoodBackButton = categoryFilter === "\u0415\u0434\u0430";
+  const foodBackButtonLabel = isFoodSubcategorySelected
+    ? "\u041d\u0430\u0437\u0430\u0434 \u043a \u0415\u0434\u0435"
+    : "\u041d\u0430\u0437\u0430\u0434 \u043a \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f\u043c";
+  const handleFoodBackButtonClick = () => {
+    if (isFoodSubcategorySelected) {
+      returnToFoodCategory();
+      return;
+    }
+
+    returnToMainCategoryMenu();
   };
   const categoryBreadcrumbItems = useMemo<
     Array<{ key: string; label: string; isCurrent: boolean; onClick?: () => void }>
@@ -1952,6 +1971,15 @@ export default function DashboardTab({
                     <h3>Структура трат</h3>
                   </div>
                   <div className="dashboard-mobile-panel-actions">
+                    {showFoodBackButton ? (
+                      <button
+                        type="button"
+                        className="dashboard-drilldown-btn"
+                        onClick={handleFoodBackButtonClick}
+                      >
+                        {foodBackButtonLabel}
+                      </button>
+                    ) : null}
                     {categoryListItems.length > 4 && (
                       <button
                         type="button"
@@ -2960,6 +2988,15 @@ export default function DashboardTab({
           <div className="charts-grid">
             <div className="chart-card">
               <h4>🥧 Расходы по категориям</h4>
+              {showFoodBackButton ? (
+                <button
+                  type="button"
+                  className="dashboard-drilldown-btn dashboard-drilldown-btn-desktop"
+                  onClick={handleFoodBackButtonClick}
+                >
+                  {foodBackButtonLabel}
+                </button>
+              ) : null}
               <div className="category-filter-row">
                 <span className="metric-filter-label">
                   {"\u041a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f"}

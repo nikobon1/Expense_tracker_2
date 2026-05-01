@@ -1769,6 +1769,30 @@ td select:focus {
   margin-bottom: 1rem;
 }
 
+.dashboard-drilldown-btn {
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border-radius: 999px;
+  min-height: 2rem;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.1;
+  cursor: pointer;
+  transition: background 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.dashboard-drilldown-btn:hover {
+  background: var(--bg-card);
+  border-color: var(--dashboard-rank-active-border);
+  transform: translateY(-1px);
+}
+
+.dashboard-drilldown-btn-desktop {
+  margin-bottom: 0.85rem;
+}
+
 .card-subtitle {
   margin-top: -0.35rem;
   margin-bottom: 0.9rem;
@@ -3483,6 +3507,10 @@ td select:focus {
   font-size: 0.78rem;
   font-weight: 600;
   cursor: pointer;
+}
+
+.dashboard-mobile-panel-actions .dashboard-drilldown-btn {
+  justify-self: end;
 }
 
 .dashboard-mobile-donut-wrap {
