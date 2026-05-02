@@ -33,6 +33,7 @@ Additional receipt rules:
 - Use the final paid total to validate extracted items.
 - If extracted item prices do not match "Total a pagar", reconcile them using item-level discounts and by excluding savings/discount summary lines.
 - Use the category "Кофе" for coffee beans, ground coffee, capsules, instant coffee, and similar coffee products.
+- For groceries and supermarket items, prefer the most specific food category from the list, such as fruits, vegetables, eggs, cottage cheese, dairy, bread, meat, or fish, instead of the generic food category whenever possible.
 - For Pingo Doce receipts, a number in parentheses directly under an item is that item's discount amount, not a separate product line.
 - For Pingo Doce receipts, "Total Poupanca" means total savings/discount and must not be added as a product or expense.
 - If an item has its own discount shown below it, use the net price actually paid for that item after subtracting the discount.
