@@ -20,7 +20,6 @@ interface ScanTabProps {
   receiptData: ReceiptData | null;
   editedItems: ReceiptItem[];
   storeName: string;
-  purchaseDate: string;
   purchaseDateManual: string;
   purchaseDateWarningText: string | null;
   purchaseDatePreviewText: string | null;
@@ -87,7 +86,7 @@ function formatDisplayDate(isoDate: string) {
 
   if (!year || !month || !day) return isoDate;
 
-  return `${day}.${month}.${year.slice(-2)}`;
+  return `${day}/${month}/${year}`;
 }
 
 function getFrequencyLabel(value: RecurringFrequency): string {
@@ -107,7 +106,6 @@ export default function ScanTab({
   receiptData,
   editedItems,
   storeName,
-  purchaseDate,
   purchaseDateManual,
   purchaseDateWarningText,
   purchaseDatePreviewText,
@@ -664,18 +662,12 @@ export default function ScanTab({
                     Сегодня
                   </button>
                 </div>
-                <input
-                  type="date"
-                  value={purchaseDate}
-                  onChange={(e) => onPurchaseDateChange(e.target.value)}
-                  className="scan-field-input"
-                />
-                <p className="scan-field-hint">Можно исправить дату вручную и ввести её в формате ДД/ММ/ГГ.</p>
+                <p className="scan-field-hint">Можно исправить дату вручную и ввести её в формате ДД/ММ/ГГГГ.</p>
                 <input
                   type="text"
                   value={purchaseDateManual}
                   onChange={(e) => onPurchaseDateManualChange(e.target.value)}
-                  placeholder="Например: 14/02/26"
+                  placeholder="Например: 14/02/2026"
                   inputMode="numeric"
                   className="scan-field-input scan-date-manual-input"
                 />
