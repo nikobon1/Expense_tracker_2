@@ -455,10 +455,7 @@ export default function DashboardTab({
   };
   const [isCategoryComparisonOpen, setIsCategoryComparisonOpen] = useState(false);
   const [isCategoryExcludeOpen, setIsCategoryExcludeOpen] = useState(false);
-  const [comparisonMode, setComparisonMode] = useState<"periods" | "stores">("periods");
   const [comparisonView, setComparisonView] = useState<"table" | "lines">("lines");
-  const [comparisonStoreA, setComparisonStoreA] = useState<string>("");
-  const [comparisonStoreB, setComparisonStoreB] = useState<string>("");
   const [isAnalyzeCostOpen, setIsAnalyzeCostOpen] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isEditorLoading, setIsEditorLoading] = useState(false);
@@ -751,110 +748,15 @@ export default function DashboardTab({
 
     return scope.join(" • ");
   }, [categoryFilter, selectedStore]);
-  const storeComparisonRows = useMemo(() => {
-    if (!comparisonStoreA || !comparisonStoreB || comparisonStoreA === comparisonStoreB) {
-      return [];
-    }
-
-    const currentTotals = new Map<string, number>();
-    const previousTotals = new Map<string, number>();
-
-    for (const expense of expenses) {
-      if (categoryFilter !== "all" && expense.category !== categoryFilter) continue;
-
-      if (expense.store === comparisonStoreA) {
-        currentTotals.set(expense.category, (currentTotals.get(expense.category) ?? 0) + expense.price);
-      }
-
-      if (expense.store === comparisonStoreB) {
-        previousTotals.set(expense.category, (previousTotals.get(expense.category) ?? 0) + expense.price);
-      }
-    }
-
-    const allCategories = new Set<string>([
-      ...currentTotals.keys(),
-      ...previousTotals.keys(),
-    ]);
-
-    return Array.from(allCategories)
-      .map((category) => {
-        const currentTotal = currentTotals.get(category) ?? 0;
-        const previousTotal = previousTotals.get(category) ?? 0;
-        const delta = currentTotal - previousTotal;
-        const percent = previousTotal > 0 ? (delta / previousTotal) * 100 : null;
-
-        return {
-          category,
-          currentTotal,
-          previousTotal,
-          delta,
-          percent,
-          sortValue: currentTotal + previousTotal,
-        };
-      })
-      .filter((row) => row.currentTotal > 0 || row.previousTotal > 0)
-      .sort((a, b) => b.sortValue - a.sortValue);
-  }, [categoryFilter, comparisonStoreA, comparisonStoreB, expenses]);
-  const activeComparisonRows = comparisonMode === "stores" ? storeComparisonRows : categoryComparisonRows;
-  const comparisonLeftLabel = comparisonMode === "stores" ? comparisonStoreA || "Магазин A" : currentPeriodLabel;
-  const comparisonRightLabel = comparisonMode === "stores" ? comparisonStoreB || "Магазин B" : previousPeriodLabel;
-  const comparisonTitle =
-    comparisonMode === "stores" ? "Сравнение категорий по магазинам" : "Сравнение категорий по периодам";
-  const comparisonStoresHint =
-    "Чтобы сравнить два магазина, установите верхний фильтр магазина в «Все магазины», затем выберите Магазин A и Магазин B ниже.";
-  const comparisonSubtitle = useMemo(() => {
-    if (comparisonMode === "stores") {
-      const parts = [`${comparisonLeftLabel} по сравнению с ${comparisonRightLabel}`, currentPeriodLabel];
-
-      if (categoryFilter !== "all") {
-        parts.push(`Категория: ${categoryFilter}`);
-      }
-
-      if (selectedStore !== "all") {
-        parts.push("Для межмагазинного сравнения выберите сверху: Все магазины");
-      }
-
-      return parts.join(" • ");
-    }
-
-    return `${currentPeriodLabel} по сравнению с ${previousPeriodLabel}${comparisonScopeLabel ? ` • ${comparisonScopeLabel}` : ""}`;
-  }, [
-    categoryFilter,
-    comparisonLeftLabel,
-    comparisonMode,
-    comparisonRightLabel,
-    comparisonScopeLabel,
-    currentPeriodLabel,
-    previousPeriodLabel,
-    selectedStore,
-  ]);
-  const comparisonEmptyMessage = useMemo(() => {
-    if (comparisonMode !== "stores") {
-      return "Нет данных для сравнения категорий за выбранные периоды.";
-    }
-
-    const availableStoreCount = new Set(
-      expenses.map((expense) => String(expense.store ?? "").trim()).filter(Boolean)
-    ).size;
-
-    if (selectedStore !== "all") {
-      return "Для сравнения магазинов переключите верхний фильтр магазина на «Все магазины».";
-    }
-
-    if (availableStoreCount < 2) {
-      return "Недостаточно магазинов в выбранном периоде для сравнения.";
-    }
-
-    if (!comparisonStoreA || !comparisonStoreB) {
-      return "Выберите два магазина для сравнения.";
-    }
-
-    if (comparisonStoreA === comparisonStoreB) {
-      return "Выберите два разных магазина.";
-    }
-
-    return "Нет данных для сравнения выбранных магазинов за текущий период.";
-  }, [comparisonMode, comparisonStoreA, comparisonStoreB, expenses, selectedStore]);
+  const activeComparisonRows = categoryComparisonRows;
+  const comparisonLeftLabel = currentPeriodLabel;
+  const comparisonRightLabel = previousPeriodLabel;
+  const comparisonTitle = "\u0421\u0440\u0430\u0432\u043d\u0435\u043d\u0438\u0435 \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u0439 \u043f\u043e \u043f\u0435\u0440\u0438\u043e\u0434\u0430\u043c";
+  const comparisonSubtitle = useMemo(
+    () => `${currentPeriodLabel} \u043f\u043e \u0441\u0440\u0430\u0432\u043d\u0435\u043d\u0438\u044e \u0441 ${previousPeriodLabel}${comparisonScopeLabel ? ` \u2022 ${comparisonScopeLabel}` : ""}`,
+    [comparisonScopeLabel, currentPeriodLabel, previousPeriodLabel]
+  );
+  const comparisonEmptyMessage = "\u041d\u0435\u0442 \u0434\u0430\u043d\u043d\u044b\u0445 \u0434\u043b\u044f \u0441\u0440\u0430\u0432\u043d\u0435\u043d\u0438\u044f \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u0439 \u0437\u0430 \u0432\u044b\u0431\u0440\u0430\u043d\u043d\u044b\u0435 \u043f\u0435\u0440\u0438\u043e\u0434\u044b.";
   const activeComparisonChartData = useMemo(
     () =>
       activeComparisonRows.map((row) => ({
@@ -928,13 +830,6 @@ export default function DashboardTab({
 
     return normalized;
   }, [currencies, selectedCurrency]);
-  const storeComparisonOptions = useMemo(
-    () =>
-      [...new Set(expenses.map((expense) => String(expense.store ?? "").trim()).filter(Boolean))].sort((a, b) =>
-        a.localeCompare(b, "ru")
-      ),
-    [expenses]
-  );
   const ledgerStoreOptions = useMemo(
     () =>
       [...new Set(categoryFilteredExpenses.map((expense) => String(expense.store ?? "").trim()).filter(Boolean))].sort((a, b) =>
@@ -942,27 +837,6 @@ export default function DashboardTab({
       ),
     [categoryFilteredExpenses]
   );
-  useEffect(() => {
-    if (storeComparisonOptions.length === 0) {
-      if (comparisonStoreA !== "") setComparisonStoreA("");
-      return;
-    }
-
-    if (!storeComparisonOptions.includes(comparisonStoreA)) {
-      setComparisonStoreA(storeComparisonOptions[0] ?? "");
-    }
-  }, [comparisonStoreA, storeComparisonOptions]);
-  useEffect(() => {
-    if (storeComparisonOptions.length < 2) {
-      if (comparisonStoreB !== "") setComparisonStoreB("");
-      return;
-    }
-
-    if (!storeComparisonOptions.includes(comparisonStoreB)) {
-      const fallback = storeComparisonOptions.find((store) => store !== comparisonStoreA) ?? "";
-      setComparisonStoreB(fallback);
-    }
-  }, [comparisonStoreA, comparisonStoreB, storeComparisonOptions]);
   useEffect(() => {
     if (ledgerStoreFilter !== "all" && !ledgerStoreOptions.includes(ledgerStoreFilter)) {
       setLedgerStoreFilter("all");
@@ -2218,63 +2092,6 @@ export default function DashboardTab({
               {isCategoryComparisonOpen ? (
                 <div id="dashboard-category-comparison-content">
                   <div className="dashboard-mobile-compare-content">
-                    <div className="dashboard-mobile-segmented" aria-label="Режим сравнения категорий" hidden>
-                      <button
-                        type="button"
-                        className={`dashboard-mobile-segmented-btn ${comparisonMode === "periods" ? "active" : ""}`}
-                        onClick={() => setComparisonMode("periods")}
-                        aria-pressed={comparisonMode === "periods"}
-                      >
-                        Периоды
-                      </button>
-                      <button
-                        type="button"
-                        className={`dashboard-mobile-segmented-btn ${comparisonMode === "stores" ? "active" : ""}`}
-                        onClick={() => setComparisonMode("stores")}
-                        aria-pressed={comparisonMode === "stores"}
-                      >
-                        Магазины
-                      </button>
-                    </div>
-
-                    {false ? (
-                      <div className="dashboard-mobile-compare-filters">
-                        <div className="dashboard-mobile-filter-card">
-                          <label htmlFor="dashboard-compare-store-a">Магазин A</label>
-                          <select
-                            id="dashboard-compare-store-a"
-                            className="dashboard-mobile-select"
-                            aria-label="Магазин A"
-                            value={comparisonStoreA}
-                            onChange={(e) => setComparisonStoreA(e.target.value)}
-                          >
-                            {storeComparisonOptions.map((store) => (
-                              <option key={`compare-a-${store}`} value={store}>
-                                {store}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="dashboard-mobile-filter-card">
-                          <label htmlFor="dashboard-compare-store-b">Магазин B</label>
-                          <select
-                            id="dashboard-compare-store-b"
-                            className="dashboard-mobile-select"
-                            aria-label="Магазин B"
-                            value={comparisonStoreB}
-                            onChange={(e) => setComparisonStoreB(e.target.value)}
-                          >
-                            {storeComparisonOptions.map((store) => (
-                              <option key={`compare-b-${store}`} value={store}>
-                                {store}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <p className="dashboard-mobile-compare-note">{comparisonStoresHint}</p>
-                      </div>
-                    ) : null}
-
                     {activeComparisonRows.length > 0 ? (
                       <>
                       <div className="dashboard-mobile-segmented" aria-label="Формат сравнения категорий">
@@ -3200,67 +3017,6 @@ export default function DashboardTab({
             <p className="card-subtitle">{comparisonSubtitle}</p>
             {isCategoryComparisonOpen && (
               <div id="category-comparison-content">
-                <div className="compare-card-controls">
-                  <div className="dashboard-mobile-segmented" aria-label="Режим сравнения категорий" hidden>
-                    <button
-                      type="button"
-                      className={`dashboard-mobile-segmented-btn ${comparisonMode === "periods" ? "active" : ""}`}
-                      onClick={() => setComparisonMode("periods")}
-                      aria-pressed={comparisonMode === "periods"}
-                    >
-                      Периоды
-                    </button>
-                    <button
-                      type="button"
-                      className={`dashboard-mobile-segmented-btn ${comparisonMode === "stores" ? "active" : ""}`}
-                      onClick={() => setComparisonMode("stores")}
-                      aria-pressed={comparisonMode === "stores"}
-                    >
-                      Магазины
-                    </button>
-                  </div>
-
-                  {false ? (
-                    <div className="compare-store-filters">
-                      <div className="metric-card-filter">
-                        <label htmlFor="desktop-compare-store-a" className="metric-filter-label">
-                          Магазин A
-                        </label>
-                        <select
-                          id="desktop-compare-store-a"
-                          className="metric-filter-select"
-                          value={comparisonStoreA}
-                          onChange={(e) => setComparisonStoreA(e.target.value)}
-                        >
-                          {storeComparisonOptions.map((store) => (
-                            <option key={`desktop-compare-a-${store}`} value={store}>
-                              {store}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="metric-card-filter">
-                        <label htmlFor="desktop-compare-store-b" className="metric-filter-label">
-                          Магазин B
-                        </label>
-                        <select
-                          id="desktop-compare-store-b"
-                          className="metric-filter-select"
-                          value={comparisonStoreB}
-                          onChange={(e) => setComparisonStoreB(e.target.value)}
-                        >
-                          {storeComparisonOptions.map((store) => (
-                            <option key={`desktop-compare-b-${store}`} value={store}>
-                              {store}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <p className="metric-filter-hint">{comparisonStoresHint}</p>
-                    </div>
-                  ) : null}
-                </div>
-
                 {activeComparisonRows.length > 0 ? (
                   <div className="table-container">
                     <table>
@@ -3694,5 +3450,8 @@ export default function DashboardTab({
     </div>
   );
 }
+
+
+
 
 
