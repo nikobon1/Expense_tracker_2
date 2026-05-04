@@ -2218,7 +2218,7 @@ export default function DashboardTab({
               {isCategoryComparisonOpen ? (
                 <div id="dashboard-category-comparison-content">
                   <div className="dashboard-mobile-compare-content">
-                    <div className="dashboard-mobile-segmented" aria-label="Режим сравнения категорий">
+                    <div className="dashboard-mobile-segmented" aria-label="Режим сравнения категорий" hidden>
                       <button
                         type="button"
                         className={`dashboard-mobile-segmented-btn ${comparisonMode === "periods" ? "active" : ""}`}
@@ -2237,7 +2237,7 @@ export default function DashboardTab({
                       </button>
                     </div>
 
-                    {comparisonMode === "stores" ? (
+                    {false ? (
                       <div className="dashboard-mobile-compare-filters">
                         <div className="dashboard-mobile-filter-card">
                           <label htmlFor="dashboard-compare-store-a">Магазин A</label>
@@ -3201,7 +3201,7 @@ export default function DashboardTab({
             {isCategoryComparisonOpen && (
               <div id="category-comparison-content">
                 <div className="compare-card-controls">
-                  <div className="dashboard-mobile-segmented" aria-label="Режим сравнения категорий">
+                  <div className="dashboard-mobile-segmented" aria-label="Режим сравнения категорий" hidden>
                     <button
                       type="button"
                       className={`dashboard-mobile-segmented-btn ${comparisonMode === "periods" ? "active" : ""}`}
@@ -3220,7 +3220,7 @@ export default function DashboardTab({
                     </button>
                   </div>
 
-                  {comparisonMode === "stores" ? (
+                  {false ? (
                     <div className="compare-store-filters">
                       <div className="metric-card-filter">
                         <label htmlFor="desktop-compare-store-a" className="metric-filter-label">
