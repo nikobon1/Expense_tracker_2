@@ -157,6 +157,24 @@ const FOOD_SUBCATEGORY_RULES: Array<{ label: string; keywords: string[] }> = [
     ],
   },
   {
+    label: FOOD_CATEGORY,
+    keywords: [
+      "\u043c\u043e\u0440\u043e\u0436\u0435\u043d",
+      "\u043c\u0430\u043a\u0430\u0440\u043e\u043d",
+      "\u043f\u0430\u0441\u0442",
+      "\u0441\u043f\u0430\u0433\u0435\u0442",
+      "ice cream",
+      "gelato",
+      "gelad",
+      "sorvete",
+      "massa",
+      "macarr",
+      "pasta",
+      "noodle",
+      "vermicelli",
+    ],
+  },
+  {
     label: MEAT_CATEGORY,
     keywords: [
       "\u043c\u044f\u0441",
@@ -243,6 +261,10 @@ function findFoodSubcategoryByItemName(itemName: string | null | undefined): str
   return null;
 }
 
+function looksLikeFoodCategoryName(categoryName: string | null | undefined): boolean {
+  return findFoodSubcategoryByItemName(categoryName) !== null;
+}
+
 function buildFoodFallbackLabel(itemName: string | null | undefined): string | null {
   const raw = String(itemName ?? "").replace(/\s+/g, " ").trim();
   if (!raw) return null;
@@ -289,6 +311,10 @@ export function normalizeReceiptCategory(
   }
 
   if (SPECIFIC_FOOD_CATEGORIES.has(normalizedCategory)) {
+    return FOOD_CATEGORY;
+  }
+
+  if (looksLikeFoodCategoryName(normalizedCategory)) {
     return FOOD_CATEGORY;
   }
 
