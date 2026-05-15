@@ -1819,6 +1819,24 @@ td select:focus {
   font-size: 0.78rem;
 }
 
+.category-comparison-chart {
+  display: grid;
+  gap: 0.8rem;
+  padding: 0.9rem 0.95rem 0.7rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+}
+
+.category-comparison-chart-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.category-comparison-chart-canvas {
+  width: 100%;
+}
+
 .cost-dropdown-card {
   background: var(--bg-card);
   border: 1px solid var(--border-color);
@@ -3699,6 +3717,12 @@ td select:focus {
   gap: 0.8rem;
   padding: 0.9rem 0.95rem 0.7rem;
   border: 1px solid var(--dashboard-mobile-table-border);
+  border-radius: 1rem;
+  background: var(--dashboard-mobile-table-bg);
+}
+
+.dashboard-mobile-compare .category-comparison-chart {
+  border-color: var(--dashboard-mobile-table-border);
   border-radius: 1rem;
   background: var(--dashboard-mobile-table-bg);
 }

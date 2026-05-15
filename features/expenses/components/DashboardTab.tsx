@@ -10,8 +10,6 @@ import {
   BarChart,
   Bar,
   LabelList,
-  LineChart,
-  Line,
   CartesianGrid,
   XAxis,
   YAxis,
@@ -455,7 +453,7 @@ export default function DashboardTab({
   };
   const [isCategoryComparisonOpen, setIsCategoryComparisonOpen] = useState(false);
   const [isCategoryExcludeOpen, setIsCategoryExcludeOpen] = useState(false);
-  const [comparisonView, setComparisonView] = useState<"table" | "lines">("lines");
+  const [comparisonView, setComparisonView] = useState<"table" | "bars">("bars");
   const [isAnalyzeCostOpen, setIsAnalyzeCostOpen] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isEditorLoading, setIsEditorLoading] = useState(false);
@@ -766,6 +764,60 @@ export default function DashboardTab({
       })),
     [activeComparisonRows]
   );
+  const renderCategoryComparisonBarChart = (height = 320, minWidth = 620) => {
+    const chartWidth = Math.max(activeComparisonChartData.length * 96, minWidth);
+
+    return (
+      <div className="category-comparison-chart">
+        <div className="dashboard-mobile-compare-legend">
+          <span>
+            <i className="current" aria-hidden="true" />
+            {comparisonLeftLabel}
+          </span>
+          <span>
+            <i className="previous" aria-hidden="true" />
+            {comparisonRightLabel}
+          </span>
+        </div>
+        <div className="category-comparison-chart-scroll">
+          <div className="category-comparison-chart-canvas" style={{ minWidth: chartWidth }}>
+            <ResponsiveContainer width="100%" height={height}>
+              <BarChart data={activeComparisonChartData} margin={{ top: 12, right: 12, left: 0, bottom: 6 }} barGap={4} barCategoryGap="24%">
+                <CartesianGrid stroke="rgba(148, 163, 184, 0.12)" vertical={false} />
+                <XAxis
+                  dataKey="category"
+                  tickFormatter={(value) => truncateLabel(String(value), 12)}
+                  tick={{ fill: "#8f98aa", fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                  interval={0}
+                />
+                <YAxis
+                  tick={{ fill: "#8f98aa", fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={52}
+                  tickFormatter={(value) => formatCurrency(Number(value), 0)}
+                />
+                <Tooltip
+                  formatter={(value, name) => [formatCurrency(Number(value)), name]}
+                  labelFormatter={(label) => `\u041a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f: ${label}`}
+                  contentStyle={{
+                    background: "#12151f",
+                    border: "1px solid rgba(148, 163, 184, 0.16)",
+                    borderRadius: 12,
+                    color: "#f8fafc",
+                  }}
+                />
+                <Bar dataKey="current" name={comparisonLeftLabel} fill="#a855f7" radius={[5, 5, 0, 0]} maxBarSize={34} />
+                <Bar dataKey="previous" name={comparisonRightLabel} fill="#94a3b8" radius={[5, 5, 0, 0]} maxBarSize={34} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+    );
+  };
   useEffect(() => {
     if (
       foodBreakdownMode === "breakdown" &&
@@ -2097,11 +2149,11 @@ export default function DashboardTab({
                       <div className="dashboard-mobile-segmented" aria-label="Формат сравнения категорий">
                         <button
                           type="button"
-                          className={`dashboard-mobile-segmented-btn ${comparisonView === "lines" ? "active" : ""}`}
-                          onClick={() => setComparisonView("lines")}
-                          aria-pressed={comparisonView === "lines"}
+                          className={`dashboard-mobile-segmented-btn ${comparisonView === "bars" ? "active" : ""}`}
+                          onClick={() => setComparisonView("bars")}
+                          aria-pressed={comparisonView === "bars"}
                         >
-                          Линии
+                          {"\u0414\u0438\u0430\u0433\u0440\u0430\u043c\u043c\u0430"}
                         </button>
                         <button
                           type="button"
@@ -2113,65 +2165,8 @@ export default function DashboardTab({
                         </button>
                       </div>
 
-                      {comparisonView === "lines" ? (
-                        <div className="dashboard-mobile-compare-chart">
-                          <div className="dashboard-mobile-compare-legend">
-                            <span>
-                              <i className="current" aria-hidden="true" />
-                              {comparisonLeftLabel}
-                            </span>
-                            <span>
-                              <i className="previous" aria-hidden="true" />
-                              {comparisonRightLabel}
-                            </span>
-                          </div>
-                          <ResponsiveContainer width="100%" height={280}>
-                            <LineChart data={activeComparisonChartData} margin={{ top: 12, right: 12, left: 0, bottom: 6 }}>
-                              <CartesianGrid stroke="rgba(148, 163, 184, 0.12)" vertical={false} />
-                              <XAxis
-                                dataKey="category"
-                                tickFormatter={(value) => truncateLabel(String(value), 12)}
-                                tick={{ fill: "#8f98aa", fontSize: 11 }}
-                                axisLine={false}
-                                tickLine={false}
-                              />
-                              <YAxis
-                                tick={{ fill: "#8f98aa", fontSize: 11 }}
-                                axisLine={false}
-                                tickLine={false}
-                                width={52}
-                                tickFormatter={(value) => formatCurrency(Number(value), 0)}
-                              />
-                              <Tooltip
-                                formatter={(value) => formatCurrency(Number(value))}
-                                labelFormatter={(label) => `Категория: ${label}`}
-                                contentStyle={{
-                                  background: "#12151f",
-                                  border: "1px solid rgba(148, 163, 184, 0.16)",
-                                  borderRadius: 12,
-                                  color: "#f8fafc",
-                                }}
-                              />
-                              <Line
-                                type="monotone"
-                                dataKey="current"
-                                stroke="#a855f7"
-                                strokeWidth={3}
-                                dot={{ r: 4, fill: "#a855f7", strokeWidth: 0 }}
-                                activeDot={{ r: 5 }}
-                              />
-                              <Line
-                                type="monotone"
-                                dataKey="previous"
-                                stroke="#f8fafc"
-                                strokeOpacity={0.75}
-                                strokeWidth={2.4}
-                                dot={{ r: 3.5, fill: "#f8fafc", strokeWidth: 0 }}
-                                activeDot={{ r: 5 }}
-                              />
-                            </LineChart>
-                          </ResponsiveContainer>
-                        </div>
+                      {comparisonView === "bars" ? (
+                        renderCategoryComparisonBarChart(280, 560)
                       ) : (
                         <div className="dashboard-mobile-compare-table">
                           <table>
@@ -3018,41 +3013,7 @@ export default function DashboardTab({
             {isCategoryComparisonOpen && (
               <div id="category-comparison-content">
                 {activeComparisonRows.length > 0 ? (
-                  <div className="table-container">
-                    <table>
-                      <thead>
-                        <tr>
-                          <th>Категория</th>
-                          <th style={{ textAlign: "right" }}>{comparisonLeftLabel}</th>
-                          <th style={{ textAlign: "right" }}>{comparisonRightLabel}</th>
-                          <th style={{ textAlign: "right" }}>Δ</th>
-                          <th style={{ textAlign: "right" }}>Δ%</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {activeComparisonRows.map((row) => (
-                          <tr key={`compare-${row.category}`}>
-                            <td>{row.category}</td>
-                            <td style={{ textAlign: "right" }}>{formatCurrency(row.currentTotal)}</td>
-                            <td style={{ textAlign: "right" }}>{formatCurrency(row.previousTotal)}</td>
-                            <td
-                              style={{ textAlign: "right" }}
-                              className={row.delta > 0 ? "compare-negative" : row.delta < 0 ? "compare-positive" : "compare-neutral"}
-                            >
-                              {row.delta > 0 ? "↑ " : row.delta < 0 ? "↓ " : ""}
-                              {formatCurrency(Math.abs(row.delta))}
-                            </td>
-                            <td
-                              style={{ textAlign: "right" }}
-                              className={row.delta > 0 ? "compare-negative" : row.delta < 0 ? "compare-positive" : "compare-neutral"}
-                            >
-                              {row.percent === null ? "—" : `${row.percent > 0 ? "+" : ""}${row.percent.toFixed(1)}%`}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  renderCategoryComparisonBarChart(340, 680)
                 ) : (
                   <div className="empty-state">
                     <p>{comparisonEmptyMessage}</p>
