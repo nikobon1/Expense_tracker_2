@@ -40,6 +40,10 @@ Additional receipt rules:
 `;
 
 const EFFECTIVE_SYSTEM_PROMPT = `${SYSTEM_PROMPT}\n\n${TOTAL_AMOUNT_HINTS}`;
+const OPENAI_RECEIPT_MODEL = "gpt-5.4-mini" as const;
+const OPENAI_RECEIPT_PROVIDER = `openai:${OPENAI_RECEIPT_MODEL}` as const;
+const GEMINI_RECEIPT_MODEL = "gemini-2.5-flash" as const;
+const GEMINI_RECEIPT_PROVIDER = `google:${GEMINI_RECEIPT_MODEL}` as const;
 const SUPPORTED_ANALYZE_IMAGE_TYPES = new Set([
   "image/jpeg",
   "image/jpg",
@@ -50,8 +54,8 @@ const SUPPORTED_ANALYZE_IMAGE_TYPES = new Set([
 ]);
 
 type UsagePayload = {
-  provider: "openai:gpt-4o" | "google:gemini-2.0-flash";
-  model: "gpt-4o" | "gemini-2.0-flash";
+  provider: typeof OPENAI_RECEIPT_PROVIDER | typeof GEMINI_RECEIPT_PROVIDER;
+  model: typeof OPENAI_RECEIPT_MODEL | typeof GEMINI_RECEIPT_MODEL;
   inputTokens: number;
   outputTokens: number;
   totalTokens: number;
@@ -148,15 +152,15 @@ function parsePositiveNumber(value: string | undefined): number | null {
 
 function estimateUsdCost(payload: UsagePayload): number | null {
   // Defaults are estimates in USD per 1M tokens and can be overridden via env.
-  const defaultInputRatePerMillion = payload.provider === "openai:gpt-4o" ? 2.5 : 0.1;
-  const defaultOutputRatePerMillion = payload.provider === "openai:gpt-4o" ? 10 : 0.4;
+  const defaultInputRatePerMillion = payload.provider === OPENAI_RECEIPT_PROVIDER ? 0.75 : 0.1;
+  const defaultOutputRatePerMillion = payload.provider === OPENAI_RECEIPT_PROVIDER ? 4.5 : 0.4;
 
   const inputRatePerMillion =
-    payload.provider === "openai:gpt-4o"
+    payload.provider === OPENAI_RECEIPT_PROVIDER
       ? parsePositiveNumber(process.env.RECEIPT_COST_OPENAI_INPUT_PER_1M_USD) ?? defaultInputRatePerMillion
       : parsePositiveNumber(process.env.RECEIPT_COST_GEMINI_INPUT_PER_1M_USD) ?? defaultInputRatePerMillion;
   const outputRatePerMillion =
-    payload.provider === "openai:gpt-4o"
+    payload.provider === OPENAI_RECEIPT_PROVIDER
       ? parsePositiveNumber(process.env.RECEIPT_COST_OPENAI_OUTPUT_PER_1M_USD) ?? defaultOutputRatePerMillion
       : parsePositiveNumber(process.env.RECEIPT_COST_GEMINI_OUTPUT_PER_1M_USD) ?? defaultOutputRatePerMillion;
 
@@ -176,7 +180,7 @@ async function logAnalyzeUsage(payload: UsagePayload, options?: { storeName?: st
     estimated_cost_usd: estimatedCostUsd,
     store_name: options?.storeName?.trim() || null,
     cost_rates_configured:
-      payload.provider === "openai:gpt-4o"
+      payload.provider === OPENAI_RECEIPT_PROVIDER
         ? Boolean(process.env.RECEIPT_COST_OPENAI_INPUT_PER_1M_USD) &&
           Boolean(process.env.RECEIPT_COST_OPENAI_OUTPUT_PER_1M_USD)
         : Boolean(process.env.RECEIPT_COST_GEMINI_INPUT_PER_1M_USD) &&
@@ -334,35 +338,35 @@ async function analyzeWithOpenAI(params: {
   return withAnalyzeRetries(
     async () => {
       try {
-        const response = await openai.chat.completions.create({
-          model: "gpt-4o",
-          messages: [
-            { role: "system", content: EFFECTIVE_SYSTEM_PROMPT },
+        const response = await openai.responses.create({
+          model: OPENAI_RECEIPT_MODEL,
+          input: [
             {
               role: "user",
               content: [
-                { type: "text", text: "Analyze this receipt and extract the data." },
+                { type: "input_text", text: `${EFFECTIVE_SYSTEM_PROMPT}\n\nAnalyze this receipt and extract the data.` },
                 {
-                  type: "image_url",
-                  image_url: { url: `data:${params.mimeType};base64,${params.base64Data}` },
+                  type: "input_image",
+                  image_url: `data:${params.mimeType};base64,${params.base64Data}`,
+                  detail: "auto",
                 },
               ],
             },
           ],
-          max_tokens: 2000,
+          max_output_tokens: 2000,
         });
 
-        const promptTokens = Number(response.usage?.prompt_tokens ?? 0);
-        const completionTokens = Number(response.usage?.completion_tokens ?? 0);
+        const promptTokens = Number(response.usage?.input_tokens ?? 0);
+        const completionTokens = Number(response.usage?.output_tokens ?? 0);
         const totalTokens = Number(response.usage?.total_tokens ?? promptTokens + completionTokens);
 
-        const content = response.choices[0]?.message?.content ?? "";
+        const content = response.output_text ?? "";
         const parsed = sanitizeAnalyzedReceipt(JSON.parse(extractJson(content)) as ReceiptData);
 
         await logAnalyzeUsage(
           {
-            provider: "openai:gpt-4o",
-            model: "gpt-4o",
+            provider: OPENAI_RECEIPT_PROVIDER,
+            model: OPENAI_RECEIPT_MODEL,
             inputTokens: Number.isFinite(promptTokens) ? promptTokens : 0,
             outputTokens: Number.isFinite(completionTokens) ? completionTokens : 0,
             totalTokens: Number.isFinite(totalTokens) ? totalTokens : 0,
@@ -382,12 +386,12 @@ async function analyzeWithOpenAI(params: {
         const message = error instanceof Error ? error.message : "OpenAI analyze error";
 
         throw new AnalyzeProviderError(message, {
-          provider: "openai:gpt-4o",
+          provider: OPENAI_RECEIPT_PROVIDER,
           status,
         });
       }
     },
-    { provider: "openai:gpt-4o" }
+    { provider: OPENAI_RECEIPT_PROVIDER }
   );
 }
 
@@ -400,7 +404,7 @@ async function analyzeWithGemini(params: {
   return withAnalyzeRetries(
     async () => {
       const geminiResponse = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${params.apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_RECEIPT_MODEL}:generateContent?key=${params.apiKey}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -433,7 +437,7 @@ async function analyzeWithGemini(params: {
         }
 
         throw new AnalyzeProviderError(message, {
-          provider: "google:gemini-2.0-flash",
+          provider: GEMINI_RECEIPT_PROVIDER,
           status: geminiResponse.status,
           retryAfterSeconds: parseRetryAfterSeconds(geminiResponse.headers.get("retry-after")),
         });
@@ -457,8 +461,8 @@ async function analyzeWithGemini(params: {
 
       await logAnalyzeUsage(
         {
-          provider: "google:gemini-2.0-flash",
-          model: "gemini-2.0-flash",
+          provider: GEMINI_RECEIPT_PROVIDER,
+          model: GEMINI_RECEIPT_MODEL,
           inputTokens: Number.isFinite(promptTokens) ? promptTokens : 0,
           outputTokens: Number.isFinite(completionTokens) ? completionTokens : 0,
           totalTokens: Number.isFinite(totalTokens) ? totalTokens : 0,
@@ -468,7 +472,7 @@ async function analyzeWithGemini(params: {
 
       return parsed;
     },
-    { provider: "google:gemini-2.0-flash" }
+    { provider: GEMINI_RECEIPT_PROVIDER }
   );
 }
 
@@ -530,7 +534,7 @@ export async function analyzeReceiptImageDataUrl(
   if (openaiKey && false) {
     const openai = new OpenAI({ apiKey: openaiKey });
     const response = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: OPENAI_RECEIPT_MODEL,
       messages: [
         { role: "system", content: EFFECTIVE_SYSTEM_PROMPT },
         {
@@ -556,8 +560,8 @@ export async function analyzeReceiptImageDataUrl(
     const parsed = sanitizeAnalyzedReceipt(JSON.parse(extractJson(content)) as ReceiptData);
 
     await logAnalyzeUsage({
-      provider: "openai:gpt-4o",
-      model: "gpt-4o",
+      provider: OPENAI_RECEIPT_PROVIDER,
+      model: OPENAI_RECEIPT_MODEL,
       inputTokens: Number.isFinite(promptTokens) ? promptTokens : 0,
       outputTokens: Number.isFinite(completionTokens) ? completionTokens : 0,
       totalTokens: Number.isFinite(totalTokens) ? totalTokens : 0,
@@ -567,7 +571,7 @@ export async function analyzeReceiptImageDataUrl(
   }
 
   const geminiResponse = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${googleKey}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_RECEIPT_MODEL}:generateContent?key=${googleKey}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -618,8 +622,8 @@ export async function analyzeReceiptImageDataUrl(
   const parsed = sanitizeAnalyzedReceipt(JSON.parse(extractJson(text)) as ReceiptData);
 
   await logAnalyzeUsage({
-    provider: "google:gemini-2.0-flash",
-    model: "gemini-2.0-flash",
+    provider: GEMINI_RECEIPT_PROVIDER,
+    model: GEMINI_RECEIPT_MODEL,
     inputTokens: Number.isFinite(promptTokens) ? promptTokens : 0,
     outputTokens: Number.isFinite(completionTokens) ? completionTokens : 0,
     totalTokens: Number.isFinite(totalTokens) ? totalTokens : 0,
