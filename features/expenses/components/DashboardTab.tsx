@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   PieChart,
   Pie,
@@ -110,6 +110,11 @@ type ComparisonSummary = {
   analyzedTotal: number;
 };
 
+type DashboardAssistantMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
 type LedgerReceiptGroup = {
   receiptId: number;
   date: string;
@@ -129,6 +134,12 @@ const MAX_UPLOAD_DIMENSION = 1600;
 const MAX_ANALYZE_PAYLOAD_CHARS = 3_500_000;
 const DAILY_CHART_STEP = 20;
 const DAILY_CHART_CLIP_LIMIT = 120;
+const DASHBOARD_ASSISTANT_SUGGESTIONS = [
+  "На что я трачу больше, чем в прошлом периоде?",
+  "Какая категория сейчас самая дорогая?",
+  "Какие магазины сильнее всего влияют на расходы?",
+  "Что выбивается из обычной динамики?",
+];
 const DASHBOARD_RANGE_PRESET_OPTIONS: Array<{ value: DashboardRangePreset; label: string }> = [
   { value: "custom", label: "Свой период" },
   { value: "today", label: "Сегодня" },
@@ -460,6 +471,10 @@ export default function DashboardTab({
   const [isEditorSaving, setIsEditorSaving] = useState(false);
   const [isEditorDeleting, setIsEditorDeleting] = useState(false);
   const [isComparing, setIsComparing] = useState(false);
+  const [assistantQuestion, setAssistantQuestion] = useState("");
+  const [assistantMessages, setAssistantMessages] = useState<DashboardAssistantMessage[]>([]);
+  const [assistantError, setAssistantError] = useState<string | null>(null);
+  const [isAssistantLoading, setIsAssistantLoading] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [foodBreakdownMode, setFoodBreakdownMode] = useState<"combined" | "breakdown">("combined");
   const [foodSubcategoryFilter, setFoodSubcategoryFilter] = useState<string>("all");
@@ -733,6 +748,21 @@ export default function DashboardTab({
       .filter((row) => row.currentTotal > 0 || row.previousTotal > 0)
       .sort((a, b) => b.sortValue - a.sortValue);
   }, [categoryData, categoryFilter, expenses, foodBreakdownMode, prevCategoryTotalMap]);
+  const comparisonTotalRow = useMemo(() => {
+    const currentTotal = categoryComparisonRows.reduce((sum, row) => sum + row.currentTotal, 0);
+    const previousTotal = categoryComparisonRows.reduce((sum, row) => sum + row.previousTotal, 0);
+    const delta = currentTotal - previousTotal;
+    const percent = previousTotal > 0 ? (delta / previousTotal) * 100 : null;
+
+    return {
+      category: "Итого",
+      currentTotal,
+      previousTotal,
+      delta,
+      percent,
+      sortValue: currentTotal + previousTotal,
+    };
+  }, [categoryComparisonRows]);
   const comparisonScopeLabel = useMemo(() => {
     const scope: string[] = [];
 
@@ -747,6 +777,10 @@ export default function DashboardTab({
     return scope.join(" • ");
   }, [categoryFilter, selectedStore]);
   const activeComparisonRows = categoryComparisonRows;
+  const activeComparisonTableRows = useMemo(
+    () => (activeComparisonRows.length > 0 ? [comparisonTotalRow, ...activeComparisonRows] : []),
+    [activeComparisonRows, comparisonTotalRow]
+  );
   const comparisonLeftLabel = currentPeriodLabel;
   const comparisonRightLabel = previousPeriodLabel;
   const comparisonTitle = "\u0421\u0440\u0430\u0432\u043d\u0435\u043d\u0438\u0435 \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u0439 \u043f\u043e \u043f\u0435\u0440\u0438\u043e\u0434\u0430\u043c";
@@ -1178,6 +1212,86 @@ export default function DashboardTab({
   }, [categoryFilter, foodBreakdownMode, foodSubcategoryFilter, foodSubcategoryOptions]);
   const visibleCategoryItems = showAllCategories ? categoryListItems : categoryListItems.slice(0, 4);
   const visibleLedgerReceipts = sortedLedgerReceipts;
+  const dashboardAssistantSnapshot = useMemo(() => {
+    const storeTotals = new Map<string, number>();
+    for (const expense of expenses) {
+      const store = String(expense.store ?? "").trim() || "Без магазина";
+      storeTotals.set(store, (storeTotals.get(store) ?? 0) + Number(expense.price || 0));
+    }
+
+    return {
+      period: {
+        current: { startDate, endDate, label: currentPeriodLabel },
+        previous: { startDate: prevPeriodStart, endDate: prevPeriodEnd, label: previousPeriodLabel },
+        store: activeStoreLabel,
+        currency: activeCurrencyLabel,
+        categoryScope: activeCategoryLabel,
+      },
+      summary: {
+        currentTotal: Number(expensesTotal.toFixed(2)),
+        previousTotal: Number(prevMonthTotal.toFixed(2)),
+        delta: Number(amountChange.toFixed(2)),
+        percentChange: prevMonthTotal > 0 ? Number(percentChange.toFixed(2)) : null,
+        receiptsCount: transactionCount,
+        itemsCount: expenses.length,
+        averageReceipt: Number(averageTransactionValue.toFixed(2)),
+        activeDays,
+        strongestDay: strongestDay
+          ? { date: strongestDay.date, amount: Number(strongestDay.amount.toFixed(2)) }
+          : null,
+      },
+      categoryComparison: categoryComparisonRows.slice(0, 24).map((row) => ({
+        category: row.category,
+        currentTotal: Number(row.currentTotal.toFixed(2)),
+        previousTotal: Number(row.previousTotal.toFixed(2)),
+        delta: Number(row.delta.toFixed(2)),
+        percent: row.percent === null ? null : Number(row.percent.toFixed(2)),
+      })),
+      currentCategories: categoryData.slice(0, 24).map((entry) => ({
+        category: entry.name,
+        total: Number(entry.value.toFixed(2)),
+      })),
+      stores: [...storeTotals.entries()]
+        .map(([store, total]) => ({ store, total: Number(total.toFixed(2)) }))
+        .sort((a, b) => b.total - a.total)
+        .slice(0, 12),
+      daily: dailyChartData.map((point) => ({
+        date: point.date,
+        total: Number(point.amount.toFixed(2)),
+      })),
+      recentItems: sortedLedgerExpenses.slice(0, 50).map((expense) => ({
+        date: expense.date,
+        store: expense.store,
+        item: expense.item,
+        category: expense.category,
+        amount: Number(expense.price.toFixed(2)),
+        sourceType: expense.sourceType ?? "receipt",
+      })),
+    };
+  }, [
+    activeCategoryLabel,
+    activeCurrencyLabel,
+    activeDays,
+    activeStoreLabel,
+    amountChange,
+    averageTransactionValue,
+    categoryComparisonRows,
+    categoryData,
+    currentPeriodLabel,
+    dailyChartData,
+    endDate,
+    expenses,
+    expensesTotal,
+    percentChange,
+    prevMonthTotal,
+    prevPeriodEnd,
+    prevPeriodStart,
+    previousPeriodLabel,
+    sortedLedgerExpenses,
+    startDate,
+    strongestDay,
+    transactionCount,
+  ]);
   const receiptFirstExpenseId = useMemo(() => {
     const first = new Map<number, number>();
     for (const exp of ledgerDetailExpenses) {
@@ -1192,6 +1306,123 @@ export default function DashboardTab({
       prev.includes(receiptId) ? prev.filter((id) => id !== receiptId) : [...prev, receiptId]
     );
   };
+
+  const submitDashboardAssistantQuestion = async (questionText: string) => {
+    const question = questionText.trim();
+    if (!question || isAssistantLoading) return;
+
+    if (isReadOnly) {
+      setAssistantError("В демо-режиме помощник по реальным тратам недоступен. Войдите в полную версию.");
+      return;
+    }
+
+    const nextMessages: DashboardAssistantMessage[] = [
+      ...assistantMessages,
+      { role: "user", content: question },
+    ];
+
+    setAssistantMessages(nextMessages);
+    setAssistantQuestion("");
+    setAssistantError(null);
+    setIsAssistantLoading(true);
+
+    try {
+      const response = await fetch("/api/dashboard-chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question,
+          snapshot: dashboardAssistantSnapshot,
+          messages: assistantMessages.slice(-6),
+        }),
+      });
+
+      const payload = (await response.json().catch(() => null)) as { answer?: unknown; error?: unknown } | null;
+
+      if (!response.ok) {
+        const message = typeof payload?.error === "string" && payload.error.trim()
+          ? payload.error
+          : "Не удалось получить ответ помощника.";
+        throw new Error(message);
+      }
+
+      const answer = typeof payload?.answer === "string" && payload.answer.trim()
+        ? payload.answer.trim()
+        : "Не удалось сформировать ответ по текущим данным.";
+
+      setAssistantMessages([...nextMessages, { role: "assistant", content: answer }]);
+    } catch (error) {
+      setAssistantError(error instanceof Error ? error.message : "Не удалось получить ответ помощника.");
+      setAssistantMessages(assistantMessages);
+    } finally {
+      setIsAssistantLoading(false);
+    }
+  };
+
+  const handleDashboardAssistantSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    void submitDashboardAssistantQuestion(assistantQuestion);
+  };
+
+  const renderDashboardAssistant = (surface: "mobile" | "desktop") => (
+    <section className={`dashboard-ai-card dashboard-ai-card-${surface}`}>
+      <div className="dashboard-ai-head">
+        <div>
+          <span className="dashboard-ai-kicker">AI помощник</span>
+          <h3>Вопросы по динамике трат</h3>
+        </div>
+        <span className="dashboard-ai-context">{currentPeriodLabel}</span>
+      </div>
+
+      <div className="dashboard-ai-suggestions" aria-label="Быстрые вопросы">
+        {DASHBOARD_ASSISTANT_SUGGESTIONS.map((suggestion) => (
+          <button
+            key={`${surface}-assistant-suggestion-${suggestion}`}
+            type="button"
+            onClick={() => void submitDashboardAssistantQuestion(suggestion)}
+            disabled={isAssistantLoading || isReadOnly || expenses.length === 0}
+          >
+            {suggestion}
+          </button>
+        ))}
+      </div>
+
+      <div className="dashboard-ai-thread" aria-live="polite">
+        {assistantMessages.length === 0 ? (
+          <p className="dashboard-ai-empty">
+            Спросите, где выросли расходы, какие категории лидируют или что изменилось относительно прошлого периода.
+          </p>
+        ) : (
+          assistantMessages.map((message, index) => (
+            <div
+              key={`${surface}-assistant-message-${index}`}
+              className={`dashboard-ai-message ${message.role}`}
+            >
+              {message.content}
+            </div>
+          ))
+        )}
+        {isAssistantLoading ? (
+          <div className="dashboard-ai-message assistant">Смотрю текущие данные...</div>
+        ) : null}
+      </div>
+
+      {assistantError ? <div className="dashboard-ai-error">{assistantError}</div> : null}
+
+      <form className="dashboard-ai-form" onSubmit={handleDashboardAssistantSubmit}>
+        <input
+          type="text"
+          value={assistantQuestion}
+          onChange={(event) => setAssistantQuestion(event.target.value)}
+          placeholder="Например: на что я трачу больше в этом месяце?"
+          disabled={isAssistantLoading || isReadOnly || expenses.length === 0}
+        />
+        <button type="submit" disabled={isAssistantLoading || isReadOnly || expenses.length === 0 || !assistantQuestion.trim()}>
+          Спросить
+        </button>
+      </form>
+    </section>
+  );
 
   const currentEditorTotal = useMemo(() => {
     if (!editorReceipt) return 0;
@@ -1887,6 +2118,8 @@ export default function DashboardTab({
           </div>
         </section>
 
+        {renderDashboardAssistant("mobile")}
+
         {expenses.length > 0 ? (
           <>
             <section className="dashboard-mobile-panels">
@@ -2180,8 +2413,11 @@ export default function DashboardTab({
                               </tr>
                             </thead>
                             <tbody>
-                              {activeComparisonRows.map((row) => (
-                                <tr key={`dashboard-mobile-compare-${row.category}`}>
+                              {activeComparisonTableRows.map((row) => (
+                                <tr
+                                  key={`dashboard-mobile-compare-${row.category}`}
+                                  className={row.category === "Итого" ? "comparison-total-row" : undefined}
+                                >
                                   <td>{row.category}</td>
                                   <td style={{ textAlign: "right" }}>{formatCurrency(row.currentTotal)}</td>
                                   <td style={{ textAlign: "right" }}>{formatCurrency(row.previousTotal)}</td>
@@ -2665,6 +2901,8 @@ export default function DashboardTab({
           </div>
         </div>
       </div>
+
+      {renderDashboardAssistant("desktop")}
 
       {expenses.length > 0 && (
         <section className="dashboard-desktop-insights">
