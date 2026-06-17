@@ -5,7 +5,8 @@ import {
   requireCurrentUser,
 } from "@/lib/server/auth";
 
-const DASHBOARD_CHAT_MODEL = "gpt-5.4-mini";
+const OPENAI_DASHBOARD_CHAT_MODEL = "gpt-5.4-mini";
+const GEMINI_DASHBOARD_CHAT_MODEL = "gemini-2.5-flash";
 const MAX_QUESTION_LENGTH = 800;
 const MAX_SNAPSHOT_CHARS = 24_000;
 
@@ -14,8 +15,20 @@ type DashboardChatMessage = {
   content: string;
 };
 
+type DashboardChatResult = {
+  answer: string;
+  model: string;
+  provider: "openai" | "google";
+};
+
 function compactString(value: unknown, fallback = ""): string {
   return String(value ?? fallback).trim();
+}
+
+function getConfiguredApiKey(value: string | undefined): string | null {
+  const trimmed = compactString(value);
+  if (!trimmed || trimmed === "''" || trimmed === '""') return null;
+  return trimmed;
 }
 
 function normalizeMessages(value: unknown): DashboardChatMessage[] {
@@ -33,6 +46,12 @@ function normalizeMessages(value: unknown): DashboardChatMessage[] {
     .slice(-8);
 }
 
+function isProviderAuthError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const status = (error as { status?: unknown }).status;
+  return status === 401 || status === 403;
+}
+
 function buildSystemPrompt() {
   return [
     "Ты аналитический помощник в дашборде личных расходов.",
@@ -43,6 +62,83 @@ function buildSystemPrompt() {
     "Давай практичные наблюдения: где рост, какие категории лидируют, какие дни или магазины выделяются.",
     "Не давай инвестиционных, налоговых или юридических советов.",
   ].join("\n");
+}
+
+function buildPrompt(params: {
+  snapshotJson: string;
+  conversation: string;
+  question: string;
+}) {
+  return [
+    buildSystemPrompt(),
+    "",
+    "dashboardSnapshot:",
+    params.snapshotJson,
+    "",
+    params.conversation ? `recentConversation:\n${params.conversation}\n` : "",
+    `question:\n${params.question}`,
+  ].join("\n");
+}
+
+async function answerWithOpenAI(apiKey: string, prompt: string): Promise<DashboardChatResult> {
+  const openai = new OpenAI({ apiKey });
+  const response = await openai.responses.create({
+    model: OPENAI_DASHBOARD_CHAT_MODEL,
+    input: [
+      {
+        role: "user",
+        content: [{ type: "input_text", text: prompt }],
+      },
+    ],
+    max_output_tokens: 650,
+  });
+
+  return {
+    answer: compactString(response.output_text),
+    model: OPENAI_DASHBOARD_CHAT_MODEL,
+    provider: "openai",
+  };
+}
+
+async function answerWithGemini(apiKey: string, prompt: string): Promise<DashboardChatResult> {
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_DASHBOARD_CHAT_MODEL}:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          maxOutputTokens: 650,
+        },
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    let message = "Gemini dashboard assistant failed";
+    try {
+      const payload = (await response.json()) as { error?: { message?: string } };
+      message = payload.error?.message || message;
+    } catch {
+      const text = await response.text();
+      if (text) message = text;
+    }
+
+    const error = new Error(message) as Error & { status?: number };
+    error.status = response.status;
+    throw error;
+  }
+
+  const payload = (await response.json()) as {
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+  };
+
+  return {
+    answer: compactString(payload.candidates?.[0]?.content?.parts?.[0]?.text),
+    model: GEMINI_DASHBOARD_CHAT_MODEL,
+    provider: "google",
+  };
 }
 
 export async function POST(request: NextRequest) {
@@ -64,10 +160,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Dashboard snapshot is required" }, { status: 400 });
     }
 
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
+    const openaiApiKey = getConfiguredApiKey(process.env.OPENAI_API_KEY);
+    const googleApiKey = getConfiguredApiKey(process.env.GOOGLE_API_KEY);
+
+    if (!openaiApiKey && !googleApiKey) {
       return NextResponse.json(
-        { error: "Dashboard assistant is not configured. Set OPENAI_API_KEY." },
+        { error: "Dashboard assistant is not configured. Set OPENAI_API_KEY or GOOGLE_API_KEY." },
         { status: 503 }
       );
     }
@@ -77,36 +175,34 @@ export async function POST(request: NextRequest) {
     const conversation = messages
       .map((message) => `${message.role === "user" ? "User" : "Assistant"}: ${message.content}`)
       .join("\n");
+    const prompt = buildPrompt({ snapshotJson, conversation, question });
 
-    const openai = new OpenAI({ apiKey });
-    const response = await openai.responses.create({
-      model: DASHBOARD_CHAT_MODEL,
-      input: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "input_text",
-              text: [
-                buildSystemPrompt(),
-                "",
-                "dashboardSnapshot:",
-                snapshotJson,
-                "",
-                conversation ? `recentConversation:\n${conversation}\n` : "",
-                `question:\n${question}`,
-              ].join("\n"),
-            },
-          ],
-        },
-      ],
-      max_output_tokens: 650,
-    });
+    let result: DashboardChatResult | null = null;
+    if (openaiApiKey) {
+      try {
+        result = await answerWithOpenAI(openaiApiKey, prompt);
+      } catch (error) {
+        if (!googleApiKey || !isProviderAuthError(error)) {
+          throw error;
+        }
+      }
+    }
 
-    const answer = compactString(response.output_text);
+    if (!result && googleApiKey) {
+      result = await answerWithGemini(googleApiKey, prompt);
+    }
+
+    if (!result) {
+      return NextResponse.json(
+        { error: "Dashboard assistant is not configured. Set OPENAI_API_KEY or GOOGLE_API_KEY." },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json({
-      answer: answer || "Не удалось сформировать ответ по текущим данным.",
-      model: DASHBOARD_CHAT_MODEL,
+      answer: result.answer || "Не удалось сформировать ответ по текущим данным.",
+      model: result.model,
+      provider: result.provider,
     });
   } catch (error) {
     console.error("Dashboard chat error:", error);
