@@ -9,6 +9,7 @@ const OPENAI_DASHBOARD_CHAT_MODEL = "gpt-5.4-mini";
 const GEMINI_DASHBOARD_CHAT_MODEL = "gemini-2.5-flash";
 const MAX_QUESTION_LENGTH = 800;
 const MAX_SNAPSHOT_CHARS = 24_000;
+const MAX_DASHBOARD_CHAT_OUTPUT_TOKENS = 1_400;
 
 type DashboardChatMessage = {
   role: "user" | "assistant";
@@ -61,6 +62,7 @@ function buildSystemPrompt() {
     "Когда сравниваешь периоды, currentTotal больше previousTotal означает, что траты выросли.",
     "Давай практичные наблюдения: где рост, какие категории лидируют, какие дни или магазины выделяются.",
     "Не давай инвестиционных, налоговых или юридических советов.",
+    "Finish with a complete sentence. If the answer is getting long, shorten it instead of stopping mid-sentence.",
   ].join("\n");
 }
 
@@ -90,7 +92,7 @@ async function answerWithOpenAI(apiKey: string, prompt: string): Promise<Dashboa
         content: [{ type: "input_text", text: prompt }],
       },
     ],
-    max_output_tokens: 650,
+    max_output_tokens: MAX_DASHBOARD_CHAT_OUTPUT_TOKENS,
   });
 
   return {
@@ -109,7 +111,7 @@ async function answerWithGemini(apiKey: string, prompt: string): Promise<Dashboa
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
-          maxOutputTokens: 650,
+          maxOutputTokens: MAX_DASHBOARD_CHAT_OUTPUT_TOKENS,
         },
       }),
     }
@@ -135,7 +137,12 @@ async function answerWithGemini(apiKey: string, prompt: string): Promise<Dashboa
   };
 
   return {
-    answer: compactString(payload.candidates?.[0]?.content?.parts?.[0]?.text),
+    answer: compactString(
+      payload.candidates?.[0]?.content?.parts
+        ?.map((part) => compactString(part.text))
+        .filter(Boolean)
+        .join("\n")
+    ),
     model: GEMINI_DASHBOARD_CHAT_MODEL,
     provider: "google",
   };
