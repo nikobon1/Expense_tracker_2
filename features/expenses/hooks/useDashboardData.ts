@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { buildLocalDashboardDemoData } from "@/features/expenses/demo-data";
-import type { Expense } from "@/features/expenses/types";
+import type { Expense, PriceChangeAlert } from "@/features/expenses/types";
 import { getExpenses } from "@/lib/api";
 import { DEFAULT_CURRENCY, normalizeCurrencyCode } from "@/lib/currency";
 
@@ -34,6 +34,7 @@ export function useDashboardData(defaultCurrency: string = DEFAULT_CURRENCY) {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [prevMonthTotal, setPrevMonthTotal] = useState(0);
   const [prevPeriodCategoryTotals, setPrevPeriodCategoryTotals] = useState<Array<{ store_name?: string | null; category: string; baseCategory?: string; total: number }>>([]);
+  const [priceChangeAlerts, setPriceChangeAlerts] = useState<PriceChangeAlert[]>([]);
   const [analyzeCost, setAnalyzeCost] = useState<{
     totalUsd: number;
     count: number;
@@ -75,6 +76,7 @@ export function useDashboardData(defaultCurrency: string = DEFAULT_CURRENCY) {
               ...buildLocalDashboardDemoData({ startDate, endDate, selectedStore }),
               activeCurrency: normalizeCurrencyCode(selectedCurrency),
               currencies: [normalizeCurrencyCode(selectedCurrency)],
+              priceChangeAlerts: [],
             }
           : data;
 
@@ -91,6 +93,7 @@ export function useDashboardData(defaultCurrency: string = DEFAULT_CURRENCY) {
       );
       setPrevMonthTotal(resolvedData.prevMonthTotal);
       setPrevPeriodCategoryTotals(resolvedData.prevPeriodCategoryTotals);
+      setPriceChangeAlerts(Array.isArray(resolvedData.priceChangeAlerts) ? resolvedData.priceChangeAlerts : []);
       setAnalyzeCost(resolvedData.analyzeCost);
       setStores(resolvedData.stores);
     } catch (error) {
@@ -125,6 +128,7 @@ export function useDashboardData(defaultCurrency: string = DEFAULT_CURRENCY) {
     expenses,
     prevMonthTotal,
     prevPeriodCategoryTotals,
+    priceChangeAlerts,
     analyzeCost,
     isLoading,
     setStartDate,

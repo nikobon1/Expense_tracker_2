@@ -2599,6 +2599,104 @@ td select:focus {
   color: var(--dashboard-muted);
 }
 
+.price-alerts-card {
+  margin: 1.1rem 0;
+  padding: 1.25rem;
+  border: 1px solid var(--dashboard-surface-border);
+  border-radius: 0.75rem;
+  background: var(--dashboard-card-bg);
+  box-shadow: var(--dashboard-card-shadow);
+}
+
+.price-alerts-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.9rem;
+}
+
+.price-alerts-kicker {
+  display: block;
+  color: var(--dashboard-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.price-alerts-head h3 {
+  margin: 0.15rem 0 0;
+  color: var(--dashboard-title);
+  font-size: 1rem;
+}
+
+.price-alerts-head > span {
+  display: inline-flex;
+  min-width: 1.9rem;
+  min-height: 1.9rem;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--dashboard-rank-border);
+  border-radius: 999px;
+  background: var(--dashboard-rank-bg);
+  color: var(--dashboard-title);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.price-alerts-list {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.price-alert-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.9rem;
+  align-items: center;
+  padding: 0.8rem;
+  border: 1px solid var(--dashboard-rank-border);
+  border-radius: 0.65rem;
+  background: var(--dashboard-rank-bg);
+}
+
+.price-alert-item strong,
+.price-alert-values strong {
+  color: var(--dashboard-title);
+}
+
+.price-alert-item span,
+.price-alert-values span,
+.price-alert-values small {
+  display: block;
+  color: var(--dashboard-muted);
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.price-alert-values {
+  text-align: right;
+}
+
+.price-alert-item.up .price-alert-values strong {
+  color: #f0899c;
+}
+
+.price-alert-item.down .price-alert-values strong {
+  color: #78d8b1;
+}
+
+@media (max-width: 640px) {
+  .price-alert-item {
+    grid-template-columns: 1fr;
+  }
+
+  .price-alert-values {
+    text-align: left;
+  }
+}
+
 .dashboard-ai-card {
   margin: 1.1rem 0;
   padding: 1.25rem;

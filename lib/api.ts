@@ -1,4 +1,4 @@
-import type { Expense, ReceiptData, ReceiptDetails, ReceiptItem } from "@/features/expenses/types";
+import type { Expense, PriceChangeAlert, ReceiptData, ReceiptDetails, ReceiptItem } from "@/features/expenses/types";
 import { normalizeCalendarDate } from "@/lib/calendar-date";
 import { DEFAULT_CURRENCY, normalizeCurrencyCode } from "@/lib/currency";
 
@@ -6,6 +6,7 @@ interface ExpensesResponse {
   expenses: Expense[];
   prevMonthTotal: number;
   prevPeriodCategoryTotals: Array<{ store_name?: string | null; category: string; baseCategory?: string; total: number }>;
+  priceChangeAlerts: PriceChangeAlert[];
   activeCurrency: string;
   currencies: string[];
   analyzeCost: {

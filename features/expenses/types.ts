@@ -38,6 +38,21 @@ export interface Expense {
   canEdit?: boolean;
 }
 
+export interface PriceChangeAlert {
+  key: string;
+  itemName: string;
+  store: string;
+  category: string;
+  latestDate: string;
+  previousDate: string;
+  currentPrice: number;
+  previousPrice: number;
+  absoluteChange: number;
+  percentChange: number;
+  direction: "up" | "down";
+  purchaseCount: number;
+}
+
 export interface RecurringExpensePlan {
   id: number;
   title: string;

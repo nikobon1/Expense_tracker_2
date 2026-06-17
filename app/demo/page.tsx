@@ -153,6 +153,7 @@ export default function DemoPage() {
             selectedStore={selectedStore}
             stores={demoData.stores}
             expenses={demoData.expenses}
+            priceChangeAlerts={[]}
             categoryOptions={categoryOptions}
             customCategories={[]}
             prevMonthTotal={demoData.prevMonthTotal}

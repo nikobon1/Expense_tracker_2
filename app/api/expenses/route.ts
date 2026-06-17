@@ -37,6 +37,110 @@ function normalizeIsoDate(value: string | Date | null | undefined): string {
   return normalizeCalendarDate(value);
 }
 
+function normalizePriceAlertItemKey(value: string | null | undefined): string {
+  return String(value ?? "")
+    .toLocaleLowerCase("ru")
+    .replace(/[^\p{L}\p{N}\s]+/gu, " ")
+    .replace(/\b\d+(?:[.,]\d+)?\s*(?:g|gr|kg|ml|l|lt|un|uni|pcs)\b/giu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function buildPriceChangeAlerts(params: {
+  rows: Array<{
+    id: number | string;
+    receipt_id: number | string;
+    date: string | Date | null;
+    store: string | null;
+    item: string | null;
+    price: number | string | null;
+    category: string | null;
+  }>;
+  startDate: string;
+  endDate: string;
+  matchesStoreFilter: (rawStore: unknown) => boolean;
+}) {
+  const groups = new Map<string, Array<{
+    id: number;
+    receiptId: number;
+    date: string;
+    store: string;
+    item: string;
+    price: number;
+    category: string;
+  }>>();
+
+  for (const row of params.rows) {
+    if (!params.matchesStoreFilter(row.store)) continue;
+
+    const item = String(row.item ?? "").trim();
+    const store = normalizeStoreName(String(row.store ?? ""));
+    const keyItem = normalizePriceAlertItemKey(item);
+    const price = Number(row.price ?? 0);
+    const date = normalizeIsoDate(row.date);
+
+    if (!store || !item || keyItem.length < 3 || !date || !Number.isFinite(price) || price <= 0) {
+      continue;
+    }
+
+    const key = `${store}::${keyItem}`;
+    const entries = groups.get(key) ?? [];
+    entries.push({
+      id: Number(row.id),
+      receiptId: Number(row.receipt_id),
+      date,
+      store,
+      item,
+      price,
+      category: normalizeReceiptCategory(store, String(row.category ?? "")),
+    });
+    groups.set(key, entries);
+  }
+
+  return [...groups.entries()]
+    .flatMap(([key, entries]) => {
+      const sorted = [...entries].sort(
+        (a, b) => a.date.localeCompare(b.date) || a.receiptId - b.receiptId || a.id - b.id
+      );
+      if (sorted.length < 3) return [];
+
+      const latestIndex = [...sorted]
+        .map((entry, index) => ({ entry, index }))
+        .reverse()
+        .find(({ entry }) => entry.date >= params.startDate && entry.date <= params.endDate)?.index;
+
+      if (latestIndex == null || latestIndex <= 0) return [];
+
+      const latest = sorted[latestIndex];
+      const previous = sorted[latestIndex - 1];
+      if (!previous || previous.price <= 0) return [];
+
+      const absoluteChange = latest.price - previous.price;
+      const percentChange = (absoluteChange / previous.price) * 100;
+
+      if (Math.abs(absoluteChange) < 0.2 || Math.abs(percentChange) < 10) {
+        return [];
+      }
+
+      return [{
+        key,
+        itemName: latest.item,
+        store: latest.store,
+        category: latest.category,
+        latestDate: latest.date,
+        previousDate: previous.date,
+        currentPrice: Number(latest.price.toFixed(2)),
+        previousPrice: Number(previous.price.toFixed(2)),
+        absoluteChange: Number(absoluteChange.toFixed(2)),
+        percentChange: Number(percentChange.toFixed(1)),
+        direction: absoluteChange > 0 ? "up" as const : "down" as const,
+        purchaseCount: sorted.length,
+      }];
+    })
+    .sort((a, b) => Math.abs(b.percentChange) - Math.abs(a.percentChange))
+    .slice(0, 8);
+}
+
 export async function GET(request: NextRequest) {
   try {
     const currentUser = await requireCurrentUser();
@@ -55,6 +159,7 @@ export async function GET(request: NextRequest) {
     const normalizedStoreFilter = hasStoreFilter ? normalizeStoreName(store) : "";
     const prevPeriodStart = shiftDateByMonths(startDate, -1);
     const prevPeriodEnd = shiftDateByMonths(endDate, -1);
+    const priceHistoryStart = shiftDateByMonths(endDate, -6);
     const rangeFloor = prevPeriodStart < startDate ? prevPeriodStart : startDate;
     const rangeCeiling = prevPeriodEnd > endDate ? prevPeriodEnd : endDate;
 
@@ -109,6 +214,31 @@ export async function GET(request: NextRequest) {
       item: string | null;
       category: string | null;
       price: number | string | null;
+    }>;
+
+    const priceHistoryRows = (await sql`
+      SELECT
+        i.id,
+        r.id as receipt_id,
+        r.purchase_date as date,
+        r.store_name as store,
+        i.name as item,
+        i.price,
+        i.category
+      FROM receipts r
+      JOIN items i ON r.id = i.receipt_id
+      WHERE r.purchase_date BETWEEN ${priceHistoryStart} AND ${endDate}
+        AND r.user_id = ${currentUser.id}
+        AND COALESCE(r.currency, ${DEFAULT_CURRENCY}) = ${activeCurrency}
+      ORDER BY r.purchase_date ASC, r.id ASC, i.id ASC
+    `) as Array<{
+      id: number | string;
+      receipt_id: number | string;
+      date: string | Date | null;
+      store: string | null;
+      item: string | null;
+      price: number | string | null;
+      category: string | null;
     }>;
 
     const stores = (await sql`
@@ -210,6 +340,12 @@ export async function GET(request: NextRequest) {
     const expenses = [...receiptExpenses, ...recurringExpenses]
       .filter((entry) => matchesStoreFilter(entry.store))
       .sort((a, b) => b.date.localeCompare(a.date) || b.receiptId - a.receiptId || b.id - a.id);
+    const priceChangeAlerts = buildPriceChangeAlerts({
+      rows: priceHistoryRows,
+      startDate,
+      endDate,
+      matchesStoreFilter,
+    });
 
     const prevMonthTotal =
       prevMonthRows.reduce((sum, row) => {
@@ -266,6 +402,7 @@ export async function GET(request: NextRequest) {
       ).sort((a, b) => a.localeCompare(b)),
       prevMonthTotal: Number(prevMonthTotal || 0),
       prevPeriodCategoryTotals,
+      priceChangeAlerts,
       analyzeCost: {
         totalUsd: Number(analyzeCostTotal.toFixed(8)),
         count: filteredAnalyzeCostRows.length,
@@ -297,6 +434,7 @@ export async function GET(request: NextRequest) {
         currencies: [DEFAULT_CURRENCY],
         prevMonthTotal: 0,
         prevPeriodCategoryTotals: [],
+        priceChangeAlerts: [],
         analyzeCost: {
           totalUsd: 0,
           count: 0,

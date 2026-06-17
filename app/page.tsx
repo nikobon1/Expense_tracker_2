@@ -38,6 +38,7 @@ export default function Home() {
     activeCurrency,
     stores,
     expenses,
+    priceChangeAlerts,
     prevMonthTotal,
     prevPeriodCategoryTotals,
     analyzeCost,
@@ -317,6 +318,7 @@ export default function Home() {
             selectedStore={selectedStore}
             stores={stores}
             expenses={expenses}
+            priceChangeAlerts={priceChangeAlerts}
             categoryOptions={categoryOptions.categoryOptions}
             customCategories={categoryOptions.customCategories}
             prevMonthTotal={prevMonthTotal}

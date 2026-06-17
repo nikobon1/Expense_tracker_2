@@ -24,7 +24,7 @@ import type { AnalyzeUsage } from "@/lib/account-api";
 import { formatCurrencyAmount } from "@/lib/currency";
 import { buildCategoryData, buildDailyData, buildSubcategoryData } from "@/features/expenses/utils";
 import type { DailyPoint, DailyReceiptSegment } from "@/features/expenses/utils";
-import type { Expense, ReceiptData, ReceiptItem } from "@/features/expenses/types";
+import type { Expense, PriceChangeAlert, ReceiptData, ReceiptItem } from "@/features/expenses/types";
 
 interface DashboardTabProps {
   startDate: string;
@@ -34,6 +34,7 @@ interface DashboardTabProps {
   stores: string[];
   currencies: string[];
   expenses: Expense[];
+  priceChangeAlerts: PriceChangeAlert[];
   categoryOptions: string[];
   customCategories: string[];
   prevMonthTotal: number;
@@ -433,6 +434,7 @@ export default function DashboardTab({
   stores,
   currencies,
   expenses,
+  priceChangeAlerts,
   categoryOptions,
   customCategories,
   prevMonthTotal,
@@ -1060,6 +1062,44 @@ export default function DashboardTab({
     });
   const formatCurrencyChange = (value: number) =>
     `${value >= 0 ? "+" : "-"}${formatCurrency(Math.abs(value))}`;
+  const renderPriceChangeAlerts = (surface: "mobile" | "desktop") => {
+    if (priceChangeAlerts.length === 0) return null;
+
+    return (
+      <section className={`price-alerts-card price-alerts-card-${surface}`} aria-label="Уведомления об изменении цен">
+        <div className="price-alerts-head">
+          <div>
+            <span className="price-alerts-kicker">Изменения цен</span>
+            <h3>Регулярные покупки</h3>
+          </div>
+          <span>{priceChangeAlerts.length}</span>
+        </div>
+
+        <div className="price-alerts-list">
+          {priceChangeAlerts.map((alert) => {
+            const isUp = alert.direction === "up";
+            return (
+              <article key={alert.key} className={`price-alert-item ${isUp ? "up" : "down"}`}>
+                <div>
+                  <strong>{alert.itemName}</strong>
+                  <span>{alert.store} · {alert.category} · {alert.purchaseCount} покупки</span>
+                </div>
+                <div className="price-alert-values">
+                  <strong>
+                    {isUp ? "↑" : "↓"} {formatCurrency(Math.abs(alert.absoluteChange))}
+                  </strong>
+                  <span>
+                    {formatCurrency(alert.previousPrice)} → {formatCurrency(alert.currentPrice)}
+                  </span>
+                  <small>{alert.percentChange > 0 ? "+" : ""}{alert.percentChange.toFixed(1)}%</small>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </section>
+    );
+  };
   const strongestDayDateLabel = strongestDay ? formatDashboardDate(strongestDay.date) : "Нет данных";
   const strongestDayAmountLabel = strongestDay ? formatCurrency(strongestDay.amount) : "Ждем данные";
   const deltaLabel =
@@ -2118,6 +2158,8 @@ export default function DashboardTab({
           </div>
         </section>
 
+        {renderPriceChangeAlerts("mobile")}
+
         {renderDashboardAssistant("mobile")}
 
         {expenses.length > 0 ? (
@@ -2901,6 +2943,8 @@ export default function DashboardTab({
           </div>
         </div>
       </div>
+
+      {renderPriceChangeAlerts("desktop")}
 
       {renderDashboardAssistant("desktop")}
 
