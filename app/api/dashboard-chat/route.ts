@@ -9,7 +9,7 @@ const OPENAI_DASHBOARD_CHAT_MODEL = "gpt-5.4-mini";
 const GEMINI_DASHBOARD_CHAT_MODEL = "gemini-2.5-flash";
 const MAX_QUESTION_LENGTH = 800;
 const MAX_SNAPSHOT_CHARS = 24_000;
-const MAX_DASHBOARD_CHAT_OUTPUT_TOKENS = 1_400;
+const MAX_DASHBOARD_CHAT_OUTPUT_TOKENS = 5_600;
 
 type DashboardChatMessage = {
   role: "user" | "assistant";

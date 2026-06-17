@@ -14,6 +14,16 @@ const BREAD_CATEGORY = "\u0425\u043b\u0435\u0431";
 const EGGS_CATEGORY = "\u042f\u0439\u0446\u0430";
 const BAKERY_CATEGORY = "\u0412\u044b\u043f\u0435\u0447\u043a\u0430";
 const PREPARED_FOODS_CATEGORY = "\u041f\u043e\u043b\u0443\u0444\u0430\u0431\u0440\u0438\u043a\u0430\u0442\u044b";
+const SALADS_CATEGORY = "\u0421\u0430\u043b\u0430\u0442\u044b";
+const SPICES_CATEGORY = "\u0421\u043f\u0435\u0446\u0438\u0438";
+const SAUCES_CATEGORY = "\u0421\u043e\u0443\u0441\u044b";
+const SWEETS_CATEGORY = "\u0421\u043b\u0430\u0434\u043e\u0441\u0442\u0438";
+const CEREALS_CATEGORY = "\u041a\u0440\u0443\u043f\u044b";
+const PASTA_CATEGORY = "\u041c\u0430\u043a\u0430\u0440\u043e\u043d\u044b";
+const ICE_CREAM_CATEGORY = "\u041c\u043e\u0440\u043e\u0436\u0435\u043d\u043e\u0435";
+const NUTS_CATEGORY = "\u041e\u0440\u0435\u0445\u0438";
+const OILS_CATEGORY = "\u041c\u0430\u0441\u043b\u0430";
+const GROCERY_CATEGORY = "\u0411\u0430\u043a\u0430\u043b\u0435\u044f";
 
 const SPECIFIC_FOOD_CATEGORIES = new Set<string>([
   COFFEE_CATEGORY,
@@ -27,6 +37,16 @@ const SPECIFIC_FOOD_CATEGORIES = new Set<string>([
   EGGS_CATEGORY,
   BAKERY_CATEGORY,
   PREPARED_FOODS_CATEGORY,
+  SALADS_CATEGORY,
+  SPICES_CATEGORY,
+  SAUCES_CATEGORY,
+  SWEETS_CATEGORY,
+  CEREALS_CATEGORY,
+  PASTA_CATEGORY,
+  ICE_CREAM_CATEGORY,
+  NUTS_CATEGORY,
+  OILS_CATEGORY,
+  GROCERY_CATEGORY,
 ]);
 
 const FOOD_SUBCATEGORY_RULES: Array<{ label: string; keywords: string[] }> = [
@@ -74,6 +94,17 @@ const FOOD_SUBCATEGORY_RULES: Array<{ label: string; keywords: string[] }> = [
       "laranja",
       "uva",
       "morango",
+    ],
+  },
+  {
+    label: SALADS_CATEGORY,
+    keywords: [
+      "\u0441\u0430\u043b\u0430\u0442",
+      "\u0432\u0438\u043d\u0435\u0433\u0440\u0435\u0442",
+      "\u0446\u0435\u0437\u0430\u0440\u044c",
+      "salad",
+      "salada",
+      "saladas",
     ],
   },
   {
@@ -161,7 +192,155 @@ const FOOD_SUBCATEGORY_RULES: Array<{ label: string; keywords: string[] }> = [
     ],
   },
   {
-    label: FOOD_CATEGORY,
+    label: ICE_CREAM_CATEGORY,
+    keywords: ["\u043c\u043e\u0440\u043e\u0436\u0435\u043d", "ice cream", "gelato", "gelad", "sorvete"],
+  },
+  {
+    label: PASTA_CATEGORY,
+    keywords: [
+      "\u043c\u0430\u043a\u0430\u0440\u043e\u043d",
+      "\u0432\u0435\u0440\u043c\u0438\u0448\u0435\u043b",
+      "\u043b\u0430\u043f\u0448",
+      "\u043f\u0430\u0441\u0442",
+      "\u0441\u043f\u0430\u0433\u0435\u0442",
+      "massa",
+      "macarr",
+      "pasta",
+      "noodle",
+      "vermicelli",
+      "spaghetti",
+    ],
+  },
+  {
+    label: CEREALS_CATEGORY,
+    keywords: [
+      "\u043a\u0430\u0448",
+      "\u043a\u0440\u0443\u043f",
+      "\u0440\u0438\u0441",
+      "\u0433\u0440\u0435\u0447",
+      "\u043e\u0432\u0441\u044f\u043d",
+      "\u0445\u043b\u043e\u043f\u044c",
+      "\u043c\u044e\u0441\u043b",
+      "cereal",
+      "oat",
+      "oats",
+      "granola",
+      "muesli",
+      "rice",
+      "buckwheat",
+      "arroz",
+    ],
+  },
+  {
+    label: SPICES_CATEGORY,
+    keywords: [
+      "\u0441\u043f\u0435\u0446",
+      "\u043f\u0440\u0438\u043f\u0440\u0430\u0432",
+      "\u043f\u0435\u0440\u0435\u0446",
+      "\u043f\u0430\u043f\u0440\u0438\u043a",
+      "\u043a\u043e\u0440\u0438\u0446",
+      "\u043a\u0443\u0440\u043a\u0443\u043c",
+      "\u043a\u0430\u0440\u0440\u0438",
+      "\u043e\u0440\u0435\u0433\u0430\u043d",
+      "\u0431\u0430\u0437\u0438\u043b\u0438\u043a",
+      "\u0441\u043e\u043b\u044c",
+      "spice",
+      "spices",
+      "tempero",
+      "pimenta",
+      "paprika",
+      "cinnamon",
+      "curry",
+      "oregano",
+      "basil",
+      "sal",
+    ],
+  },
+  {
+    label: SAUCES_CATEGORY,
+    keywords: [
+      "\u0441\u043e\u0443\u0441",
+      "\u043a\u0435\u0442\u0447\u0443\u043f",
+      "\u043c\u0430\u0439\u043e\u043d\u0435\u0437",
+      "\u0433\u043e\u0440\u0447\u0438\u0446",
+      "\u0443\u043a\u0441\u0443\u0441",
+      "\u043f\u0430\u0441\u0442\u0430 \u0442\u043e\u043c\u0430\u0442",
+      "sauce",
+      "ketchup",
+      "mayonnaise",
+      "mustard",
+      "vinegar",
+      "molho",
+    ],
+  },
+  {
+    label: SWEETS_CATEGORY,
+    keywords: [
+      "\u043f\u0435\u0447\u0435\u043d",
+      "\u0441\u043b\u0430\u0434\u043e\u0441",
+      "\u043a\u043e\u043d\u0444\u0435\u0442",
+      "\u0448\u043e\u043a\u043e\u043b\u0430\u0434",
+      "\u0432\u0430\u0444\u0435\u043b",
+      "\u043f\u0438\u0440\u043e\u0436",
+      "\u0442\u043e\u0440\u0442",
+      "\u0434\u0436\u0435\u043c",
+      "\u0432\u0430\u0440\u0435\u043d",
+      "\u043c\u0435\u0434",
+      "cookie",
+      "cookies",
+      "biscuit",
+      "biscoito",
+      "bolacha",
+      "chocolate",
+      "candy",
+      "jam",
+      "honey",
+      "doce",
+      "doces",
+    ],
+  },
+  {
+    label: NUTS_CATEGORY,
+    keywords: [
+      "\u043e\u0440\u0435\u0445",
+      "\u0441\u0435\u043c\u0435\u0447",
+      "\u043f\u043e\u043f\u043a\u043e\u0440\u043d",
+      "nuts",
+      "seeds",
+      "popcorn",
+      "amendoim",
+      "castanha",
+    ],
+  },
+  {
+    label: OILS_CATEGORY,
+    keywords: [
+      "\u043c\u0430\u0441\u043b\u043e",
+      "\u043e\u043b\u0438\u0432\u043a",
+      "olive oil",
+      "oil",
+      "azeite",
+    ],
+  },
+  {
+    label: PREPARED_FOODS_CATEGORY,
+    keywords: [
+      "\u043f\u0438\u0446\u0446",
+      "\u043f\u0435\u043b\u044c\u043c\u0435\u043d",
+      "\u0432\u0430\u0440\u0435\u043d\u0438\u043a",
+      "\u043d\u0430\u0433\u0433\u0435\u0442",
+      "\u043a\u043e\u0442\u043b\u0435\u0442",
+      "\u0445\u0438\u043d\u043a\u0430\u043b",
+      "\u0433\u043e\u0442\u043e\u0432",
+      "pizza",
+      "dumpling",
+      "pelmeni",
+      "nugget",
+      "ready meal",
+    ],
+  },
+  {
+    label: GROCERY_CATEGORY,
     keywords: [
       "\u043c\u043e\u0440\u043e\u0436\u0435\u043d",
       "\u043c\u0430\u043a\u0430\u0440\u043e\u043d",
@@ -376,7 +555,11 @@ export function normalizeFoodSubcategory(
   }
 
   if (isFoodStore(storeName)) {
-    return buildFoodFallbackLabel(itemName) ?? FOOD_CATEGORY;
+    return buildFoodFallbackLabel(itemName) ?? GROCERY_CATEGORY;
+  }
+
+  if (normalizedCategory === FOOD_CATEGORY || normalizedCategory === DEFAULT_CATEGORY) {
+    return buildFoodFallbackLabel(itemName) ?? GROCERY_CATEGORY;
   }
 
   return normalizedCategory;
