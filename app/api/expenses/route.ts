@@ -164,8 +164,13 @@ export async function GET(request: NextRequest) {
       currency: activeCurrency,
     });
     const recurringCurrencies = await getRecurringExpenseCurrenciesInDb(currentUser.id);
-    const recurringExpenses = generateRecurringExpensesForRange(recurringPlans, startDate, endDate);
-    const prevRecurringExpenses = generateRecurringExpensesForRange(recurringPlans, prevPeriodStart, prevPeriodEnd);
+    const normalizeRecurringExpenseCategory = <T extends { store?: string; category: string; baseCategory?: string }>(entry: T): T => ({
+      ...entry,
+      category: normalizeReceiptCategory(String(entry.store ?? ""), String(entry.category ?? "")),
+      baseCategory: entry.baseCategory ?? entry.category,
+    });
+    const recurringExpenses = generateRecurringExpensesForRange(recurringPlans, startDate, endDate).map(normalizeRecurringExpenseCategory);
+    const prevRecurringExpenses = generateRecurringExpensesForRange(recurringPlans, prevPeriodStart, prevPeriodEnd).map(normalizeRecurringExpenseCategory);
 
     const matchesStoreFilter = (rawStore: unknown) => {
       if (!hasStoreFilter) return true;
@@ -230,7 +235,7 @@ export async function GET(request: NextRequest) {
           .filter((row) => matchesStoreFilter(row.store))
           .map((row) => ({
             store_name: row.store,
-            category: row.category,
+            category: normalizeReceiptCategory(String(row.store ?? ""), String(row.category ?? "")),
             baseCategory: row.category,
             total: Number(row.price ?? 0),
           }))
